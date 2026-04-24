@@ -1,0 +1,147 @@
+# =========================
+# SISTEMA RED - MONOREPO
+# =========================
+
+
+# ---------------------------------
+# Secrets / Environment (NO versionar)
+# ---------------------------------
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+*.pem
+*.key
+secrets/
+*.crt
+
+
+# ---------------------------------
+# Python / Backend
+# ---------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+*.egg-info/
+.eggs/
+
+build/
+dist/
+
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+
+.venv/
+venv/
+env/
+
+
+# ---------------------------------
+# Node / Frontend
+# ---------------------------------
+node_modules/
+
+dist/
+dist-ssr/
+build/
+
+vite.svg
+*.tsbuildinfo
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# ---------------------------------
+# Tests / Reports
+# ---------------------------------
+coverage/
+test-results/
+playwright-report/
+junit.xml
+
+
+# ---------------------------------
+# Docker / Runtime data
+# (No subir volúmenes ni data local)
+# ---------------------------------
+pgdata/
+postgres-data/
+docker-data/
+
+*.pid
+
+# Compose overrides locales
+docker-compose.override.yml
+
+
+# ---------------------------------
+# Local uploads / generated data
+# (si el sistema maneja adjuntos)
+# ---------------------------------
+uploads/
+storage/
+tmp/
+temp/
+
+
+# ---------------------------------
+# Editors / OS
+# ---------------------------------
+.DS_Store
+Thumbs.db
+
+.idea/
+
+.vscode/*
+!.vscode/extensions.json
+
+*.swp
+*.swo
+
+
+# ---------------------------------
+# Logs
+# ---------------------------------
+logs/
+*.log
+
+
+# ---------------------------------
+# Optional packaging artifacts
+# (para futuro ./red bundle)
+# ---------------------------------
+release/
+artifacts/
+*.tar.gz
+*.zip
+
+
+# ---------------------------------
+# NO ignorar scripts y SQL
+# (importante para ./red up)
+# ---------------------------------
+!infra/sql/**
+!scripts/**
+!red
+
+
+*.sqlite3
+*.db
+coverage/
+htmlcov/
+CLAUDE.md

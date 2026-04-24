@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_local
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: mi_base
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_local
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: api_local
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/mi_base
+      DATABASE_URL_TEST: postgresql://admin:admin123@postgres:5432/mi_base_test
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - ./sql:/app/infra/sql:ro
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+psycopg[binary]
+python-dotenv
+pydantic[email]
+pytest==8.3.2
+httpx==0.27.2
+

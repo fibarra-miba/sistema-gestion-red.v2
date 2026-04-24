@@ -1,0 +1,165 @@
+// Espejo exacto del JSON que expone el backend.
+// Fuente: backend/app/schemas/instalacion.py y backend/app/routes/instalaciones.py
+
+// ============================================================
+// PROGRAMACION
+// ============================================================
+
+export interface ProgramacionInstalacionCreate {
+  contrato_id: number
+  domicilio_id: number
+  fecha_programacion_pinstalacion: string
+  tecnico_pinstalacion?: string | null
+  notas_pinstalacion?: string | null
+}
+
+export interface ProgramacionInstalacionOut {
+  programacion_id: number
+  domicilio_id: number
+  contrato_id: number
+  fecha_programacion_pinstalacion: string
+  estado_programacion_id: number
+  tecnico_pinstalacion: string | null
+  notas_pinstalacion: string | null
+  fecha_creacion_pinstalacion: string
+  // Campos opcionales de contexto. Si el backend los expone, los usamos;
+  // si no, la UI cae a los ids. Ver programacionDisplayName / utils.
+  nombre_contrato?: string | null
+  cliente_nombre?: string | null
+  cliente_apellido?: string | null
+  plan_nombre?: string | null
+  domicilio_resumen?: string | null
+}
+
+export interface ProgramacionInstalacionListResponse {
+  items: ProgramacionInstalacionOut[]
+}
+
+export interface ListProgramacionesParams {
+  contrato_id?: number
+  domicilio_id?: number
+  estado_programacion_id?: number
+  tecnico_pinstalacion?: string
+}
+
+// ============================================================
+// REPROGRAMACION
+// ============================================================
+
+export interface ReprogramarInstalacionIn {
+  fecha_programacion_pinstalacion: string
+  tecnico_pinstalacion?: string | null
+  notas_pinstalacion?: string | null
+  motivo_reprogramacion?: string | null
+}
+
+export interface ReprogramacionInstalacionOut {
+  reprogramacion_id: number
+  programacion_id: number
+  fecha_reprogramada_anterior: string | null
+  fecha_reprogramada_nueva: string
+  tecnico_reprogramacion: string | null
+  motivo_reprogramacion: string | null
+  notas_reprogramacion: string | null
+  fecha_creacion_reprogramacion: string
+}
+
+export interface ReprogramacionInstalacionListResponse {
+  items: ReprogramacionInstalacionOut[]
+}
+
+// ============================================================
+// INSTALACION
+// ============================================================
+
+export interface InstalacionCreate {
+  programacion_id: number
+  contrato_id: number
+  domicilio_id: number
+  codigo_instalacion?: string | null
+  observacion_instalacion?: string | null
+  fecha_instalacion?: string | null
+}
+
+export interface InstalacionOut {
+  instalacion_id: number
+  programacion_id: number
+  contrato_id: number
+  domicilio_id: number
+  codigo_instalacion: string | null
+  fecha_instalacion: string
+  estado_instalacion_id: number
+  observacion_instalacion: string | null
+  fecha_creacion_instalacion: string
+  // Campos opcionales de contexto. Si el backend los expone, los usamos;
+  // si no, la UI cae a los ids. Ver instalacionDisplayName / utils.
+  nombre_contrato?: string | null
+  cliente_nombre?: string | null
+  cliente_apellido?: string | null
+  plan_nombre?: string | null
+  domicilio_resumen?: string | null
+}
+
+export interface InstalacionListResponse {
+  items: InstalacionOut[]
+}
+
+export interface ListInstalacionesParams {
+  contrato_id?: number
+  domicilio_id?: number
+  estado_instalacion_id?: number
+  programacion_id?: number
+}
+
+// Respuesta común de transiciones (completar/cancelar/fallar).
+export interface InstalacionAccionOut {
+  instalacion_id: number
+  estado_instalacion_id: number
+  contrato_id: number
+  estado_contrato_id: number | null
+}
+
+// Reintentar NO es una transición: crea una NUEVA programación y
+// devuelve esa programación — la instalación original queda en su
+// estado terminal (CANCELADA/FALLIDA).
+export interface ReintentarInstalacionIn {
+  fecha_programacion_pinstalacion: string
+  tecnico_pinstalacion?: string | null
+  notas_pinstalacion?: string | null
+}
+
+// Ejecutar una programación = crear la instalación asociada.
+// El backend resuelve contrato/domicilio/programación desde la
+// programación — acá sólo van datos operativos.
+export interface EjecutarProgramacionIn {
+  codigo_instalacion?: string | null
+  observacion_instalacion?: string | null
+  fecha_instalacion?: string | null
+}
+
+// ============================================================
+// DETALLE INSTALACION
+// ============================================================
+
+export interface DetalleInstalacionCreate {
+  producto_id: number
+  descripcion_dinstalacion?: string | null
+  cantidad_dinstalacion: number
+  unidad_dinstalacion: string
+  observacion_dinstalacion?: string | null
+}
+
+export interface DetalleInstalacionOut {
+  det_instalacion_id: number
+  instalacion_id: number
+  producto_id: number
+  descripcion_dinstalacion: string | null
+  cantidad_dinstalacion: number
+  unidad_dinstalacion: string
+  observacion_dinstalacion: string | null
+  fecha_creacion_dinstalacion: string
+}
+
+export interface DetalleInstalacionListResponse {
+  items: DetalleInstalacionOut[]
+}

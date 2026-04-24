@@ -1,0 +1,126 @@
+# app/routes/clientes.py
+
+from fastapi import APIRouter, HTTPException, Query, Path, Depends
+from typing import List, Optional
+import logging
+import psycopg
+from psycopg.errors import (
+    UniqueViolation,
+    ForeignKeyViolation,
+    NotNullViolation,
+    CheckViolation,
+)
+from app.db import get_db
+from app.schemas.cliente import ClienteOut, ClienteCreate, ClienteUpdate
+from app.services.clientes_service import ClienteService
+from app.schemas.cliente_onboarding import ClienteOnboardingCreate
+from app.dependencies.auth import require_roles
+
+logger = logging.getLogger("uvicorn.error")
+## router = APIRouter(prefix="/clientes", tags=["clientes"])
+router = APIRouter(
+    prefix="/clientes",
+    tags=["clientes"],
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
+)
+
+
+@router.get("", response_model=List[ClienteOut])
+def get_clientes(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    search: Optional[str] = Query(default=None),
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.listar(conn, limit, offset, search)
+    except Exception:
+        logger.exception("Error fetching clientes")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/{cliente_id}", response_model=ClienteOut)
+def get_cliente(
+    cliente_id: int = Path(..., ge=1),
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.obtener(conn, cliente_id)
+    except ValueError as e:
+        if str(e) == "CLIENTE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Cliente not found")
+        raise
+    except Exception:
+        logger.exception("Error fetching cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("", response_model=ClienteOut, status_code=201)
+def create_cliente(
+    cliente: ClienteCreate,
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.crear_cliente(conn, cliente.model_dump())
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="Cliente with this DNI already exists")
+    except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Datos inválidos: {e.diag.message_primary}",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        logger.exception("Error creating cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/onboarding", response_model=ClienteOut, status_code=201)
+def onboarding_cliente(
+    data: ClienteOnboardingCreate,
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.onboarding(
+            conn,
+            data.model_dump()
+        )
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="Cliente duplicado")
+    except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Datos inválidos: {e.diag.message_primary}",
+        )
+    except Exception:
+        logger.exception("Error onboarding cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/{cliente_id}", response_model=ClienteOut)
+def update_cliente(
+    cliente_id: int = Path(..., ge=1),
+    cliente: ClienteUpdate = ...,
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.actualizar_cliente(
+            conn,
+            cliente_id,
+            cliente.model_dump()
+        )
+    except ValueError as e:
+        if str(e) == "CLIENTE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Cliente not found")
+        raise
+    except UniqueViolation:
+        raise HTTPException(status_code=409, detail="Cliente duplicado (DNI)")
+    except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Datos inválidos: {e.diag.message_primary}",
+        )
+    except Exception:
+        logger.exception("Error updating cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
