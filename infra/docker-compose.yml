@@ -43,6 +43,19 @@ services:
       - ./sql:/app/infra/sql:ro
     depends_on:
       - postgres
+      
+  frontend:
+    image: node:20
+    container_name: frontend_local
+    restart: always
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend:/app
+    depends_on:
+      - api
 
 volumes:
   pgdata:
