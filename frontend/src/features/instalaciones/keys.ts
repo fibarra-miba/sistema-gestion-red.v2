@@ -19,6 +19,10 @@ export const instalacionesKeys = {
   detalles: (instalacionId: number) =>
     [...instalacionesKeys.all, 'detalles', instalacionId] as const,
 
+  // Garantías por instalación
+  garantias: (instalacionId: number) =>
+    [...instalacionesKeys.all, 'garantias', instalacionId] as const,
+
   // Programaciones
   programacionesAll: () => [...instalacionesKeys.all, 'programaciones'] as const,
   programacionesList: (params: ListProgramacionesParams) =>

@@ -9,6 +9,7 @@ class CatalogoItemOut(BaseModel):
     # Campos opcionales específicos que algunos endpoints necesitan
     descripcion_tpromo: Optional[str] = None
     descripcion_epago: Optional[str] = None
+    codigo: Optional[str] = None
 
 
 class CatalogoTipoMovDetCuentaOut(BaseModel):

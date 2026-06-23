@@ -3,6 +3,7 @@ import AddIcon from '@mui/icons-material/Add'
 import { Controller, useForm } from 'react-hook-form'
 import { isApiError } from '@/types/api'
 import { useSnackbar } from '@/components/ui/SnackbarProvider'
+import { ProductoSelect } from '@/features/productos'
 import { useCreateDetalleInstalacion } from '../hooks/useCreateDetalleInstalacion'
 import type { DetalleInstalacionCreate } from '../types'
 
@@ -82,15 +83,13 @@ export default function AddDetalleForm({ instalacionId }: Props) {
               validate: (v) =>
                 Number.isFinite(Number(v)) && Number(v) > 0
                   ? true
-                  : 'ID inválido.',
+                  : 'Elegí un producto.',
             }}
             render={({ field }) => (
-              <TextField
-                {...field}
+              <ProductoSelect
                 size="small"
-                label="Producto ID"
-                type="number"
-                slotProps={{ htmlInput: { min: 1 } }}
+                value={field.value ? Number(field.value) : null}
+                onChange={(id) => field.onChange(id != null ? String(id) : '')}
                 error={!!errors.producto_id}
                 helperText={errors.producto_id?.message}
                 required

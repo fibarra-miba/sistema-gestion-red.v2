@@ -25,6 +25,7 @@ class ContractRepository:
         precio_base_contrato,
         fecha_inicio: datetime,
         estado_contrato_id: int,
+        promocion_id: Optional[int] = None,
     ) -> dict:
         query = """
             INSERT INTO contratos (
@@ -33,9 +34,11 @@ class ContractRepository:
                 plan_id,
                 precio_base_contrato,
                 fecha_inicio_contrato,
-                estado_contrato_id
+                estado_contrato_id,
+                aplica_promocion,
+                promocion_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING *
         """
         with self.conn.cursor(row_factory=dict_row) as cur:
@@ -48,6 +51,8 @@ class ContractRepository:
                     precio_base_contrato,
                     fecha_inicio,
                     estado_contrato_id,
+                    promocion_id is not None,
+                    promocion_id,
                 ),
             )
             return cur.fetchone()
@@ -280,6 +285,22 @@ class ContractRepository:
         """
         with self.conn.cursor() as cur:
             cur.execute(query, (estado_contrato_id, fecha_fin, contrato_id))
+
+    def update_promocion(
+        self,
+        contrato_id: int,
+        promocion_id: Optional[int],
+    ) -> None:
+        # aplica_promocion se deriva de promocion_id para respetar
+        # chk_contrato_promocion_consistente.
+        query = """
+            UPDATE contratos
+               SET promocion_id = %s,
+                   aplica_promocion = %s
+             WHERE contrato_id = %s
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(query, (promocion_id, promocion_id is not None, contrato_id))
 
     def update_plan(self, contrato_id: int, plan_id: int) -> None:
         query = """

@@ -21,3 +21,9 @@ class CatalogosService:
 
     def list_estados_pago(self):
         return self.repo.list_estados_pago()
+
+    def list_tipos_producto(self):
+        return self.repo.list_tipos_producto()
+
+    def list_estados_garantia(self):
+        return self.repo.list_estados_garantia()

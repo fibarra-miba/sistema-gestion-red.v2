@@ -431,3 +431,127 @@ async def test_get_contract_detail_commercial(admin_client, db_conn):
     assert data["plan_nombre"] == "Plan Básico"
     assert data["estado_contrato_descripcion"] == "BORRADOR"
     assert float(data["precio_base_contrato"]) == 10000.0
+
+
+# ==========================================================
+# PROMOCIONES (wiring contrato↔promo)
+# ==========================================================
+
+async def _crear_promo_porcentaje(admin_client) -> int:
+    response = await admin_client.post(
+        "/promociones",
+        json={
+            "nombre_promo": "Promo contrato",
+            "tipo_promo_id": 1,
+            "porcentaje_descuento": 15,
+            "fecha_vigencia_desde_promo": "2026-01-01T00:00:00+00:00",
+            "fecha_vigencia_hasta_promo": "2026-12-31T00:00:00+00:00",
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["promocion_id"]
+
+
+@pytest.mark.anyio
+async def test_create_contract_con_promocion(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    promo_id = await _crear_promo_porcentaje(admin_client)
+
+    response = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "promocion_id": promo_id,
+        },
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["aplica_promocion"] is True
+    assert data["promocion_id"] == promo_id
+
+
+@pytest.mark.anyio
+async def test_create_contract_promocion_inexistente_400(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    response = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "promocion_id": 99999,
+        },
+    )
+    assert response.status_code == 400, response.text
+
+
+@pytest.mark.anyio
+async def test_asignar_y_quitar_promocion(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    promo_id = await _crear_promo_porcentaje(admin_client)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={"cliente_id": 1, "domicilio_id": domicilio_id, "plan_id": 1},
+    )
+    assert creado.status_code == 200, creado.text
+    contrato_id = creado.json()["contrato_id"]
+    assert creado.json()["aplica_promocion"] is False
+
+    asignar = await admin_client.post(
+        f"/contratos/{contrato_id}/asignar-promocion",
+        json={"promocion_id": promo_id},
+    )
+    assert asignar.status_code == 200, asignar.text
+    assert asignar.json()["aplica_promocion"] is True
+    assert asignar.json()["promocion_id"] == promo_id
+
+    quitar = await admin_client.post(f"/contratos/{contrato_id}/quitar-promocion")
+    assert quitar.status_code == 200, quitar.text
+    assert quitar.json()["aplica_promocion"] is False
+    assert quitar.json()["promocion_id"] is None
+
+
+@pytest.mark.anyio
+async def test_asignar_promocion_inexistente_400(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    creado = await admin_client.post(
+        "/contratos",
+        json={"cliente_id": 1, "domicilio_id": domicilio_id, "plan_id": 1},
+    )
+    contrato_id = creado.json()["contrato_id"]
+
+    response = await admin_client.post(
+        f"/contratos/{contrato_id}/asignar-promocion",
+        json={"promocion_id": 99999},
+    )
+    assert response.status_code == 400, response.text
+
+
+@pytest.mark.anyio
+async def test_asignar_promocion_a_contrato_cancelado_400(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    promo_id = await _crear_promo_porcentaje(admin_client)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={"cliente_id": 1, "domicilio_id": domicilio_id, "plan_id": 1},
+    )
+    contrato_id = creado.json()["contrato_id"]
+
+    # Forzamos estado CANCELADO (6) directo en DB para desacoplar de la transición.
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "UPDATE contratos SET estado_contrato_id = 6 WHERE contrato_id = %s",
+            (contrato_id,),
+        )
+    db_conn.commit()
+
+    response = await admin_client.post(
+        f"/contratos/{contrato_id}/asignar-promocion",
+        json={"promocion_id": promo_id},
+    )
+    assert response.status_code == 400, response.text

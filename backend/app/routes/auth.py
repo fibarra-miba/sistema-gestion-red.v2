@@ -71,30 +71,9 @@ def login(
 
 @router.get("/me", response_model=AuthMeResponse)
 def me(session: dict = Depends(get_current_session)):
-    return {
-        "usuario_id": session["usuario_id"],
-        "username_usuario": session["username_usuario"],
-        "email_usuario": session["email_usuario"],
-        "nombre_usuario": session["nombre_usuario"],
-        "apellido_usuario": session["apellido_usuario"],
-        "activo_usuario": session["activo_usuario"],
-        "requiere_cambio_password_usuario": session["requiere_cambio_password_usuario"],
-        "ultimo_login_usuario": session.get("ultimo_login_usuario"),
-        "rol": {
-            "rol_id": session["rol_id"],
-            "codigo_rol": session["codigo_rol"],
-            "nombre_rol": session["nombre_rol"],
-        },
-        "capabilities": {
-            "can_manage_users": session["codigo_rol"] == "ADMIN",
-            "can_manage_planes": session["codigo_rol"] == "ADMIN",
-            "can_manage_clientes": session["codigo_rol"] in ("ADMIN", "OPERADOR"),
-            "can_manage_domicilios": session["codigo_rol"] in ("ADMIN", "OPERADOR"),
-            "can_manage_contratos": session["codigo_rol"] in ("ADMIN", "OPERADOR"),
-            "can_manage_instalaciones": session["codigo_rol"] in ("ADMIN", "OPERADOR", "TECNICO"),
-            "can_manage_pagos": session["codigo_rol"] in ("ADMIN", "COBRANZAS"),
-        },
-    }
+    # Fuente única de capabilities: ROLE_CAPABILITIES (vía build_me_payload).
+    # Evita duplicar el mapa rol→capabilities entre login y /me.
+    return AuthService.build_me_payload(session)
 
 
 @router.post("/logout", response_model=MessageResponse)

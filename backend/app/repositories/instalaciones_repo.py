@@ -468,14 +468,132 @@ class InstalacionesRepository:
             )
             return cur.fetchone()
 
+    # SELECT enriquecido con producto + estado (evita N+1 en el frontend).
+    _SELECT_GARANTIA = """
+        SELECT
+            g.garantia_id,
+            g.instalacion_id,
+            g.contrato_id,
+            g.producto_id,
+            g.fecha_inicio_garantia,
+            g.fecha_fin_garantia,
+            g.estado_garantia_id,
+            g.motivo_garantia,
+            g.resolucion_garantia,
+            g.fecha_creacion_garantia,
+            p.nombre_producto,
+            p.marca_producto,
+            p.modelo_producto,
+            eg.descripcion_egarantia
+        FROM garantia g
+        JOIN productos p ON p.producto_id = g.producto_id
+        JOIN estado_garantia eg ON eg.estado_garantia_id = g.estado_garantia_id
+    """
+
     def get_garantia_by_id(self, garantia_id: int) -> Optional[dict]:
         with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(self._SELECT_GARANTIA + " WHERE g.garantia_id = %s", (garantia_id,))
+            return cur.fetchone()
+
+    def list_garantias(
+        self,
+        instalacion_id: int | None = None,
+        contrato_id: int | None = None,
+        estado_garantia_id: int | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        where = []
+        params: list = []
+
+        if instalacion_id is not None:
+            where.append("g.instalacion_id = %s")
+            params.append(instalacion_id)
+        if contrato_id is not None:
+            where.append("g.contrato_id = %s")
+            params.append(contrato_id)
+        if estado_garantia_id is not None:
+            where.append("g.estado_garantia_id = %s")
+            params.append(estado_garantia_id)
+
+        query = self._SELECT_GARANTIA
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY g.garantia_id DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, tuple(params))
+            return cur.fetchall()
+
+    def update_garantia(self, garantia_id: int, fields: dict) -> Optional[dict]:
+        if not fields:
+            return self.get_garantia_by_id(garantia_id)
+
+        set_clause = ", ".join(f"{key} = %s" for key in fields.keys())
+        values = list(fields.values())
+        values.append(garantia_id)
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE garantia SET {set_clause} WHERE garantia_id = %s",
+                values,
+            )
+        return self.get_garantia_by_id(garantia_id)
+
+    def get_estado_garantia_id(self, descripcion: str) -> Optional[int]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT estado_garantia_id FROM estado_garantia WHERE descripcion_egarantia = %s",
+                (descripcion,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else None
+
+    def exists_estado_garantia(self, estado_garantia_id: int) -> bool:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM estado_garantia WHERE estado_garantia_id = %s",
+                (estado_garantia_id,),
+            )
+            return cur.fetchone() is not None
+
+    def producto_en_detalles(self, instalacion_id: int, producto_id: int) -> bool:
+        with self.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT *
-                FROM garantia
-                WHERE garantia_id = %s
+                SELECT 1 FROM detalle_instalacion
+                WHERE instalacion_id = %s AND producto_id = %s
+                LIMIT 1
                 """,
-                (garantia_id,),
+                (instalacion_id, producto_id),
             )
-            return cur.fetchone()
+            return cur.fetchone() is not None
+
+    def get_producto_tipo_codigo(self, producto_id: int) -> Optional[str]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT tp.codigo_tproducto
+                FROM productos p
+                JOIN tipo_producto tp ON tp.tipo_producto_id = p.tipo_producto_id
+                WHERE p.producto_id = %s
+                """,
+                (producto_id,),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+    def exists_garantia_activa(
+        self, instalacion_id: int, producto_id: int, estado_activa_id: int
+    ) -> bool:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM garantia
+                WHERE instalacion_id = %s AND producto_id = %s AND estado_garantia_id = %s
+                LIMIT 1
+                """,
+                (instalacion_id, producto_id, estado_activa_id),
+            )
+            return cur.fetchone() is not None

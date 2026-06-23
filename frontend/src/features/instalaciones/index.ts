@@ -33,7 +33,14 @@ export { useCreateInstalacion } from './hooks/useCreateInstalacion'
 export { useEjecutarProgramacion } from './hooks/useEjecutarProgramacion'
 export { useDetallesInstalacion } from './hooks/useDetallesInstalacion'
 export { useCreateDetalleInstalacion } from './hooks/useCreateDetalleInstalacion'
+export { useGarantias } from './hooks/useGarantias'
+export { useCreateGarantia } from './hooks/useCreateGarantia'
+export { useAnularGarantia } from './hooks/useAnularGarantia'
 
 export { default as InstalacionEstadoChip } from './components/InstalacionEstadoChip'
+export {
+  default as GarantiaEstadoChip,
+  ESTADO_GARANTIA,
+} from './components/GarantiaEstadoChip'
 export { default as ProgramacionEstadoChip } from './components/ProgramacionEstadoChip'
 export { default as InstalacionDetailDialog } from './components/InstalacionDetailDialog'

@@ -163,3 +163,54 @@ export interface DetalleInstalacionOut {
 export interface DetalleInstalacionListResponse {
   items: DetalleInstalacionOut[]
 }
+
+// ============================================================
+// GARANTIAS
+// Espejo de backend/app/schemas/instalacion.py (GarantiaOut/Create/Update).
+// ============================================================
+
+export interface GarantiaOut {
+  garantia_id: number
+  instalacion_id: number
+  contrato_id: number
+  producto_id: number
+  fecha_inicio_garantia: string
+  fecha_fin_garantia: string | null
+  estado_garantia_id: number
+  motivo_garantia: string | null
+  resolucion_garantia: string | null
+  fecha_creacion_garantia: string
+  // Enriquecido vía join.
+  nombre_producto: string | null
+  marca_producto: string | null
+  modelo_producto: string | null
+  descripcion_egarantia: string | null
+}
+
+export interface GarantiaListResponse {
+  items: GarantiaOut[]
+}
+
+// El contrato lo deriva el backend; el estado nace ACTIVA.
+export interface GarantiaCreate {
+  instalacion_id: number
+  producto_id: number
+  fecha_inicio_garantia?: string | null
+}
+
+// PATCH parcial (exclude_unset). Hoy se usa para anular.
+export interface GarantiaUpdate {
+  estado_garantia_id?: number
+  fecha_inicio_garantia?: string | null
+  fecha_fin_garantia?: string | null
+  motivo_garantia?: string | null
+  resolucion_garantia?: string | null
+}
+
+export interface ListGarantiasParams {
+  instalacion_id?: number
+  contrato_id?: number
+  estado_garantia_id?: number
+  limit?: number
+  offset?: number
+}

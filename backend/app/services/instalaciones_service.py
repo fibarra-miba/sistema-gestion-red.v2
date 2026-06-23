@@ -530,35 +530,111 @@ class InstalacionesService:
     # GARANTIAS
     # ==========================================================
 
+    # Mensajes de dominio (la route los mapea a status codes).
+    GARANTIA_NO_ENCONTRADA = "Garantía no encontrada."
+    GARANTIA_PRODUCTO_NO_INSTALADO = "El producto no figura en los detalles de la instalación."
+    GARANTIA_PRODUCTO_NO_EQUIPO = "Solo se pueden garantizar productos de tipo EQUIPO."
+    GARANTIA_ACTIVA_DUPLICADA = "Ya existe una garantía activa para ese producto en esta instalación."
+    GARANTIA_TERMINAL = "La garantía está anulada y no admite cambios."
+    GARANTIA_ESTADO_INVALIDO = "El estado de garantía no existe."
+    GARANTIA_RESOLUCION_REQUERIDA = "La resolución es obligatoria al anular la garantía."
+
+    def _estado_garantia_id(self, descripcion: str) -> int:
+        estado_id = self.instalaciones_repo.get_estado_garantia_id(descripcion)
+        if estado_id is None:
+            raise ValueError(f"No existe estado de garantía '{descripcion}'.")
+        return estado_id
+
     def crear_garantia(
         self,
         instalacion_id: int,
-        contrato_id: int,
         producto_id: int,
-        fecha_inicio_garantia: datetime,
-        fecha_fin_garantia: Optional[datetime],
-        estado_garantia_id: int,
-        motivo_garantia: Optional[str] = None,
-        resolucion_garantia: Optional[str] = None,
+        fecha_inicio_garantia: Optional[datetime] = None,
     ) -> dict:
         instalacion = self._get_instalacion(instalacion_id)
+        contrato_id = int(instalacion["contrato_id"])
 
-        if int(instalacion["contrato_id"]) != int(contrato_id):
-            raise ValueError("El contrato_id no coincide con la instalación.")
+        # El producto debe haber sido instalado (opción a: fiel al negocio).
+        if not self.instalaciones_repo.producto_en_detalles(instalacion_id, producto_id):
+            raise ValueError(self.GARANTIA_PRODUCTO_NO_INSTALADO)
 
-        return self.instalaciones_repo.create_garantia(
-            instalacion_id=instalacion_id,
-            contrato_id=contrato_id,
-            producto_id=producto_id,
-            fecha_inicio_garantia=fecha_inicio_garantia,
-            fecha_fin_garantia=fecha_fin_garantia,
-            estado_garantia_id=estado_garantia_id,
-            motivo_garantia=motivo_garantia,
-            resolucion_garantia=resolucion_garantia,
-        )
+        # Solo se garantizan equipos entregados, no materiales de instalación.
+        if self.instalaciones_repo.get_producto_tipo_codigo(producto_id) != "EQUIPO":
+            raise ValueError(self.GARANTIA_PRODUCTO_NO_EQUIPO)
+
+        estado_activa = self._estado_garantia_id("ACTIVA")
+
+        # Una sola garantía ACTIVA por (instalación, producto). El índice parcial
+        # lo garantiza a nivel DB; acá damos un mensaje claro antes del 409.
+        if self.instalaciones_repo.exists_garantia_activa(
+            instalacion_id, producto_id, estado_activa
+        ):
+            raise ValueError(self.GARANTIA_ACTIVA_DUPLICADA)
+
+        fecha_inicio = fecha_inicio_garantia or datetime.now(timezone.utc)
+
+        try:
+            created = self.instalaciones_repo.create_garantia(
+                instalacion_id=instalacion_id,
+                contrato_id=contrato_id,
+                producto_id=producto_id,
+                fecha_inicio_garantia=fecha_inicio,
+                fecha_fin_garantia=None,
+                estado_garantia_id=estado_activa,
+                motivo_garantia=None,
+                resolucion_garantia=None,
+            )
+        except psycopg.errors.UniqueViolation:
+            raise ValueError(self.GARANTIA_ACTIVA_DUPLICADA)
+
+        return self.instalaciones_repo.get_garantia_by_id(int(created["garantia_id"]))
 
     def get_garantia(self, garantia_id: int) -> dict:
         garantia = self.instalaciones_repo.get_garantia_by_id(garantia_id)
         if not garantia:
-            raise ValueError("Garantía no encontrada.")
+            raise ValueError(self.GARANTIA_NO_ENCONTRADA)
         return garantia
+
+    def list_garantias(
+        self,
+        instalacion_id: Optional[int] = None,
+        contrato_id: Optional[int] = None,
+        estado_garantia_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
+        return self.instalaciones_repo.list_garantias(
+            instalacion_id=instalacion_id,
+            contrato_id=contrato_id,
+            estado_garantia_id=estado_garantia_id,
+            limit=limit,
+            offset=offset,
+        )
+
+    def update_garantia(self, garantia_id: int, data: dict) -> dict:
+        garantia = self.instalaciones_repo.get_garantia_by_id(garantia_id)
+        if not garantia:
+            raise ValueError(self.GARANTIA_NO_ENCONTRADA)
+
+        estado_anulada = self._estado_garantia_id("ANULADA")
+
+        # ANULADA es terminal: el reemplazo abre una garantía nueva, no se edita esta.
+        if int(garantia["estado_garantia_id"]) == estado_anulada:
+            raise ValueError(self.GARANTIA_TERMINAL)
+
+        if "estado_garantia_id" in data and not self.instalaciones_repo.exists_estado_garantia(
+            data["estado_garantia_id"]
+        ):
+            raise ValueError(self.GARANTIA_ESTADO_INVALIDO)
+
+        target_estado = data.get("estado_garantia_id", int(garantia["estado_garantia_id"]))
+
+        # Al anular: resolución obligatoria y fecha_fin por defecto = ahora.
+        if int(target_estado) == estado_anulada:
+            resolucion = data.get("resolucion_garantia") or garantia.get("resolucion_garantia")
+            if not resolucion:
+                raise ValueError(self.GARANTIA_RESOLUCION_REQUERIDA)
+            if not data.get("fecha_fin_garantia"):
+                data["fecha_fin_garantia"] = datetime.now(timezone.utc)
+
+        return self.instalaciones_repo.update_garantia(garantia_id, data)

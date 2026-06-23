@@ -22,21 +22,21 @@ from app.core.security import hash_password  # noqa: E402
 def _resolve_sql_dir(base_dir: pathlib.Path) -> pathlib.Path:
     """
     Prioridad:
-    1) /app/test/sql
-    2) /app/infra/sql
+    1) backend/test/sql            (canónico para la suite)
+    2) <repo>/infra/sql/core       (fallback para runs locales fuera de docker)
     """
     candidate_1 = base_dir / "test" / "sql"
     if candidate_1.exists():
         return candidate_1
 
-    candidate_2 = base_dir / "infra" / "sql"
+    candidate_2 = base_dir.parent / "infra" / "sql" / "core"
     if candidate_2.exists():
         return candidate_2
 
     raise FileNotFoundError(
         "No se encontró el directorio de SQL. "
         "Creá backend/test/sql y copiá ahí 001_schema.sql, 002_constraints.sql, "
-        "003_indexes.sql y 010_seed.sql."
+        "003_indexes.sql, 005_catalogos_base.sql, 006_post_seed.sql y 010_seed.sql."
     )
 
 
@@ -46,6 +46,13 @@ SCHEMA_FILES = [
     SQL_DIR / "001_schema.sql",
     SQL_DIR / "002_constraints.sql",
     SQL_DIR / "003_indexes.sql",
+    # Catálogos/estados base: el seed (010) los referencia por descripción,
+    # así que deben sembrarse antes.
+    SQL_DIR / "005_catalogos_base.sql",
+    # Constraints que dependen de catálogos ya sembrados (índice único parcial
+    # de garantía ACTIVA). Debe correr después de 005 para alinear la DB de test
+    # con la real (bootstrap docker corre 006 antes de 010).
+    SQL_DIR / "006_post_seed.sql",
     SQL_DIR / "010_seed.sql",
 ]
 
@@ -57,10 +64,85 @@ def _read_sql(path: pathlib.Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _split_sql_statements(sql: str) -> list[str]:
+    """
+    Divide un script SQL en statements respetando:
+    - strings con comillas simples ('...')
+    - dollar-quoting ($$...$$ y $tag$...$tag$), p. ej. bloques DO $$ ... $$
+    - comentarios de línea (-- ...)
+
+    Necesario porque 006_post_seed.sql usa un bloque DO con ';' internos que un
+    split naive por ';' partiría en fragmentos inválidos.
+    """
+    statements: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    in_single = False
+    dollar_tag: str | None = None
+
+    while i < n:
+        ch = sql[i]
+
+        if dollar_tag is not None:
+            if sql.startswith(dollar_tag, i):
+                buf.append(dollar_tag)
+                i += len(dollar_tag)
+                dollar_tag = None
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+
+        if in_single:
+            buf.append(ch)
+            i += 1
+            if ch == "'":
+                in_single = False
+            continue
+
+        # Comentario de línea: descartar hasta el fin de línea.
+        if ch == "-" and i + 1 < n and sql[i + 1] == "-":
+            while i < n and sql[i] != "\n":
+                i += 1
+            continue
+
+        if ch == "'":
+            in_single = True
+            buf.append(ch)
+            i += 1
+            continue
+
+        if ch == "$":
+            j = sql.find("$", i + 1)
+            # Apertura válida de dollar-quote: $$ (tag vacío) o $identificador$.
+            if j != -1 and (j == i + 1 or sql[i + 1 : j].isidentifier()):
+                tag = sql[i : j + 1]
+                dollar_tag = tag
+                buf.append(tag)
+                i = j + 1
+                continue
+
+        if ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            continue
+
+        buf.append(ch)
+        i += 1
+
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
+
+
 def _exec_sql(conn: psycopg.Connection, sql: str) -> None:
-    statements = [s.strip() for s in sql.split(";") if s.strip()]
     with conn.cursor() as cur:
-        for stmt in statements:
+        for stmt in _split_sql_statements(sql):
             cur.execute(stmt)
 
 
@@ -280,11 +362,31 @@ def _ensure_test_users(conn: psycopg.Connection) -> None:
 # =========================
 # Fixtures DB
 # =========================
+def _dbname_from_url(url: str) -> str:
+    # postgresql://user:pass@host:port/dbname?params -> dbname
+    path = url.split("/")[-1]
+    return path.split("?")[0]
+
+
 @pytest.fixture(scope="session")
 def test_db_url() -> str:
     url = os.getenv("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL not set")
+
+    # SALVAGUARDA: la suite hace DROP SCHEMA public CASCADE sobre esta DB.
+    # Si se apunta por error a la base real (p. ej. ./red test usando el
+    # DATABASE_URL de producción), abortamos ANTES de destruir datos.
+    # Convención: la base de test debe llamarse con "test" en el nombre.
+    # Para casos excepcionales, ALLOW_DESTRUCTIVE_DB=1 saltea el chequeo.
+    dbname = _dbname_from_url(url)
+    if "test" not in dbname.lower() and os.getenv("ALLOW_DESTRUCTIVE_DB") != "1":
+        raise RuntimeError(
+            f"Negándome a correr tests contra '{dbname}': la suite recrea el "
+            f"schema (destructivo) y el nombre no parece de test. Apuntá "
+            f"DATABASE_URL a una base con 'test' en el nombre (ej. mi_base_test) "
+            f"o seteá ALLOW_DESTRUCTIVE_DB=1 si realmente es lo que querés."
+        )
     return url
 
 

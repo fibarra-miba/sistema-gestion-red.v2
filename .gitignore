@@ -145,3 +145,9 @@ artifacts/
 coverage/
 htmlcov/
 CLAUDE.md
+
+# n8n local environment
+infra/.env.n8n
+
+# n8n local data if bind mounts are ever used
+infra/n8n/data/

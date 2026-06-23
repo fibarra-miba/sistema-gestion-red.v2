@@ -21,4 +21,14 @@ export const catalogosService = {
     const { data } = await http.get<CatalogoItemOut[]>('/catalogos/estados-pago')
     return data
   },
+
+  async tiposProducto(): Promise<CatalogoItemOut[]> {
+    const { data } = await http.get<CatalogoItemOut[]>('/catalogos/tipos-producto')
+    return data
+  },
+
+  async estadosGarantia(): Promise<CatalogoItemOut[]> {
+    const { data } = await http.get<CatalogoItemOut[]>('/catalogos/estados-garantia')
+    return data
+  },
 }

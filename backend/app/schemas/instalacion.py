@@ -165,18 +165,25 @@ class DetalleInstalacionListResponse(BaseModel):
 # GARANTIA (MINIMO)
 # ==========================================================
 
+# El contrato se deriva de la instalación; el estado nace ACTIVA en el backend.
+# fecha_inicio es opcional (default now()): editable para carga masiva histórica.
 class GarantiaCreate(BaseModel):
     instalacion_id: int = Field(..., ge=1)
-    contrato_id: int = Field(..., ge=1)
     producto_id: int = Field(..., ge=1)
-    fecha_inicio_garantia: datetime
+    fecha_inicio_garantia: Optional[datetime] = None
+
+
+# Update acotado al ciclo de vida: anular (estado ANULADA + resolución) y
+# correcciones de fechas/motivo para carga masiva.
+class GarantiaUpdate(BaseModel):
+    estado_garantia_id: Optional[int] = Field(default=None, ge=1)
+    fecha_inicio_garantia: Optional[datetime] = None
     fecha_fin_garantia: Optional[datetime] = None
-    estado_garantia_id: int = Field(..., ge=1)
     motivo_garantia: Optional[str] = Field(default=None, max_length=200)
     resolucion_garantia: Optional[str] = None
 
 
-class GarantiaResponse(BaseModel):
+class GarantiaOut(BaseModel):
     garantia_id: int
     instalacion_id: int
     contrato_id: int
@@ -187,6 +194,15 @@ class GarantiaResponse(BaseModel):
     motivo_garantia: Optional[str] = None
     resolucion_garantia: Optional[str] = None
     fecha_creacion_garantia: datetime
+    # Enriquecido vía join (evita N+1 en el frontend).
+    nombre_producto: Optional[str] = None
+    marca_producto: Optional[str] = None
+    modelo_producto: Optional[str] = None
+    descripcion_egarantia: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class GarantiaListResponse(BaseModel):
+    items: List[GarantiaOut]

@@ -9,6 +9,8 @@ from app.routes.domicilios import router as domicilios_router
 from app.routes.instalaciones import router as instalaciones_router
 from app.routes.pagos import router as pagos_router
 from app.routes.planes import router as planes_router
+from app.routes.productos import router as productos_router
+from app.routes.promociones import router as promociones_router
 from app.routes.usuarios import router as usuarios_router
 
 app = FastAPI(title="Sistema RED API")
@@ -40,3 +42,5 @@ app.include_router(pagos_router)
 app.include_router(catalogos_router)
 app.include_router(instalaciones_router)
 app.include_router(planes_router)
+app.include_router(productos_router)
+app.include_router(promociones_router)

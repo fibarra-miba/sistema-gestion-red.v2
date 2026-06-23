@@ -22,6 +22,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_contratos": True,
         "can_manage_instalaciones": True,
         "can_manage_pagos": True,
+        "can_manage_productos": True,
+        "can_manage_promociones": True,
     },
     "OPERADOR": {
         "can_manage_users": False,
@@ -31,6 +33,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_contratos": True,
         "can_manage_instalaciones": True,
         "can_manage_pagos": False,
+        "can_manage_productos": True,
+        "can_manage_promociones": True,
     },
     "TECNICO": {
         "can_manage_users": False,
@@ -40,6 +44,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_contratos": False,
         "can_manage_instalaciones": True,
         "can_manage_pagos": False,
+        "can_manage_productos": False,
+        "can_manage_promociones": False,
     },
     "COBRANZAS": {
         "can_manage_users": False,
@@ -49,6 +55,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_contratos": False,
         "can_manage_instalaciones": False,
         "can_manage_pagos": True,
+        "can_manage_productos": False,
+        "can_manage_promociones": False,
     },
 }
 
@@ -233,7 +241,8 @@ class AuthService:
             user_agent_auditoria=user_agent,
         )
 
-    def build_me_payload(self, user: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def build_me_payload(user: dict[str, Any]) -> dict[str, Any]:
         codigo_rol = user["codigo_rol"]
         capabilities = ROLE_CAPABILITIES.get(codigo_rol, {})
 

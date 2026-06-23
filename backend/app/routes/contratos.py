@@ -15,14 +15,21 @@ from app.schemas.contrato import (
     ContractCommercialListResponse,
     ContractChangePlan,
     ContractConfirmTechnicalCondition,
+    ContractAssignPromo,
 )
 
 
 ## router = APIRouter(prefix="/contratos", tags=["Contratos"])
+
+# Lectura: además de ADMIN/OPERADOR, COBRANZAS necesita listar/ver contratos
+# para operar pagos (selector de contrato). Escritura y transiciones de estado:
+# siguen restringidas a ADMIN/OPERADOR.
+READ_ROLES = ("ADMIN", "OPERADOR", "COBRANZAS")
+WRITE_ROLES = ("ADMIN", "OPERADOR")
+
 router = APIRouter(
     prefix="/contratos",
     tags=["Contratos"],
-    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
 )
 
 
@@ -31,7 +38,11 @@ def get_service(conn: Connection = Depends(get_db)) -> ContractService:
     return ContractService(repo)
 
 
-@router.post("", response_model=ContractResponse)
+@router.post(
+    "",
+    response_model=ContractResponse,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def create_contract(
     payload: ContractCreate,
     service: ContractService = Depends(get_service),
@@ -41,13 +52,18 @@ def create_contract(
             cliente_id=payload.cliente_id,
             domicilio_id=payload.domicilio_id,
             plan_id=payload.plan_id,
+            promocion_id=payload.promocion_id,
         )
         return contract
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{contract_id}", response_model=ContractCommercialResponse)
+@router.get(
+    "/{contract_id}",
+    response_model=ContractCommercialResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))],
+)
 def get_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -58,7 +74,11 @@ def get_contract(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.get("", response_model=ContractCommercialListResponse)
+@router.get(
+    "",
+    response_model=ContractCommercialListResponse,
+    dependencies=[Depends(require_roles(*READ_ROLES))],
+)
 def list_contracts(
     cliente_id: int | None = Query(default=None),
     estado_contrato_id: int | None = Query(default=None),
@@ -75,7 +95,10 @@ def list_contracts(
     return {"items": contracts}
 
 
-@router.post("/{contract_id}/activate")
+@router.post(
+    "/{contract_id}/activate",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def activate_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -87,7 +110,10 @@ def activate_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contract_id}/suspend")
+@router.post(
+    "/{contract_id}/suspend",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def suspend_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -99,7 +125,10 @@ def suspend_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contract_id}/resume")
+@router.post(
+    "/{contract_id}/resume",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def resume_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -111,7 +140,10 @@ def resume_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contract_id}/cancel")
+@router.post(
+    "/{contract_id}/cancel",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def cancel_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -123,7 +155,10 @@ def cancel_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contract_id}/terminate")
+@router.post(
+    "/{contract_id}/terminate",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def terminate_contract(
     contract_id: int,
     service: ContractService = Depends(get_service),
@@ -135,7 +170,11 @@ def terminate_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contract_id}/change-plan", response_model=ContractResponse)
+@router.post(
+    "/{contract_id}/change-plan",
+    response_model=ContractResponse,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def change_plan(
     contract_id: int,
     payload: ContractChangePlan,
@@ -148,7 +187,41 @@ def change_plan(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{contrato_id}/confirmar-condicion-tecnica")
+@router.post(
+    "/{contract_id}/asignar-promocion",
+    response_model=ContractResponse,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
+def asignar_promocion(
+    contract_id: int,
+    payload: ContractAssignPromo,
+    service: ContractService = Depends(get_service),
+):
+    try:
+        return service.asignar_promocion(contract_id, payload.promocion_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/{contract_id}/quitar-promocion",
+    response_model=ContractResponse,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
+def quitar_promocion(
+    contract_id: int,
+    service: ContractService = Depends(get_service),
+):
+    try:
+        return service.quitar_promocion(contract_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/{contrato_id}/confirmar-condicion-tecnica",
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def confirmar_condicion_tecnica(
     contrato_id: int,
     payload: ContractConfirmTechnicalCondition,

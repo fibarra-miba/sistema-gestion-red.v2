@@ -28,6 +28,9 @@ class ContractCreate(BaseModel):
     cliente_id: int = Field(..., ge=1)
     domicilio_id: int = Field(..., ge=1)
     plan_id: int = Field(..., ge=1)
+    # Promo opcional en el alta. Si se informa, el contrato nace con
+    # aplica_promocion=TRUE (consistencia garantizada por chk_contrato_promocion).
+    promocion_id: Optional[int] = Field(default=None, ge=1)
 
 
 # ==========================================================
@@ -101,6 +104,10 @@ class ContractTerminate(BaseModel):
 
 class ContractChangePlan(BaseModel):
     new_plan_id: int = Field(..., ge=1)
+
+
+class ContractAssignPromo(BaseModel):
+    promocion_id: int = Field(..., ge=1)
 
 
 class ContractConfirmTechnicalCondition(BaseModel):

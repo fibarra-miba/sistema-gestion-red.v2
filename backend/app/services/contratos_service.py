@@ -12,6 +12,7 @@ from app.repositories.instalaciones_repo import InstalacionesRepository
 from app.repositories.planes_repo import PlanesRepository
 from app.repositories.clientes_repo import get_cliente_by_id
 from app.repositories.precios_repo import PreciosRepo
+from app.repositories.promociones_repo import PromocionesRepo
 from app.repositories.domicilios_repo import (
     get_domicilio_by_id,
     get_domicilio_vigente_by_cliente,
@@ -37,6 +38,7 @@ class ContractService:
         self.repo = repo
         self.instalaciones_repo = instalaciones_repo
         self.precios_repo = PreciosRepo(repo.conn)
+        self.promo_repo = PromocionesRepo(repo.conn)
 
     # ==========================================================
     # VALIDACIONES AUXILIARES
@@ -97,10 +99,22 @@ class ContractService:
     # CREATE
     # ==========================================================
 
-    def create_contract(self, cliente_id: int, domicilio_id: int, plan_id: int) -> dict:
+    def _validar_promocion_existente(self, promocion_id: int) -> None:
+        if not self.promo_repo.get_full(promocion_id):
+            raise ValueError("Promoción no encontrada.")
+
+    def create_contract(
+        self,
+        cliente_id: int,
+        domicilio_id: int,
+        plan_id: int,
+        promocion_id: Optional[int] = None,
+    ) -> dict:
         self._validar_cliente_existente(cliente_id)
         self._validar_domicilio(cliente_id, domicilio_id)
         self._validar_plan_activo(plan_id)
+        if promocion_id is not None:
+            self._validar_promocion_existente(promocion_id)
 
         now = datetime.now(timezone.utc)
         precio_vigente = self._obtener_precio_vigente_plan(plan_id, now)
@@ -111,7 +125,35 @@ class ContractService:
             precio_base_contrato=precio_vigente["precio"],
             fecha_inicio=now,
             estado_contrato_id=self.BORRADOR,
+            promocion_id=promocion_id,
         )
+
+    # ==========================================================
+    # PROMOCIÓN (asignar / quitar sobre contrato existente)
+    # ==========================================================
+
+    def asignar_promocion(self, contrato_id: int, promocion_id: int) -> dict:
+        contrato = self.repo.get_by_id(contrato_id)
+        if not contrato:
+            raise ValueError("Contrato no encontrado.")
+
+        estado = int(contrato["estado_contrato_id"])
+        if estado in (self.BAJA, self.CANCELADO):
+            raise ValueError(
+                "No se puede asignar promoción a un contrato dado de baja o cancelado."
+            )
+
+        self._validar_promocion_existente(promocion_id)
+        self.repo.update_promocion(contrato_id, promocion_id)
+        return self.repo.get_by_id(contrato_id)
+
+    def quitar_promocion(self, contrato_id: int) -> dict:
+        contrato = self.repo.get_by_id(contrato_id)
+        if not contrato:
+            raise ValueError("Contrato no encontrado.")
+
+        self.repo.update_promocion(contrato_id, None)
+        return self.repo.get_by_id(contrato_id)
 
     # ==========================================================
     # READ

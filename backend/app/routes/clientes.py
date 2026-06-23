@@ -17,15 +17,25 @@ from app.schemas.cliente_onboarding import ClienteOnboardingCreate
 from app.dependencies.auth import require_roles
 
 logger = logging.getLogger("uvicorn.error")
+
+# Lectura: además de ADMIN/OPERADOR, COBRANZAS necesita listar/ver clientes
+# para operar la cuenta corriente y los pagos (selectores cruzados).
+# Escritura (alta/edición): sigue restringida a ADMIN/OPERADOR.
+READ_ROLES = ("ADMIN", "OPERADOR", "COBRANZAS")
+WRITE_ROLES = ("ADMIN", "OPERADOR")
+
 ## router = APIRouter(prefix="/clientes", tags=["clientes"])
 router = APIRouter(
     prefix="/clientes",
     tags=["clientes"],
-    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
 )
 
 
-@router.get("", response_model=List[ClienteOut])
+@router.get(
+    "",
+    response_model=List[ClienteOut],
+    dependencies=[Depends(require_roles(*READ_ROLES))],
+)
 def get_clientes(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -39,7 +49,11 @@ def get_clientes(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{cliente_id}", response_model=ClienteOut)
+@router.get(
+    "/{cliente_id}",
+    response_model=ClienteOut,
+    dependencies=[Depends(require_roles(*READ_ROLES))],
+)
 def get_cliente(
     cliente_id: int = Path(..., ge=1),
     conn: psycopg.Connection = Depends(get_db),
@@ -55,7 +69,12 @@ def get_cliente(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("", response_model=ClienteOut, status_code=201)
+@router.post(
+    "",
+    response_model=ClienteOut,
+    status_code=201,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def create_cliente(
     cliente: ClienteCreate,
     conn: psycopg.Connection = Depends(get_db),
@@ -76,7 +95,12 @@ def create_cliente(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/onboarding", response_model=ClienteOut, status_code=201)
+@router.post(
+    "/onboarding",
+    response_model=ClienteOut,
+    status_code=201,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def onboarding_cliente(
     data: ClienteOnboardingCreate,
     conn: psycopg.Connection = Depends(get_db),
@@ -98,7 +122,11 @@ def onboarding_cliente(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/{cliente_id}", response_model=ClienteOut)
+@router.put(
+    "/{cliente_id}",
+    response_model=ClienteOut,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
 def update_cliente(
     cliente_id: int = Path(..., ge=1),
     cliente: ClienteUpdate = ...,

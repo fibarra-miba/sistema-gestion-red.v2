@@ -1,0 +1,13 @@
+export * from './types'
+export { productosKeys } from './keys'
+export { productosService } from './services/productosService'
+
+export { useProductos } from './hooks/useProductos'
+export { useCreateProducto } from './hooks/useCreateProducto'
+export { useUpdateProducto } from './hooks/useUpdateProducto'
+
+export { default as ProductoSelect } from './components/ProductoSelect'
+export { default as ProductoTable } from './components/ProductoTable'
+export { default as ProductosFilterBar } from './components/ProductosFilterBar'
+export { default as ProductoForm } from './components/ProductoForm'
+export type { ProductoFormValues } from './components/ProductoForm'

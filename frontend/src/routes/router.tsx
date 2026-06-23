@@ -5,8 +5,10 @@ import NotFoundPage from '@/pages/NotFoundPage'
 import ClientesListPage from '@/pages/clientes/ClientesListPage'
 import ClienteDetailPage from '@/pages/clientes/ClienteDetailPage'
 import PlanesPage from '@/pages/planes/PlanesPage'
+import PromocionesPage from '@/pages/promociones/PromocionesPage'
 import ContratosPage from '@/pages/contratos/ContratosPage'
 import InstalacionesPage from '@/pages/instalaciones/InstalacionesPage'
+import ProductosPage from '@/pages/productos/ProductosPage'
 import PagosPage from '@/pages/pagos/PagosPage'
 import UsuariosPage from '@/pages/usuarios/UsuariosPage'
 import LoginPage from '@/pages/auth/LoginPage'
@@ -58,8 +60,18 @@ export const router = createBrowserRouter([
           },
 
           {
+            element: <RequireCapability anyOf={['can_manage_promociones']} />,
+            children: [{ path: 'promociones', element: <PromocionesPage /> }],
+          },
+
+          {
             element: <RequireCapability anyOf={['can_manage_instalaciones']} />,
             children: [{ path: 'instalaciones', element: <InstalacionesPage /> }],
+          },
+
+          {
+            element: <RequireCapability anyOf={['can_manage_productos']} />,
+            children: [{ path: 'productos', element: <ProductosPage /> }],
           },
 
           {

@@ -1,6 +1,7 @@
 import { http } from '@/services/http'
 import type {
   ContractActionResponse,
+  ContractAssignPromo,
   ContractChangePlan,
   ContractCommercialListResponse,
   ContractCommercialOut,
@@ -78,6 +79,24 @@ export const contratosService = {
     const { data } = await http.post<ContractOut>(
       `/contratos/${contratoId}/change-plan`,
       payload,
+    )
+    return data
+  },
+
+  async asignarPromocion(
+    contratoId: number,
+    payload: ContractAssignPromo,
+  ): Promise<ContractOut> {
+    const { data } = await http.post<ContractOut>(
+      `/contratos/${contratoId}/asignar-promocion`,
+      payload,
+    )
+    return data
+  },
+
+  async quitarPromocion(contratoId: number): Promise<ContractOut> {
+    const { data } = await http.post<ContractOut>(
+      `/contratos/${contratoId}/quitar-promocion`,
     )
     return data
   },
