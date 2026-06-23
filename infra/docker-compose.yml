@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: postgres_local
     restart: always
     environment:
@@ -40,7 +40,6 @@ services:
       - "8000:8000"
     volumes:
       - ../backend:/app
-      - ./sql:/app/infra/sql:ro
     depends_on:
       - postgres
       

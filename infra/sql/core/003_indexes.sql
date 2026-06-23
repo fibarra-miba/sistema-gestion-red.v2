@@ -27,3 +27,8 @@ CREATE INDEX IF NOT EXISTS idx_sesiones_expiracion ON sesiones_usuarios (fecha_e
 CREATE INDEX IF NOT EXISTS idx_auditoria_usuario_id ON auditoria_eventos (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_auditoria_modulo_accion ON auditoria_eventos (modulo_auditoria, accion_auditoria);
 CREATE INDEX IF NOT EXISTS idx_auditoria_created_at ON auditoria_eventos (created_at);
+
+-- Unicidad de producto por (nombre, marca, modelo), case-insensitive.
+-- Los tres son NOT NULL, así que no hace falta NULLS NOT DISTINCT.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_producto_nombre_marca_modelo
+  ON productos (lower(nombre_producto), lower(marca_producto), lower(modelo_producto));

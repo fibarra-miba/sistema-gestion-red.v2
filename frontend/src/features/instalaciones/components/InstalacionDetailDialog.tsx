@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material'
 import { isApiError } from '@/types/api'
+import { useAuth } from '@/features/auth'
 import { useInstalacion } from '../hooks/useInstalacion'
 import { useDetallesInstalacion } from '../hooks/useDetallesInstalacion'
 import {
@@ -27,6 +28,7 @@ import {
 } from '../utils'
 import InstalacionEstadoChip from './InstalacionEstadoChip'
 import AddDetalleForm from './AddDetalleForm'
+import GarantiasSection from './GarantiasSection'
 import type { DetalleInstalacionOut } from '../types'
 
 interface Props {
@@ -42,6 +44,10 @@ export default function InstalacionDetailDialog({
   instalacionId,
   onClose,
 }: Props) {
+  const { hasRole } = useAuth()
+  // Garantías: solo ADMIN/OPERADOR registran/anulan (el TÉCNICO solo ve).
+  const canManageGarantias = hasRole('ADMIN', 'OPERADOR')
+
   const active = open && instalacionId != null
   const { data: inst, isLoading, error } = useInstalacion(
     active ? instalacionId : undefined,
@@ -225,6 +231,14 @@ export default function InstalacionDetailDialog({
             <Divider />
 
             <AddDetalleForm instalacionId={inst.instalacion_id} />
+
+            <Divider />
+
+            <GarantiasSection
+              instalacionId={inst.instalacion_id}
+              detalles={detalles}
+              canManage={canManageGarantias}
+            />
           </Stack>
         )}
       </DialogContent>

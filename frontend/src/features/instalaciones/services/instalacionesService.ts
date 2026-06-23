@@ -4,10 +4,15 @@ import type {
   DetalleInstalacionListResponse,
   DetalleInstalacionOut,
   EjecutarProgramacionIn,
+  GarantiaCreate,
+  GarantiaListResponse,
+  GarantiaOut,
+  GarantiaUpdate,
   InstalacionAccionOut,
   InstalacionCreate,
   InstalacionListResponse,
   InstalacionOut,
+  ListGarantiasParams,
   ListInstalacionesParams,
   ListProgramacionesParams,
   ProgramacionInstalacionCreate,
@@ -100,6 +105,36 @@ export const instalacionesService = {
   ): Promise<DetalleInstalacionOut> {
     const { data } = await http.post<DetalleInstalacionOut>(
       `/instalaciones/${instalacionId}/detalles`,
+      payload,
+    )
+    return data
+  },
+
+  // ----- Garantías -----
+  async listGarantias(
+    params: ListGarantiasParams = {},
+  ): Promise<GarantiaOut[]> {
+    const { data } = await http.get<GarantiaListResponse>(
+      '/instalaciones/garantias',
+      { params },
+    )
+    return data.items
+  },
+
+  async createGarantia(payload: GarantiaCreate): Promise<GarantiaOut> {
+    const { data } = await http.post<GarantiaOut>(
+      '/instalaciones/garantias',
+      payload,
+    )
+    return data
+  },
+
+  async updateGarantia(
+    garantiaId: number,
+    payload: GarantiaUpdate,
+  ): Promise<GarantiaOut> {
+    const { data } = await http.patch<GarantiaOut>(
+      `/instalaciones/garantias/${garantiaId}`,
       payload,
     )
     return data

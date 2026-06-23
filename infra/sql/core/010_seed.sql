@@ -265,7 +265,9 @@ INSERT INTO garantia (
 );
 
 -- ============================
--- CLIENTE 2: PENDIENTE_INSTALACION + PROGRAMADA
+-- CLIENTE 2: contrato PENDIENTE_INSTALACION
+-- Programación PROGRAMADA (agendada, sin ejecutar) — sin instalación todavía.
+-- La instalación recién nace al ejecutar la programación.
 -- ============================
 
 INSERT INTO clientes (
@@ -360,23 +362,8 @@ INSERT INTO programacion_instalaciones (
   'Instalación inicial programada'
 );
 
-INSERT INTO instalaciones (
-  programacion_id,
-  contrato_id,
-  domicilio_id,
-  codigo_instalacion,
-  fecha_instalacion,
-  estado_instalacion_id,
-  observacion_instalacion
-) VALUES (
-  (SELECT programacion_id FROM programacion_instalaciones WHERE contrato_id = (SELECT contrato_id FROM contratos WHERE cliente_id = (SELECT cliente_id FROM clientes WHERE dni_cliente = '32999888'))),
-  (SELECT contrato_id FROM contratos WHERE cliente_id = (SELECT cliente_id FROM clientes WHERE dni_cliente = '32999888')),
-  (SELECT domicilio_id FROM domicilios WHERE cliente_id = (SELECT cliente_id FROM clientes WHERE dni_cliente = '32999888')),
-  'INST-0002',
-  NOW() + INTERVAL '2 days',
-  (SELECT estado_instalacion_id FROM estado_instalacion WHERE descripcion_einstalacion = 'PENDIENTE'),
-  'Instalación pendiente de ejecución'
-);
+-- (Sin instalación: la programación todavía no se ejecutó. La fila en
+--  `instalaciones` recién se crea al ejecutar la programación.)
 
 -- ============================
 -- CLIENTE 3: CLIENTE SUELTO SIN CONTRATO

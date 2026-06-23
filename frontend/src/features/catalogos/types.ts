@@ -6,4 +6,6 @@ export interface CatalogoItemOut {
   descripcion: string
   descripcion_tpromo?: string | null
   descripcion_epago?: string | null
+  // tipos-producto expone el código (MATERIAL / EQUIPO) para identificarlos.
+  codigo?: string | null
 }

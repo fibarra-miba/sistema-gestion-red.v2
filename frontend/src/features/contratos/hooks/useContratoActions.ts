@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { contratosService } from '../services/contratosService'
 import { contratosKeys } from '../keys'
-import type { ContractActionResponse } from '../types'
+import type { ContractActionResponse, ContractOut } from '../types'
 import type { ApiError } from '@/types/api'
 
 // Transiciones de estado sin payload. Todas devuelven { message }.
@@ -40,5 +40,20 @@ export function useContratoActions() {
     onSuccess: (_data, id) => invalidate(id),
   })
 
-  return { activate, suspend, resume, cancel, terminate }
+  const asignarPromo = useMutation<
+    ContractOut,
+    ApiError,
+    { contratoId: number; promocionId: number }
+  >({
+    mutationFn: ({ contratoId, promocionId }) =>
+      contratosService.asignarPromocion(contratoId, { promocion_id: promocionId }),
+    onSuccess: (_data, { contratoId }) => invalidate(contratoId),
+  })
+
+  const quitarPromo = useMutation<ContractOut, ApiError, number>({
+    mutationFn: (id) => contratosService.quitarPromocion(id),
+    onSuccess: (_data, id) => invalidate(id),
+  })
+
+  return { activate, suspend, resume, cancel, terminate, asignarPromo, quitarPromo }
 }

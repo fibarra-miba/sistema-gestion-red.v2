@@ -283,8 +283,8 @@ CREATE TABLE IF NOT EXISTS productos (
   producto_id 		BIGSERIAL PRIMARY KEY,
   nombre_producto 	VARCHAR(150) NOT NULL,
   descripcion_producto 	VARCHAR(200),
-  marca_producto 	VARCHAR(50),
-  modelo_producto 	VARCHAR(50),
+  marca_producto 	VARCHAR(50) NOT NULL,
+  modelo_producto 	VARCHAR(50) NOT NULL,
   activo_producto 	BOOLEAN NOT NULL DEFAULT TRUE,
   tipo_producto_id	BIGINT NOT NULL
 );

@@ -41,3 +41,15 @@ def tipos_pago(conn: Connection = Depends(get_db)):
 def estados_pago(conn: Connection = Depends(get_db)):
     service = CatalogosService(conn)
     return service.list_estados_pago()
+
+
+@router.get("/tipos-producto", response_model=list[CatalogoItemOut])
+def tipos_producto(conn: Connection = Depends(get_db)):
+    service = CatalogosService(conn)
+    return service.list_tipos_producto()
+
+
+@router.get("/estados-garantia", response_model=list[CatalogoItemOut])
+def estados_garantia(conn: Connection = Depends(get_db)):
+    service = CatalogosService(conn)
+    return service.list_estados_garantia()

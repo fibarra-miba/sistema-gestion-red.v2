@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import { isApiError } from '@/types/api'
 import { PlanSelect } from '@/features/planes'
+import { PromocionSelect } from '@/features/promociones'
 import type { ClienteOut, DomicilioOut } from '@/features/clientes'
 import type { PlanOut } from '@/features/planes'
 import ClienteSelect from './ClienteSelect'
@@ -34,6 +35,7 @@ export default function ContratoForm({
   const [clienteId, setClienteId] = useState<number | null>(null)
   const [domicilioId, setDomicilioId] = useState<number | null>(null)
   const [planId, setPlanId] = useState<number | null>(null)
+  const [promocionId, setPromocionId] = useState<number | null>(null)
 
   // Guardamos los objetos seleccionados para poder mostrar un resumen
   // y para que los selects no pierdan la etiqueta al cambiar el search.
@@ -64,6 +66,7 @@ export default function ContratoForm({
       cliente_id: clienteId!,
       domicilio_id: domicilioId!,
       plan_id: planId!,
+      promocion_id: promocionId,
     })
   }
 
@@ -110,6 +113,13 @@ export default function ContratoForm({
           helperText={
             touched && planId == null ? 'Seleccioná un plan.' : undefined
           }
+        />
+
+        <PromocionSelect
+          value={promocionId}
+          onChange={(id) => setPromocionId(id)}
+          label="Promoción (opcional)"
+          helperText="Si se asigna, el descuento se aplicará al facturar."
         />
 
         {selectedPlan && (

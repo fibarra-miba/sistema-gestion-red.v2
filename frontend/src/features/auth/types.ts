@@ -17,6 +17,8 @@ export interface Capabilities {
   can_manage_contratos: boolean
   can_manage_instalaciones: boolean
   can_manage_pagos: boolean
+  can_manage_productos: boolean
+  can_manage_promociones: boolean
 }
 
 export type CapabilityKey = keyof Capabilities

@@ -408,10 +408,12 @@ ALTER TABLE garantia
   FOREIGN KEY (estado_garantia_id)
   REFERENCES estado_garantia(estado_garantia_id);
 
-ALTER TABLE garantia
-  ADD CONSTRAINT uq_garantia_instalacion_producto
-  UNIQUE (instalacion_id, producto_id);
-  
+-- NOTA: la unicidad de garantía NO es absoluta por (instalacion, producto).
+-- Se permite reemplazar un equipo en garantía: la garantía vieja queda ANULADA
+-- (historial) y se abre una nueva ACTIVA. La regla "una sola garantía ACTIVA por
+-- (instalacion, producto)" se aplica vía índice único parcial en 006_post_seed.sql
+-- (necesita el id del estado ACTIVA, sembrado recién en 005_catalogos_base.sql).
+
 ALTER TABLE garantia
   ADD CONSTRAINT chk_garantia_fechas
   CHECK (

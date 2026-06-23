@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Box,
@@ -14,7 +15,11 @@ import {
 } from '@mui/material'
 import { isApiError } from '@/types/api'
 import { formatCurrencyARS, formatDate } from '@/lib/format'
+import { useAuth } from '@/features/auth'
+import { useSnackbar } from '@/components/ui/SnackbarProvider'
+import { PromocionSelect } from '@/features/promociones'
 import { useContrato } from '../hooks/useContrato'
+import { useContratoActions } from '../hooks/useContratoActions'
 import { contratoDisplayName } from '../utils'
 import ContratoEstadoChip from './ContratoEstadoChip'
 
@@ -23,6 +28,9 @@ interface Props {
   contratoId: number | undefined
   onClose: () => void
 }
+
+// Estados terminales donde no tiene sentido tocar la promo (espeja el backend).
+const ESTADOS_SIN_PROMO = [5, 6] // BAJA, CANCELADO
 
 export default function ContratoDetailDialog({
   open,
@@ -34,7 +42,41 @@ export default function ContratoDetailDialog({
     active ? contratoId : undefined,
   )
 
+  const { hasCapability } = useAuth()
+  const canManage = hasCapability('can_manage_contratos')
+  const { showSuccess } = useSnackbar()
+  const { asignarPromo, quitarPromo } = useContratoActions()
+
+  const [promoSel, setPromoSel] = useState<number | null>(null)
+
+  useEffect(() => {
+    setPromoSel(contrato?.promocion_id ?? null)
+  }, [contrato?.contrato_id, contrato?.promocion_id])
+
   const displayName = contrato ? contratoDisplayName(contrato) : null
+
+  const puedeGestionarPromo =
+    canManage &&
+    contrato != null &&
+    !ESTADOS_SIN_PROMO.includes(contrato.estado_contrato_id)
+
+  const promoBusy = asignarPromo.isPending || quitarPromo.isPending
+  const promoError = asignarPromo.error ?? quitarPromo.error
+
+  const handleAsignar = async () => {
+    if (contrato == null || promoSel == null) return
+    await asignarPromo.mutateAsync({
+      contratoId: contrato.contrato_id,
+      promocionId: promoSel,
+    })
+    showSuccess('Promoción asignada al contrato.')
+  }
+
+  const handleQuitar = async () => {
+    if (contrato == null) return
+    await quitarPromo.mutateAsync(contrato.contrato_id)
+    showSuccess('Promoción quitada del contrato.')
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -105,16 +147,55 @@ export default function ContratoDetailDialog({
               label="Fin"
               value={formatDate(contrato.fecha_fin_contrato)}
             />
-            <DetailRow
-              label="Promoción"
-              value={
-                contrato.aplica_promocion
-                  ? contrato.promocion_id != null
-                    ? `Sí · Promoción #${contrato.promocion_id}`
-                    : 'Sí'
-                  : 'No'
-              }
-            />
+
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Promoción
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {contrato.aplica_promocion && contrato.promocion_id != null
+                  ? `Promoción #${contrato.promocion_id}`
+                  : 'Sin promoción'}
+              </Typography>
+
+              {puedeGestionarPromo && (
+                <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                  {promoError && (
+                    <Alert severity="error">
+                      {isApiError(promoError)
+                        ? promoError.detail
+                        : 'Error al actualizar la promoción.'}
+                    </Alert>
+                  )}
+                  <PromocionSelect
+                    value={promoSel}
+                    onChange={(id) => setPromoSel(id)}
+                    size="small"
+                    label="Promoción"
+                  />
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                    {contrato.aplica_promocion && (
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={handleQuitar}
+                        disabled={promoBusy}
+                      >
+                        Quitar
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={handleAsignar}
+                      disabled={promoBusy || promoSel == null || promoSel === contrato.promocion_id}
+                    >
+                      {contrato.aplica_promocion ? 'Cambiar' : 'Asignar'}
+                    </Button>
+                  </Stack>
+                </Stack>
+              )}
+            </Box>
           </Stack>
         )}
       </DialogContent>

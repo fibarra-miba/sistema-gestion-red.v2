@@ -23,6 +23,8 @@ class CapabilitiesOut(BaseModel):
     can_manage_contratos: bool = False
     can_manage_instalaciones: bool = False
     can_manage_pagos: bool = False
+    can_manage_productos: bool = False
+    can_manage_promociones: bool = False
 
 
 class AuthMeResponse(BaseModel):

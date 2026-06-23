@@ -9,6 +9,9 @@ export interface ContractCreate {
   cliente_id: number
   domicilio_id: number
   plan_id: number
+  // Promo opcional en el alta. Si se informa, el contrato nace con
+  // aplica_promocion=true.
+  promocion_id?: number | null
 }
 
 // ============================================================
@@ -77,6 +80,10 @@ export interface ListContratosParams {
 
 export interface ContractChangePlan {
   new_plan_id: number
+}
+
+export interface ContractAssignPromo {
+  promocion_id: number
 }
 
 export interface ContractConfirmTechnicalCondition {

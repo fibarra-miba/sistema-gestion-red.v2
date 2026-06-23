@@ -313,3 +313,18 @@ async def test_cobranzas_puede_pagos_pero_no_instalaciones(client):
     instalaciones = await client.get("/instalaciones")
     assert instalaciones.status_code == 403, instalaciones.text
     assert instalaciones.json()["detail"] == "No autorizado."
+
+    # COBRANZAS necesita LEER clientes y contratos para operar la pantalla de
+    # pagos (selectores cruzados): esas lecturas deben estar permitidas.
+    clientes_list = await client.get("/clientes")
+    assert clientes_list.status_code == 200, clientes_list.text
+
+    contratos_list = await client.get("/contratos")
+    assert contratos_list.status_code == 200, contratos_list.text
+
+    # ...pero NO debe poder escribir ni operar transiciones comerciales.
+    cliente_create = await client.post("/clientes", json={})
+    assert cliente_create.status_code == 403, cliente_create.text
+
+    contrato_activate = await client.post("/contratos/1/activate")
+    assert contrato_activate.status_code == 403, contrato_activate.text

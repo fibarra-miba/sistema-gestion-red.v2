@@ -16,7 +16,9 @@ import HomeIcon from '@mui/icons-material/Home'
 import PeopleIcon from '@mui/icons-material/People'
 import DescriptionIcon from '@mui/icons-material/Description'
 import CategoryIcon from '@mui/icons-material/Category'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import EngineeringIcon from '@mui/icons-material/Engineering'
+import Inventory2Icon from '@mui/icons-material/Inventory2'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import { NavLink, Outlet } from 'react-router-dom'
@@ -59,10 +61,22 @@ const NAV_ITEMS: NavItem[] = [
     anyOf: ['can_manage_planes'],
   },
   {
+    to: '/promociones',
+    label: 'Promociones',
+    icon: <LocalOfferIcon />,
+    anyOf: ['can_manage_promociones'],
+  },
+  {
     to: '/instalaciones',
     label: 'Instalaciones',
     icon: <EngineeringIcon />,
     anyOf: ['can_manage_instalaciones'],
+  },
+  {
+    to: '/productos',
+    label: 'Productos',
+    icon: <Inventory2Icon />,
+    anyOf: ['can_manage_productos'],
   },
   {
     to: '/pagos',
