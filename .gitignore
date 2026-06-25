@@ -151,3 +151,6 @@ infra/.env.n8n
 
 # n8n local data if bind mounts are ever used
 infra/n8n/data/
+
+# Playwright MCP scratch (capturas/snapshots de verificación en navegador)
+.playwright-mcp/
