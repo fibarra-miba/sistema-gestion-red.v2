@@ -66,6 +66,25 @@ class CatalogosRepo:
                 for r in cur.fetchall()
             ]
 
+    def list_estados_proveedor(self) -> list[dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT estado_proveedor_id, descripcion_eprov "
+                "FROM estado_proveedor ORDER BY estado_proveedor_id"
+            )
+            return [{"id": r[0], "descripcion": r[1]} for r in cur.fetchall()]
+
+    def list_tipos_movimiento_stock(self) -> list[dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT tipo_mov_id, descripcion_tmstock, codigo_tmstock "
+                "FROM tipo_movimiento_stock ORDER BY tipo_mov_id"
+            )
+            return [
+                {"id": r[0], "descripcion": r[1], "codigo": r[2]}
+                for r in cur.fetchall()
+            ]
+
     def list_estados_garantia(self) -> list[dict]:
         with self.conn.cursor() as cur:
             cur.execute(

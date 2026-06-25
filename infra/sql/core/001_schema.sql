@@ -76,7 +76,14 @@ CREATE TABLE IF NOT EXISTS tipo_promocion (
 
 CREATE TABLE IF NOT EXISTS tipo_movimiento_stock (
   tipo_mov_id 		BIGSERIAL PRIMARY KEY,
-  descripcion_tmstock 	VARCHAR(100) NOT NULL
+  codigo_tmstock 	VARCHAR(30) NOT NULL,
+  descripcion_tmstock 	VARCHAR(100) NOT NULL,
+  signo_tmstock 	CHAR(1) NOT NULL  -- '+' entrada | '-' salida
+);
+
+CREATE TABLE IF NOT EXISTS estado_facturas_compras (
+  estado_factura_compra_id 	BIGSERIAL PRIMARY KEY,
+  descripcion_efcompra 		VARCHAR(100) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS medios_pagos (
@@ -286,7 +293,8 @@ CREATE TABLE IF NOT EXISTS productos (
   marca_producto 	VARCHAR(50) NOT NULL,
   modelo_producto 	VARCHAR(50) NOT NULL,
   activo_producto 	BOOLEAN NOT NULL DEFAULT TRUE,
-  tipo_producto_id	BIGINT NOT NULL
+  tipo_producto_id	BIGINT NOT NULL,
+  unidad_stock_producto	VARCHAR(20)  -- unidad base de stock/consumo (unidad, metro, ...)
 );
 
 CREATE TABLE IF NOT EXISTS lista_precios_compra (
@@ -309,8 +317,10 @@ CREATE TABLE IF NOT EXISTS movimiento_stock (
   mov_stock_id 		BIGSERIAL PRIMARY KEY,
   mov_stock_item_id 	BIGINT NOT NULL,
   tipo_mov_id 		BIGINT NOT NULL,
-  fecha_mstock 		TIMESTAMPTZ NOT NULL,
-  det_instalacion_id 	BIGINT
+  fecha_mstock 		TIMESTAMPTZ NOT NULL DEFAULT now(),
+  costo_unitario_mstock	NUMERIC(12,2) NOT NULL DEFAULT 0,  -- costo por unidad base aplicado (PMP)
+  det_instalacion_id 	BIGINT,    -- salida imputada a un detalle de instalación
+  det_factura_compra_id	BIGINT     -- entrada originada por una línea de compra
 );
 
 
@@ -332,18 +342,25 @@ CREATE TABLE IF NOT EXISTS proveedor (
 );
 
 CREATE TABLE IF NOT EXISTS facturas_compras (
-  factura_compra_id 	BIGSERIAL PRIMARY KEY,
-  proveedor_id 		BIGINT NOT NULL,
-  descripcion_fcompras 	VARCHAR(200),
-  codigo_fcompras 	VARCHAR(50),
-  fecha_fcompras 	TIMESTAMPTZ NOT NULL DEFAULT now()
+  factura_compra_id 		BIGSERIAL PRIMARY KEY,
+  proveedor_id 			BIGINT NOT NULL,
+  descripcion_fcompras 		VARCHAR(200),
+  codigo_fcompras 		VARCHAR(50),
+  fecha_fcompras 		TIMESTAMPTZ NOT NULL DEFAULT now(),
+  importe_total_fcompras 	NUMERIC(12,2) NOT NULL DEFAULT 0,
+  estado_factura_compra_id 	BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS detalle_facturas_compras (
   det_factura_compra_id BIGSERIAL PRIMARY KEY,
   factura_compra_id	BIGINT NOT NULL,
   producto_id 		BIGINT NOT NULL,
-  factor_b_stock 	NUMERIC(12,2) NOT NULL
+  presentacion_id	BIGINT,                       -- NULL = compra directa en unidad base
+  cantidad_presentacion	NUMERIC(12,2) NOT NULL,       -- p.ej. 1 (bolsa)
+  factor_aplicado	NUMERIC(12,2) NOT NULL,       -- unidades base por presentación (1 si directa)
+  cantidad_base		NUMERIC(12,2) NOT NULL,       -- cantidad_presentacion * factor_aplicado
+  costo_unitario_base	NUMERIC(12,2) NOT NULL,       -- costo por unidad base
+  subtotal		NUMERIC(12,2) NOT NULL        -- cantidad_base * costo_unitario_base
 );
 
 

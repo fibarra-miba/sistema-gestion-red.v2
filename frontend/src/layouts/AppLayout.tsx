@@ -19,8 +19,12 @@ import CategoryIcon from '@mui/icons-material/Category'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import EngineeringIcon from '@mui/icons-material/Engineering'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import StorefrontIcon from '@mui/icons-material/Storefront'
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
+import WarehouseIcon from '@mui/icons-material/Warehouse'
 import PaymentsIcon from '@mui/icons-material/Payments'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import HistoryIcon from '@mui/icons-material/History'
 import { NavLink, Outlet } from 'react-router-dom'
 import ColorModeToggle from '@/theme/ColorModeToggle'
 import UserMenu from '@/layouts/UserMenu'
@@ -35,6 +39,8 @@ interface NavItem {
   end?: boolean
   // Si se define, el item sólo es visible si el usuario tiene alguna de estas capabilities.
   anyOf?: CapabilityKey[]
+  // Item ADMIN-only que no se expresa como capability (p. ej. auditoría).
+  adminOnly?: boolean
 }
 
 // Nav items completos. Inicio siempre visible. El resto se filtra por capabilities
@@ -79,6 +85,24 @@ const NAV_ITEMS: NavItem[] = [
     anyOf: ['can_manage_productos'],
   },
   {
+    to: '/proveedores',
+    label: 'Proveedores',
+    icon: <StorefrontIcon />,
+    anyOf: ['can_manage_proveedores'],
+  },
+  {
+    to: '/compras',
+    label: 'Compras',
+    icon: <ShoppingCartIcon />,
+    anyOf: ['can_manage_compras'],
+  },
+  {
+    to: '/stock',
+    label: 'Stock',
+    icon: <WarehouseIcon />,
+    anyOf: ['can_view_stock'],
+  },
+  {
     to: '/pagos',
     label: 'Pagos',
     icon: <PaymentsIcon />,
@@ -90,6 +114,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: <AdminPanelSettingsIcon />,
     anyOf: ['can_manage_users'],
   },
+  {
+    to: '/auditoria',
+    label: 'Auditoría',
+    icon: <HistoryIcon />,
+    adminOnly: true,
+  },
 ]
 
 export default function AppLayout() {
@@ -97,10 +127,11 @@ export default function AppLayout() {
   const { user } = useAuth()
 
   const visibleItems = useMemo(() => {
-    if (!user) return NAV_ITEMS.filter((i) => !i.anyOf)
-    return NAV_ITEMS.filter(
-      (i) => !i.anyOf || i.anyOf.some((cap) => user.capabilities[cap]),
-    )
+    if (!user) return NAV_ITEMS.filter((i) => !i.anyOf && !i.adminOnly)
+    return NAV_ITEMS.filter((i) => {
+      if (i.adminOnly) return user.rol.codigo_rol === 'ADMIN'
+      return !i.anyOf || i.anyOf.some((cap) => user.capabilities[cap])
+    })
   }, [user])
 
   const handleNavClick = () => {

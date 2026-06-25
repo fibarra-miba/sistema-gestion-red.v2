@@ -125,8 +125,10 @@ export default function PromocionForm({
             label="Porcentaje de descuento"
             type="number"
             required
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>,
+            slotProps={{
+              input: {
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              },
             }}
             error={!!errors.porcentaje_descuento}
             helperText={errors.porcentaje_descuento?.message}
@@ -143,8 +145,10 @@ export default function PromocionForm({
             label="Monto de descuento"
             type="number"
             required
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+            slotProps={{
+              input: {
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              },
             }}
             error={!!errors.monto_descuento}
             helperText={errors.monto_descuento?.message}
@@ -166,7 +170,7 @@ export default function PromocionForm({
             label="Vigente desde"
             type="date"
             required
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             error={!!errors.fecha_vigencia_desde_promo}
             helperText={errors.fecha_vigencia_desde_promo?.message}
             {...register('fecha_vigencia_desde_promo', {
@@ -176,7 +180,7 @@ export default function PromocionForm({
           <TextField
             label="Vigente hasta (opcional)"
             type="date"
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             error={!!errors.fecha_vigencia_hasta_promo}
             helperText={errors.fecha_vigencia_hasta_promo?.message}
             {...register('fecha_vigencia_hasta_promo')}

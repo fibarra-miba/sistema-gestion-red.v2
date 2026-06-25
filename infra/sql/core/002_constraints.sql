@@ -469,12 +469,27 @@ ALTER TABLE lista_precios_compra
   REFERENCES proveedor(proveedor_id);
 
 -- ============================
+-- TIPO_MOVIMIENTO_STOCK
+-- ============================
+ALTER TABLE tipo_movimiento_stock
+  ADD CONSTRAINT uq_tipo_movimiento_stock_codigo
+  UNIQUE (codigo_tmstock);
+
+ALTER TABLE tipo_movimiento_stock
+  ADD CONSTRAINT chk_tipo_movimiento_stock_signo
+  CHECK (signo_tmstock IN ('+', '-'));
+
+-- ============================
 -- MOVIMIENTO_STOCK_ITEM
 -- ============================
 ALTER TABLE movimiento_stock_item
   ADD CONSTRAINT fk_msi_producto
   FOREIGN KEY (producto_id)
   REFERENCES productos(producto_id);
+
+ALTER TABLE movimiento_stock_item
+  ADD CONSTRAINT chk_msi_factor_positivo
+  CHECK (factor_b_stock > 0);
 
 -- ============================
 -- MOVIMIENTO_STOCK
@@ -494,6 +509,15 @@ ALTER TABLE movimiento_stock
   FOREIGN KEY (det_instalacion_id)
   REFERENCES detalle_instalacion(det_instalacion_id);
 
+ALTER TABLE movimiento_stock
+  ADD CONSTRAINT fk_ms_det_factura_compra
+  FOREIGN KEY (det_factura_compra_id)
+  REFERENCES detalle_facturas_compras(det_factura_compra_id);
+
+ALTER TABLE movimiento_stock
+  ADD CONSTRAINT chk_ms_costo_no_negativo
+  CHECK (costo_unitario_mstock >= 0);
+
 -- ============================
 -- PROVEEDOR
 -- ============================
@@ -510,6 +534,15 @@ ALTER TABLE facturas_compras
   FOREIGN KEY (proveedor_id)
   REFERENCES proveedor(proveedor_id);
 
+ALTER TABLE facturas_compras
+  ADD CONSTRAINT fk_fcompra_estado
+  FOREIGN KEY (estado_factura_compra_id)
+  REFERENCES estado_facturas_compras(estado_factura_compra_id);
+
+ALTER TABLE facturas_compras
+  ADD CONSTRAINT chk_fcompra_total_no_negativo
+  CHECK (importe_total_fcompras >= 0);
+
 -- ============================
 -- DETALLE_FACTURAS_COMPRAS
 -- ============================
@@ -522,6 +555,21 @@ ALTER TABLE detalle_facturas_compras
   ADD CONSTRAINT fk_dfcompra_producto
   FOREIGN KEY (producto_id)
   REFERENCES productos(producto_id);
+
+ALTER TABLE detalle_facturas_compras
+  ADD CONSTRAINT fk_dfcompra_presentacion
+  FOREIGN KEY (presentacion_id)
+  REFERENCES producto_presentacion(presentacion_id);
+
+ALTER TABLE detalle_facturas_compras
+  ADD CONSTRAINT chk_dfcompra_cantidades_positivas
+  CHECK (
+    cantidad_presentacion > 0
+    AND factor_aplicado > 0
+    AND cantidad_base > 0
+    AND costo_unitario_base >= 0
+    AND subtotal >= 0
+  );
 
 -- ============================
 -- FACTURAS_VENTAS

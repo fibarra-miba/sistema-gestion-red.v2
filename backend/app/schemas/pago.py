@@ -10,6 +10,28 @@ Money = condecimal(max_digits=12, decimal_places=2, ge=0)
 PositiveMoney = condecimal(max_digits=12, decimal_places=2, gt=0)
 
 
+# ==========================================================
+# RESUMEN (DASHBOARD)
+# ==========================================================
+
+class TopMorosoItem(BaseModel):
+    cliente_id: int
+    nombre_cliente: str
+    apellido_cliente: str
+    # float (no condecimal) para serializar como número JSON, consistente con
+    # formatCurrencyARS(number) del front y con los OUT money de contratos.
+    saldo_cuenta: float
+
+
+class PagosResumenOut(BaseModel):
+    deudores_count: int
+    monto_adeudado: float
+    facturado_mes: float
+    pagos_pendientes_mes: int
+    pagos_parciales_mes: int
+    top_morosos: List[TopMorosoItem]
+
+
 class ComprobanteIn(BaseModel):
     url: str
     mime: Optional[str] = None
@@ -107,9 +129,16 @@ class GenerarLoteOut(BaseModel):
     errores: list[dict]
 
 
+class ClienteResumenOut(BaseModel):
+    cliente_id: int
+    nombre_cliente: str
+    apellido_cliente: str
+
+
 class PagoDetalleOut(BaseModel):
     pago: PagoOut
     factura: FacturaResumenOut
+    cliente: ClienteResumenOut
     movimientos: List[PagoMovimientoOut]
     saldo_cuenta_resultante: condecimal(max_digits=12, decimal_places=2)
 

@@ -14,6 +14,21 @@ class ContractRepository:
         self.conn = conn
 
     # ==========================================================
+    # RESUMEN (DASHBOARD)
+    # ==========================================================
+
+    def resumen_por_estado(self) -> dict[str, int]:
+        query = """
+            SELECT ec.descripcion_econtrato AS estado, COUNT(*) AS cantidad
+            FROM contratos c
+            JOIN estado_contrato ec ON ec.estado_contrato_id = c.estado_contrato_id
+            GROUP BY ec.descripcion_econtrato
+        """
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query)
+            return {r["estado"]: int(r["cantidad"]) for r in cur.fetchall()}
+
+    # ==========================================================
     # CREATE
     # ==========================================================
 

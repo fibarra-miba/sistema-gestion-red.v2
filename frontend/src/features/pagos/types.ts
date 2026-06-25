@@ -108,9 +108,16 @@ export interface PagoMovimientoOut {
   recibo: ReciboOut | null
 }
 
+export interface ClienteResumenPago {
+  cliente_id: number
+  nombre_cliente: string
+  apellido_cliente: string
+}
+
 export interface PagoDetalleOut {
   pago: PagoOut
   factura: FacturaResumenOut
+  cliente: ClienteResumenPago
   movimientos: PagoMovimientoOut[]
   saldo_cuenta_resultante: number
 }

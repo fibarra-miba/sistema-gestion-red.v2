@@ -32,3 +32,15 @@ CREATE INDEX IF NOT EXISTS idx_auditoria_created_at ON auditoria_eventos (create
 -- Los tres son NOT NULL, así que no hace falta NULLS NOT DISTINCT.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_producto_nombre_marca_modelo
   ON productos (lower(nombre_producto), lower(marca_producto), lower(modelo_producto));
+
+-- Stock / compras
+CREATE INDEX IF NOT EXISTS idx_msi_producto ON movimiento_stock_item (producto_id);
+CREATE INDEX IF NOT EXISTS idx_ms_item ON movimiento_stock (mov_stock_item_id);
+CREATE INDEX IF NOT EXISTS idx_ms_det_instalacion ON movimiento_stock (det_instalacion_id);
+CREATE INDEX IF NOT EXISTS idx_ms_det_factura_compra ON movimiento_stock (det_factura_compra_id);
+CREATE INDEX IF NOT EXISTS idx_ms_fecha ON movimiento_stock (fecha_mstock);
+CREATE INDEX IF NOT EXISTS idx_dfcompra_factura ON detalle_facturas_compras (factura_compra_id);
+CREATE INDEX IF NOT EXISTS idx_dfcompra_producto ON detalle_facturas_compras (producto_id);
+CREATE INDEX IF NOT EXISTS idx_fcompras_proveedor ON facturas_compras (proveedor_id);
+CREATE INDEX IF NOT EXISTS idx_pp_producto ON producto_presentacion (producto_id);
+CREATE INDEX IF NOT EXISTS idx_proveedor_estado ON proveedor (estado_proveedor_id);

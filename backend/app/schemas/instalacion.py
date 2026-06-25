@@ -9,6 +9,26 @@ from pydantic import BaseModel, Field
 
 
 # ==========================================================
+# RESUMEN (DASHBOARD)
+# ==========================================================
+
+class InstalacionAgendaItem(BaseModel):
+    programacion_id: int
+    contrato_id: int
+    fecha_programacion: datetime
+    tecnico: Optional[str] = None
+    nombre_cliente: str
+    apellido_cliente: str
+
+
+class InstalacionesResumenOut(BaseModel):
+    pendientes: int
+    fallidas: int
+    programadas_hoy: int
+    agenda_hoy: List[InstalacionAgendaItem]
+
+
+# ==========================================================
 # CONTRATOS - CONDICION TECNICA
 # ==========================================================
 
@@ -152,6 +172,9 @@ class DetalleInstalacionResponse(BaseModel):
     unidad_dinstalacion: str
     observacion_dinstalacion: Optional[str] = None
     fecha_creacion_dinstalacion: datetime
+    # Gasto de materiales: costo de la salida de stock imputada a la línea.
+    costo_unitario_dinstalacion: Optional[float] = None
+    costo_total_dinstalacion: Optional[float] = None
 
     class Config:
         from_attributes = True

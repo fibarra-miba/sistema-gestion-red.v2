@@ -19,6 +19,10 @@ export interface Capabilities {
   can_manage_pagos: boolean
   can_manage_productos: boolean
   can_manage_promociones: boolean
+  can_manage_proveedores: boolean
+  can_manage_compras: boolean
+  can_manage_stock: boolean
+  can_view_stock: boolean
 }
 
 export type CapabilityKey = keyof Capabilities

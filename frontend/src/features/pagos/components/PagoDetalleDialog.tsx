@@ -20,6 +20,8 @@ import {
 } from '@mui/material'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import PaymentIcon from '@mui/icons-material/Payment'
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
+import { useState } from 'react'
 import { isApiError } from '@/types/api'
 import { formatCurrencyARS, formatDate } from '@/lib/format'
 import { useMediosPagos, useTiposPago } from '@/features/catalogos'
@@ -27,6 +29,7 @@ import type { PagoMovimientoOut } from '../types'
 import { usePagoDetalle } from '../hooks/usePagoDetalle'
 import { formatPeriodo } from '../utils'
 import PagoEstadoChip from './PagoEstadoChip'
+import ReciboDialog from './ReciboDialog'
 
 interface Props {
   open: boolean
@@ -47,6 +50,7 @@ export default function PagoDetalleDialog({
   )
   const mediosQuery = useMediosPagos()
   const tiposQuery = useTiposPago()
+  const [reciboMov, setReciboMov] = useState<PagoMovimientoOut | null>(null)
 
   const medioPagoLabel = (id: number): string =>
     mediosQuery.data?.find((m) => m.id === id)?.descripcion ?? `#${id}`
@@ -174,6 +178,7 @@ export default function PagoDetalleDialog({
                       mov={m}
                       medioLabel={medioPagoLabel(m.medio_pago_id)}
                       tipoLabel={tipoPagoLabel(m.tipo_pago_id)}
+                      onPrintRecibo={() => setReciboMov(m)}
                     />
                   ))}
                 </Stack>
@@ -203,6 +208,17 @@ export default function PagoDetalleDialog({
         )}
         <Button onClick={onClose}>Cerrar</Button>
       </DialogActions>
+
+      {data && reciboMov && (
+        <ReciboDialog
+          open
+          onClose={() => setReciboMov(null)}
+          detalle={data}
+          mov={reciboMov}
+          medioLabel={medioPagoLabel(reciboMov.medio_pago_id)}
+          tipoLabel={tipoPagoLabel(reciboMov.tipo_pago_id)}
+        />
+      )}
     </Dialog>
   )
 }
@@ -211,10 +227,12 @@ function MovimientoRow({
   mov,
   medioLabel,
   tipoLabel,
+  onPrintRecibo,
 }: {
   mov: PagoMovimientoOut
   medioLabel: string
   tipoLabel: string
+  onPrintRecibo: () => void
 }) {
   return (
     <Paper variant="outlined" sx={{ p: 1.5 }}>
@@ -228,14 +246,15 @@ function MovimientoRow({
           </Typography>
         </Stack>
         {mov.recibo && (
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Recibo
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              #{mov.recibo.recibo_id}
-            </Typography>
-          </Box>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ReceiptLongIcon />}
+            onClick={onPrintRecibo}
+            sx={{ flexShrink: 0, alignSelf: { sm: 'center' } }}
+          >
+            Recibo #{mov.recibo.recibo_id}
+          </Button>
         )}
       </Stack>
 

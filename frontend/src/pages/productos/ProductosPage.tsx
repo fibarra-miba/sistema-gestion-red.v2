@@ -42,6 +42,7 @@ export default function ProductosPage() {
     modelo_producto: values.modelo_producto.trim(),
     descripcion_producto: values.descripcion_producto.trim() || null,
     tipo_producto_id: Number(values.tipo_producto_id),
+    unidad_stock_producto: values.unidad_stock_producto.trim() || null,
   })
 
   const handleCreate = async (values: ProductoFormValues) => {
@@ -146,6 +147,7 @@ export default function ProductosPage() {
                 modelo_producto: editing.modelo_producto,
                 descripcion_producto: editing.descripcion_producto ?? '',
                 tipo_producto_id: String(editing.tipo_producto_id),
+                unidad_stock_producto: editing.unidad_stock_producto ?? '',
                 activo_producto: editing.activo_producto,
               }}
               onSubmit={handleUpdate}

@@ -9,6 +9,7 @@ import psycopg
 
 from app.repositories.contratos_repo import ContractRepository
 from app.repositories.instalaciones_repo import InstalacionesRepository
+from app.services.stock_service import StockService
 
 
 class InstalacionesService:
@@ -20,9 +21,14 @@ class InstalacionesService:
         self,
         contratos_repo: ContractRepository,
         instalaciones_repo: InstalacionesRepository,
+        stock_service: StockService | None = None,
     ):
         self.contratos_repo = contratos_repo
         self.instalaciones_repo = instalaciones_repo
+        self.stock_service = stock_service
+
+    def resumen(self) -> dict:
+        return self.instalaciones_repo.resumen()
 
     # ==========================================================
     # HELPERS
@@ -513,7 +519,7 @@ class InstalacionesService:
     ) -> dict:
         self._get_instalacion(instalacion_id)
 
-        return self.instalaciones_repo.create_detalle_instalacion(
+        detalle = self.instalaciones_repo.create_detalle_instalacion(
             instalacion_id=instalacion_id,
             producto_id=producto_id,
             descripcion_dinstalacion=descripcion_dinstalacion,
@@ -521,6 +527,19 @@ class InstalacionesService:
             unidad_dinstalacion=unidad_dinstalacion,
             observacion_dinstalacion=observacion_dinstalacion,
         )
+
+        # El consumo de material descuenta stock (cantidad en unidad base). Si no
+        # hay saldo suficiente, StockService corta con ValueError y la transacción
+        # de get_db revierte también el detalle recién creado (atómico).
+        if self.stock_service is not None:
+            self.stock_service.registrar_salida_instalacion(
+                producto_id=producto_id,
+                cantidad_base=float(cantidad_dinstalacion),
+                det_instalacion_id=int(detalle["det_instalacion_id"]),
+                observacion=f"Instalación #{instalacion_id}",
+            )
+
+        return detalle
 
     def list_detalles_instalacion(self, instalacion_id: int) -> list[dict]:
         self._get_instalacion(instalacion_id)

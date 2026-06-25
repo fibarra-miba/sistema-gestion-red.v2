@@ -8,4 +8,7 @@ export const productosKeys = {
 
   details: () => [...productosKeys.all, 'detail'] as const,
   detail: (productoId: number) => [...productosKeys.details(), productoId] as const,
+
+  presentaciones: (productoId: number) =>
+    [...productosKeys.all, 'presentaciones', productoId] as const,
 }

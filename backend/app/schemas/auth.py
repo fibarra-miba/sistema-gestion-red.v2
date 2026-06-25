@@ -25,6 +25,10 @@ class CapabilitiesOut(BaseModel):
     can_manage_pagos: bool = False
     can_manage_productos: bool = False
     can_manage_promociones: bool = False
+    can_manage_proveedores: bool = False
+    can_manage_compras: bool = False
+    can_manage_stock: bool = False
+    can_view_stock: bool = False
 
 
 class AuthMeResponse(BaseModel):

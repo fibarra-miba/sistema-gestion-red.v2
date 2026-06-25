@@ -53,3 +53,15 @@ def tipos_producto(conn: Connection = Depends(get_db)):
 def estados_garantia(conn: Connection = Depends(get_db)):
     service = CatalogosService(conn)
     return service.list_estados_garantia()
+
+
+@router.get("/estados-proveedor", response_model=list[CatalogoItemOut])
+def estados_proveedor(conn: Connection = Depends(get_db)):
+    service = CatalogosService(conn)
+    return service.list_estados_proveedor()
+
+
+@router.get("/tipos-movimiento-stock", response_model=list[CatalogoItemOut])
+def tipos_movimiento_stock(conn: Connection = Depends(get_db)):
+    service = CatalogosService(conn)
+    return service.list_tipos_movimiento_stock()

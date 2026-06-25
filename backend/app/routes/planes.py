@@ -9,6 +9,8 @@ from app.repositories.precios_repo import PreciosRepo
 from app.services.planes_service import PlanesService
 from app.services.precios_service import PreciosPlanesService
 from app.dependencies.auth import require_authenticated_user, require_roles
+from app.dependencies.audit import get_auditor
+from app.services.auditoria import Auditor, AuditModulo, AuditAccion
 from app.schemas.plan import (
     PlanCreate,
     PlanUpdate,
@@ -47,9 +49,17 @@ def get_precios_service(conn: Connection = Depends(get_db)) -> PreciosPlanesServ
 def create_plan(
     payload: PlanCreate,
     service: PlanesService = Depends(get_planes_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.create_plan(**payload.model_dump())
+        result = service.create_plan(**payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.PLANES,
+            accion=AuditAccion.CREATE,
+            entidad="planes",
+            entidad_id=result["plan_id"],
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -83,10 +93,18 @@ def update_plan(
     plan_id: int,
     payload: PlanUpdate,
     service: PlanesService = Depends(get_planes_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
         data = payload.model_dump(exclude_unset=True)
-        return service.update_plan(plan_id, data)
+        result = service.update_plan(plan_id, data)
+        auditor.log(
+            modulo=AuditModulo.PLANES,
+            accion=AuditAccion.UPDATE,
+            entidad="planes",
+            entidad_id=plan_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -99,9 +117,16 @@ def update_plan(
 def delete_plan(
     plan_id: int,
     service: PlanesService = Depends(get_planes_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
         service.delete_plan(plan_id)
+        auditor.log(
+            modulo=AuditModulo.PLANES,
+            accion=AuditAccion.DELETE,
+            entidad="planes",
+            entidad_id=plan_id,
+        )
         return {"message": "Plan desactivado correctamente."}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -127,12 +152,21 @@ def create_plan_price(
     plan_id: int,
     payload: PlanPriceCreate,
     service: PreciosPlanesService = Depends(get_precios_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.create_price(
+        result = service.create_price(
             plan_id=plan_id,
             **payload.model_dump(),
         )
+        auditor.log(
+            modulo=AuditModulo.PRECIOS,
+            accion=AuditAccion.CREATE,
+            entidad="precios_planes",
+            entidad_id=result["precios_planes_id"],
+            detalle=f"plan_id={plan_id}",
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -143,13 +177,22 @@ def update_plan_price(
     precios_planes_id: int,
     payload: PlanPriceUpdate,
     service: PreciosPlanesService = Depends(get_precios_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.update_price(
+        result = service.update_price(
             plan_id=plan_id,
             precios_planes_id=precios_planes_id,
             data=payload.model_dump(exclude_unset=True),
         )
+        auditor.log(
+            modulo=AuditModulo.PRECIOS,
+            accion=AuditAccion.UPDATE,
+            entidad="precios_planes",
+            entidad_id=precios_planes_id,
+            detalle=f"plan_id={plan_id}",
+        )
+        return result
     except ValueError as e:
         detail = str(e)
 
