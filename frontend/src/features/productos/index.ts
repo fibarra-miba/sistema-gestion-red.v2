@@ -5,6 +5,8 @@ export { productosService } from './services/productosService'
 export { useProductos } from './hooks/useProductos'
 export { useCreateProducto } from './hooks/useCreateProducto'
 export { useUpdateProducto } from './hooks/useUpdateProducto'
+export { usePresentaciones } from './hooks/usePresentaciones'
+export { useCreatePresentacion } from './hooks/useCreatePresentacion'
 
 export { default as ProductoSelect } from './components/ProductoSelect'
 export { default as ProductoTable } from './components/ProductoTable'

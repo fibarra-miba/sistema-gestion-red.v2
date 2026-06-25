@@ -5,11 +5,73 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from psycopg import Connection
+from psycopg.rows import dict_row
 
 
 class PagosRepo:
     def __init__(self, conn: Connection):
         self.conn = conn
+
+    # ---------------------------
+    # RESUMEN (DASHBOARD)
+    # ---------------------------
+    def resumen(self) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) AS deudores_count,
+                  COALESCE(SUM(c.saldo_cuenta), 0) AS monto_adeudado
+                FROM cuenta c
+                JOIN estado_cuenta ec ON ec.estado_cuenta_id = c.estado_cuenta_id
+                WHERE ec.descripcion_ecuenta = 'DEUDOR'
+                """
+            )
+            deudores = cur.fetchone()
+
+            cur.execute(
+                """
+                SELECT COALESCE(SUM(importe_total_fventas), 0) AS facturado_mes
+                FROM facturas_ventas
+                WHERE date_trunc('month', fecha_emision_fventas) = date_trunc('month', CURRENT_DATE)
+                """
+            )
+            facturado = cur.fetchone()
+
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) FILTER (WHERE ep.descripcion_epago = 'PENDIENTE') AS pagos_pendientes_mes,
+                  COUNT(*) FILTER (WHERE ep.descripcion_epago = 'PARCIAL') AS pagos_parciales_mes
+                FROM pagos p
+                JOIN estado_pago ep ON ep.estado_pago_id = p.estado_pago_id
+                WHERE p.periodo_anio_pago = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND p.periodo_mes_pago = EXTRACT(MONTH FROM CURRENT_DATE)
+                """
+            )
+            pagos_mes = cur.fetchone()
+
+            cur.execute(
+                """
+                SELECT c.cliente_id, cl.nombre_cliente, cl.apellido_cliente, c.saldo_cuenta
+                FROM cuenta c
+                JOIN estado_cuenta ec ON ec.estado_cuenta_id = c.estado_cuenta_id
+                JOIN clientes cl ON cl.cliente_id = c.cliente_id
+                WHERE ec.descripcion_ecuenta = 'DEUDOR'
+                ORDER BY c.saldo_cuenta DESC
+                LIMIT 8
+                """
+            )
+            top_morosos = cur.fetchall()
+
+        return {
+            "deudores_count": int(deudores["deudores_count"]),
+            "monto_adeudado": deudores["monto_adeudado"],
+            "facturado_mes": facturado["facturado_mes"],
+            "pagos_pendientes_mes": int(pagos_mes["pagos_pendientes_mes"]),
+            "pagos_parciales_mes": int(pagos_mes["pagos_parciales_mes"]),
+            "top_morosos": top_morosos,
+        }
 
     # ---------------------------
     # FACTURA + PAGO CABECERA

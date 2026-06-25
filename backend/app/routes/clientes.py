@@ -11,10 +11,12 @@ from psycopg.errors import (
     CheckViolation,
 )
 from app.db import get_db
-from app.schemas.cliente import ClienteOut, ClienteCreate, ClienteUpdate
+from app.schemas.cliente import ClienteOut, ClienteCreate, ClienteUpdate, ClientesResumenOut
 from app.services.clientes_service import ClienteService
 from app.schemas.cliente_onboarding import ClienteOnboardingCreate
 from app.dependencies.auth import require_roles
+from app.dependencies.audit import get_auditor
+from app.services.auditoria import Auditor, AuditModulo, AuditAccion
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -50,6 +52,21 @@ def get_clientes(
 
 
 @router.get(
+    "/resumen",
+    response_model=ClientesResumenOut,
+    dependencies=[Depends(require_roles(*READ_ROLES))],
+)
+def get_clientes_resumen(
+    conn: psycopg.Connection = Depends(get_db),
+):
+    try:
+        return ClienteService.resumen(conn)
+    except Exception:
+        logger.exception("Error fetching clientes resumen")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
     "/{cliente_id}",
     response_model=ClienteOut,
     dependencies=[Depends(require_roles(*READ_ROLES))],
@@ -78,9 +95,17 @@ def get_cliente(
 def create_cliente(
     cliente: ClienteCreate,
     conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return ClienteService.crear_cliente(conn, cliente.model_dump())
+        result = ClienteService.crear_cliente(conn, cliente.model_dump())
+        auditor.log(
+            modulo=AuditModulo.CLIENTES,
+            accion=AuditAccion.CREATE,
+            entidad="clientes",
+            entidad_id=result["cliente_id"],
+        )
+        return result
     except UniqueViolation:
         raise HTTPException(status_code=409, detail="Cliente with this DNI already exists")
     except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
@@ -104,12 +129,20 @@ def create_cliente(
 def onboarding_cliente(
     data: ClienteOnboardingCreate,
     conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return ClienteService.onboarding(
+        result = ClienteService.onboarding(
             conn,
             data.model_dump()
         )
+        auditor.log(
+            modulo=AuditModulo.CLIENTES,
+            accion=AuditAccion.ONBOARDING,
+            entidad="clientes",
+            entidad_id=result["cliente_id"],
+        )
+        return result
     except UniqueViolation:
         raise HTTPException(status_code=409, detail="Cliente duplicado")
     except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
@@ -131,13 +164,21 @@ def update_cliente(
     cliente_id: int = Path(..., ge=1),
     cliente: ClienteUpdate = ...,
     conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return ClienteService.actualizar_cliente(
+        result = ClienteService.actualizar_cliente(
             conn,
             cliente_id,
             cliente.model_dump()
         )
+        auditor.log(
+            modulo=AuditModulo.CLIENTES,
+            accion=AuditAccion.UPDATE,
+            entidad="clientes",
+            entidad_id=cliente_id,
+        )
+        return result
     except ValueError as e:
         if str(e) == "CLIENTE_NOT_FOUND":
             raise HTTPException(status_code=404, detail="Cliente not found")

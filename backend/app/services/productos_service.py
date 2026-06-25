@@ -52,6 +52,7 @@ class ProductosService:
         marca_producto: str,
         modelo_producto: str,
         tipo_producto_id: int,
+        unidad_stock_producto: Optional[str] = None,
     ) -> dict:
         if not self.repo.exists_tipo_producto(tipo_producto_id):
             raise ValueError(self.TIPO_INVALIDO)
@@ -63,11 +64,35 @@ class ProductosService:
                 marca_producto=marca_producto,
                 modelo_producto=modelo_producto,
                 tipo_producto_id=tipo_producto_id,
+                unidad_stock_producto=unidad_stock_producto,
             )
         except UniqueViolation:
             raise ValueError(self.DUPLICADO)
 
         return self.repo.get_by_id(int(created["producto_id"]))
+
+    # ==========================================================
+    # PRESENTACIONES
+    # ==========================================================
+
+    def list_presentaciones(self, producto_id: int) -> List[dict]:
+        self.get_producto(producto_id)
+        return self.repo.list_presentaciones(producto_id)
+
+    def create_presentacion(
+        self,
+        producto_id: int,
+        nombre_presentacion: str,
+        unidad_compra_presentacion: str,
+        factor_a_stock: float,
+    ) -> dict:
+        self.get_producto(producto_id)
+        return self.repo.create_presentacion(
+            producto_id=producto_id,
+            nombre_presentacion=nombre_presentacion,
+            unidad_compra_presentacion=unidad_compra_presentacion,
+            factor_a_stock=factor_a_stock,
+        )
 
     # ==========================================================
     # UPDATE (incluye activar/desactivar)

@@ -30,6 +30,15 @@ class ContractService:
 
     PLAN_ACTIVO = 1
 
+    ESTADOS_CONTRATO = (
+        "BORRADOR",
+        "PENDIENTE_INSTALACION",
+        "ACTIVO",
+        "SUSPENDIDO",
+        "BAJA",
+        "CANCELADO",
+    )
+
     def __init__(
         self,
         repo: ContractRepository,
@@ -39,6 +48,11 @@ class ContractService:
         self.instalaciones_repo = instalaciones_repo
         self.precios_repo = PreciosRepo(repo.conn)
         self.promo_repo = PromocionesRepo(repo.conn)
+
+    def resumen(self) -> dict:
+        counts = self.repo.resumen_por_estado()
+        por_estado = {estado: counts.get(estado, 0) for estado in self.ESTADOS_CONTRATO}
+        return {"total": sum(por_estado.values()), "por_estado": por_estado}
 
     # ==========================================================
     # VALIDACIONES AUXILIARES

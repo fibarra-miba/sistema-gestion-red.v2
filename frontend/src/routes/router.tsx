@@ -9,13 +9,18 @@ import PromocionesPage from '@/pages/promociones/PromocionesPage'
 import ContratosPage from '@/pages/contratos/ContratosPage'
 import InstalacionesPage from '@/pages/instalaciones/InstalacionesPage'
 import ProductosPage from '@/pages/productos/ProductosPage'
+import ProveedoresPage from '@/pages/proveedores/ProveedoresPage'
+import ComprasPage from '@/pages/compras/ComprasPage'
+import StockPage from '@/pages/stock/StockPage'
 import PagosPage from '@/pages/pagos/PagosPage'
 import UsuariosPage from '@/pages/usuarios/UsuariosPage'
+import AuditoriaPage from '@/pages/auditoria/AuditoriaPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import ChangePasswordPage from '@/pages/auth/ChangePasswordPage'
 import ProtectedRoute from '@/routes/ProtectedRoute'
 import PublicOnlyRoute from '@/routes/PublicOnlyRoute'
 import RequireCapability from '@/routes/RequireCapability'
+import RequireRole from '@/routes/RequireRole'
 
 export const router = createBrowserRouter([
   // Rutas públicas (sólo accesibles sin sesión).
@@ -75,6 +80,21 @@ export const router = createBrowserRouter([
           },
 
           {
+            element: <RequireCapability anyOf={['can_manage_proveedores']} />,
+            children: [{ path: 'proveedores', element: <ProveedoresPage /> }],
+          },
+
+          {
+            element: <RequireCapability anyOf={['can_manage_compras']} />,
+            children: [{ path: 'compras', element: <ComprasPage /> }],
+          },
+
+          {
+            element: <RequireCapability anyOf={['can_view_stock']} />,
+            children: [{ path: 'stock', element: <StockPage /> }],
+          },
+
+          {
             element: <RequireCapability anyOf={['can_manage_pagos']} />,
             children: [{ path: 'pagos', element: <PagosPage /> }],
           },
@@ -82,6 +102,11 @@ export const router = createBrowserRouter([
           {
             element: <RequireCapability anyOf={['can_manage_users']} />,
             children: [{ path: 'usuarios', element: <UsuariosPage /> }],
+          },
+
+          {
+            element: <RequireRole anyOf={['ADMIN']} />,
+            children: [{ path: 'auditoria', element: <AuditoriaPage /> }],
           },
 
           { path: '*', element: <NotFoundPage /> },

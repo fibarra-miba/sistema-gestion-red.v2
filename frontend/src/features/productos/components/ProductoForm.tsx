@@ -19,6 +19,7 @@ export interface ProductoFormValues {
   modelo_producto: string
   descripcion_producto: string
   tipo_producto_id: string
+  unidad_stock_producto: string
   activo_producto: boolean
 }
 
@@ -28,6 +29,7 @@ const DEFAULT_VALUES: ProductoFormValues = {
   modelo_producto: '',
   descripcion_producto: '',
   tipo_producto_id: '',
+  unidad_stock_producto: '',
   activo_producto: true,
 }
 
@@ -115,28 +117,45 @@ export default function ProductoForm({
           />
         </Box>
 
-        <Controller
-          control={control}
-          name="tipo_producto_id"
-          rules={{ required: 'Tipo requerido' }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              select
-              label="Tipo de producto"
-              required
-              disabled={loadingTipos}
-              error={!!errors.tipo_producto_id}
-              helperText={errors.tipo_producto_id?.message}
-            >
-              {(tipos ?? []).map((t) => (
-                <MenuItem key={t.id} value={String(t.id)}>
-                  {t.descripcion}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-        />
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+          }}
+        >
+          <Controller
+            control={control}
+            name="tipo_producto_id"
+            rules={{ required: 'Tipo requerido' }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                select
+                label="Tipo de producto"
+                required
+                disabled={loadingTipos}
+                error={!!errors.tipo_producto_id}
+                helperText={errors.tipo_producto_id?.message}
+              >
+                {(tipos ?? []).map((t) => (
+                  <MenuItem key={t.id} value={String(t.id)}>
+                    {t.descripcion}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+          <TextField
+            label="Unidad de stock"
+            placeholder="unidad, metro, ..."
+            error={!!errors.unidad_stock_producto}
+            helperText={errors.unidad_stock_producto?.message ?? 'Unidad base de consumo'}
+            {...register('unidad_stock_producto', {
+              maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+            })}
+          />
+        </Box>
 
         <TextField
           label="Descripción"

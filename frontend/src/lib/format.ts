@@ -25,6 +25,18 @@ export function formatDate(iso: string | null | undefined): string {
   return dateFmt.format(d)
 }
 
+const timeFmt = new Intl.DateTimeFormat('es-AR', {
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return timeFmt.format(d)
+}
+
 // Input <input type="date"> espera YYYY-MM-DD.
 export function toDateInputValue(iso: string | null | undefined): string {
   if (!iso) return ''

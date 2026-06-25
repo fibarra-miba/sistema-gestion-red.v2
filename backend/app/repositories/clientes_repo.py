@@ -57,6 +57,20 @@ def list_clientes(
         return cur.fetchall()
 
 
+def resumen_clientes(conn: psycopg.Connection) -> Dict[str, Any]:
+    query = """
+        SELECT
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE ec.descripcion_ecliente = 'ACTIVO') AS activos,
+            COUNT(*) FILTER (WHERE ec.descripcion_ecliente = 'INACTIVO') AS inactivos
+        FROM clientes c
+        JOIN estado_cliente ec ON ec.estado_cliente_id = c.estado_cliente_id
+    """
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        cur.execute(query)
+        return cur.fetchone()
+
+
 def get_cliente_by_id(
     conn: psycopg.Connection,
     cliente_id: int

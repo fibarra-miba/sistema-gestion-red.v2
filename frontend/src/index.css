@@ -27,3 +27,25 @@ body {
   flex-direction: column;
   min-height: 100vh;
 }
+
+/* Impresión de recibos: al imprimir mostramos sólo el documento marcado
+   con .recibo-print (oculta app shell, dialog y backdrop). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .recibo-print,
+  .recibo-print * {
+    visibility: visible;
+  }
+
+  .recibo-print {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 24px;
+    width: 100%;
+    box-shadow: none;
+  }
+}

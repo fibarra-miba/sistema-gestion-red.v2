@@ -66,6 +66,21 @@ INSERT INTO tipo_promocion (descripcion_tpromo) VALUES
   ('PORCENTAJE'),
   ('DESCUENTO_FIJO');
 
+INSERT INTO estado_proveedor (descripcion_eprov) VALUES
+  ('ACTIVO'),
+  ('INACTIVO');
+
+INSERT INTO estado_facturas_compras (descripcion_efcompra) VALUES
+  ('EMITIDA'),
+  ('ANULADA');
+
+INSERT INTO tipo_movimiento_stock (codigo_tmstock, descripcion_tmstock, signo_tmstock) VALUES
+  ('ENTRADA_COMPRA',     'Entrada por compra',              '+'),
+  ('SALIDA_INSTALACION', 'Salida por consumo en instalación', '-'),
+  ('AJUSTE_POSITIVO',    'Ajuste manual positivo',          '+'),
+  ('AJUSTE_NEGATIVO',    'Ajuste manual negativo',          '-'),
+  ('DEVOLUCION',         'Devolución a stock',              '+');
+
 INSERT INTO tipo_movimiento_detalle_cuenta (
   codigo_tipo_mov_det_cuenta,
   descripcion_tipo_mov_det_cuenta,

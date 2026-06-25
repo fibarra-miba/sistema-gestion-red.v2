@@ -24,6 +24,10 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_pagos": True,
         "can_manage_productos": True,
         "can_manage_promociones": True,
+        "can_manage_proveedores": True,
+        "can_manage_compras": True,
+        "can_manage_stock": True,
+        "can_view_stock": True,
     },
     "OPERADOR": {
         "can_manage_users": False,
@@ -35,6 +39,10 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_pagos": False,
         "can_manage_productos": True,
         "can_manage_promociones": True,
+        "can_manage_proveedores": True,
+        "can_manage_compras": True,
+        "can_manage_stock": True,
+        "can_view_stock": True,
     },
     "TECNICO": {
         "can_manage_users": False,
@@ -46,6 +54,11 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_pagos": False,
         "can_manage_productos": False,
         "can_manage_promociones": False,
+        "can_manage_proveedores": False,
+        "can_manage_compras": False,
+        "can_manage_stock": False,
+        # Lectura de existencias (sin escritura): el técnico consulta stock.
+        "can_view_stock": True,
     },
     "COBRANZAS": {
         "can_manage_users": False,
@@ -57,6 +70,10 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_pagos": True,
         "can_manage_productos": False,
         "can_manage_promociones": False,
+        "can_manage_proveedores": False,
+        "can_manage_compras": False,
+        "can_manage_stock": False,
+        "can_view_stock": False,
     },
 }
 

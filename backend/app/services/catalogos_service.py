@@ -27,3 +27,9 @@ class CatalogosService:
 
     def list_estados_garantia(self):
         return self.repo.list_estados_garantia()
+
+    def list_estados_proveedor(self):
+        return self.repo.list_estados_proveedor()
+
+    def list_tipos_movimiento_stock(self):
+        return self.repo.list_tipos_movimiento_stock()

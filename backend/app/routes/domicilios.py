@@ -9,6 +9,8 @@ from app.db import get_db
 from app.schemas.domicilio import DomicilioCreate, DomicilioOut, DomicilioVigenteOut
 from app.services.domicilios_service import DomicilioService
 from app.dependencies.auth import require_roles
+from app.dependencies.audit import get_auditor
+from app.services.auditoria import Auditor, AuditModulo, AuditAccion
 
 logger = logging.getLogger("uvicorn.error")
 ## router = APIRouter(prefix="/clientes", tags=["domicilios"])
@@ -58,13 +60,22 @@ def create_domicilio_cliente(
     domicilio: DomicilioCreate,
     cliente_id: int = Path(..., ge=1),
     conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return DomicilioService.crear_nuevo_domicilio(
+        result = DomicilioService.crear_nuevo_domicilio(
             conn,
             cliente_id,
             domicilio.model_dump()
         )
+        auditor.log(
+            modulo=AuditModulo.DOMICILIOS,
+            accion=AuditAccion.CREATE,
+            entidad="domicilios",
+            entidad_id=result["domicilio_id"],
+            detalle=f"cliente_id={cliente_id}",
+        )
+        return result
     except ValueError as e:
         if str(e) == "CLIENTE_NOT_FOUND":
             raise HTTPException(status_code=404, detail="Cliente not found")

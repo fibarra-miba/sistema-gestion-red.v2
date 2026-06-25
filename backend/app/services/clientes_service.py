@@ -21,6 +21,10 @@ class ClienteService:
         return clientes_repo.list_clientes(conn, limit, offset, search)
 
     @staticmethod
+    def resumen(conn: psycopg.Connection):
+        return clientes_repo.resumen_clientes(conn)
+
+    @staticmethod
     def obtener(conn: psycopg.Connection, cliente_id: int):
         cliente = clientes_repo.get_cliente_by_id(conn, cliente_id)
         if not cliente:

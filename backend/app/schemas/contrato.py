@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,15 @@ class ContractStatus(str, Enum):
     SUSPENDIDO = "SUSPENDIDO"
     BAJA = "BAJA"
     CANCELADO = "CANCELADO"
+
+
+# ==========================================================
+# RESUMEN (DASHBOARD)
+# ==========================================================
+
+class ContratosResumenOut(BaseModel):
+    total: int
+    por_estado: Dict[str, int]
 
 
 # ==========================================================

@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.db import get_db
 from app.repositories.contratos_repo import ContractRepository
 from app.repositories.instalaciones_repo import InstalacionesRepository
+from app.repositories.stock_repo import StockRepository
+from app.services.stock_service import StockService
 from app.schemas.instalacion import (
     ProgramacionInstalacionCreate,
     ProgramacionInstalacionResponse,
@@ -29,9 +31,12 @@ from app.schemas.instalacion import (
     GarantiaUpdate,
     GarantiaOut,
     GarantiaListResponse,
+    InstalacionesResumenOut,
 )
 from app.services.instalaciones_service import InstalacionesService
 from app.dependencies.auth import require_roles
+from app.dependencies.audit import get_auditor
+from app.services.auditoria import Auditor, AuditModulo, AuditAccion
 
 
 ## router = APIRouter(prefix="/instalaciones", tags=["Instalaciones"])
@@ -45,7 +50,19 @@ router = APIRouter(
 def get_service(conn=Depends(get_db)) -> InstalacionesService:
     contratos_repo = ContractRepository(conn)
     instalaciones_repo = InstalacionesRepository(conn)
-    return InstalacionesService(contratos_repo, instalaciones_repo)
+    stock_service = StockService(StockRepository(conn))
+    return InstalacionesService(contratos_repo, instalaciones_repo, stock_service)
+
+
+# ==========================================================
+# RESUMEN (DASHBOARD)
+# ==========================================================
+
+@router.get("/resumen", response_model=InstalacionesResumenOut)
+def get_instalaciones_resumen(
+    service: InstalacionesService = Depends(get_service),
+):
+    return service.resumen()
 
 
 # ==========================================================
@@ -56,9 +73,17 @@ def get_service(conn=Depends(get_db)) -> InstalacionesService:
 def crear_programacion(
     payload: ProgramacionInstalacionCreate,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.crear_programacion(**payload.model_dump())
+        result = service.crear_programacion(**payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.PROG_CREATE,
+            entidad="programaciones_instalacion",
+            entidad_id=result["programacion_id"],
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -99,9 +124,18 @@ def reprogramar(
     programacion_id: int,
     payload: ReprogramarInstalacionIn,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.reprogramar(programacion_id, **payload.model_dump())
+        result = service.reprogramar(programacion_id, **payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.REPROGRAM,
+            entidad="programaciones_instalacion",
+            entidad_id=programacion_id,
+            detalle=f"reprogramacion_id={result['reprogramacion_id']}",
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -129,14 +163,23 @@ def ejecutar_programacion(
     programacion_id: int,
     payload: EjecutarProgramacionIn,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.ejecutar_programacion(
+        result = service.ejecutar_programacion(
             programacion_id=programacion_id,
             codigo_instalacion=payload.codigo_instalacion,
             observacion_instalacion=payload.observacion_instalacion,
             fecha_instalacion=payload.fecha_instalacion,
         )
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.EXECUTE,
+            entidad="instalaciones",
+            entidad_id=result["instalacion_id"],
+            detalle=f"programacion_id={programacion_id}",
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -149,9 +192,17 @@ def ejecutar_programacion(
 def crear_instalacion(
     payload: InstalacionCreate,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.crear_instalacion(**payload.model_dump())
+        result = service.crear_instalacion(**payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.CREATE,
+            entidad="instalaciones",
+            entidad_id=result["instalacion_id"],
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -210,9 +261,17 @@ def list_instalaciones(
 def completar_instalacion(
     instalacion_id: int,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.completar_instalacion(instalacion_id)
+        result = service.completar_instalacion(instalacion_id)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.COMPLETE,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -221,9 +280,17 @@ def completar_instalacion(
 def cancelar_instalacion(
     instalacion_id: int,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.cancelar_instalacion(instalacion_id)
+        result = service.cancelar_instalacion(instalacion_id)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.CANCEL,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -232,9 +299,17 @@ def cancelar_instalacion(
 def fallar_instalacion(
     instalacion_id: int,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.fallar_instalacion(instalacion_id)
+        result = service.fallar_instalacion(instalacion_id)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.FAIL,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -243,9 +318,17 @@ def fallar_instalacion(
 def dar_baja_instalacion(
     instalacion_id: int,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.dar_baja_instalacion(instalacion_id)
+        result = service.dar_baja_instalacion(instalacion_id)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.BAJA,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -258,12 +341,21 @@ def reintentar_instalacion(
     instalacion_id: int,
     payload: ReintentarInstalacionIn,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.reintentar_instalacion(
+        result = service.reintentar_instalacion(
             instalacion_id=instalacion_id,
             **payload.model_dump(),
         )
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.RETRY,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+            detalle=f"programacion_id={result['programacion_id']}",
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -277,12 +369,21 @@ def crear_detalle(
     instalacion_id: int,
     payload: DetalleInstalacionCreate,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.crear_detalle_instalacion(
+        result = service.crear_detalle_instalacion(
             instalacion_id=instalacion_id,
             **payload.model_dump(),
         )
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.DETALLE_CREATE,
+            entidad="detalle_instalacion",
+            entidad_id=result["det_instalacion_id"],
+            detalle=f"instalacion_id={instalacion_id}",
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -313,9 +414,17 @@ def list_detalles(
 def crear_garantia(
     payload: GarantiaCreate,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.crear_garantia(**payload.model_dump())
+        result = service.crear_garantia(**payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.GARANTIA_CREATE,
+            entidad="garantias",
+            entidad_id=result["garantia_id"],
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
 
@@ -340,10 +449,18 @@ def update_garantia(
     garantia_id: int,
     payload: GarantiaUpdate,
     service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
         data = payload.model_dump(exclude_unset=True)
-        return service.update_garantia(garantia_id, data)
+        result = service.update_garantia(garantia_id, data)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.GARANTIA_UPDATE,
+            entidad="garantias",
+            entidad_id=garantia_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
 

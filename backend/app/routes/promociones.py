@@ -11,6 +11,8 @@ from app.db import get_db
 from app.repositories.promociones_repo import PromocionesRepo
 from app.services.promociones_service import PromocionesService
 from app.dependencies.auth import require_roles
+from app.dependencies.audit import get_auditor
+from app.services.auditoria import Auditor, AuditModulo, AuditAccion
 from app.schemas.promocion import (
     PromocionCreate,
     PromocionUpdate,
@@ -86,9 +88,17 @@ def get_promocion(
 def create_promocion(
     payload: PromocionCreate,
     service: PromocionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.create_promocion(payload.model_dump())
+        result = service.create_promocion(payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.PROMOCIONES,
+            accion=AuditAccion.CREATE,
+            entidad="promociones",
+            entidad_id=result["promocion_id"],
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=_status_for(str(e)), detail=str(e))
 
@@ -98,8 +108,16 @@ def update_promocion(
     promocion_id: int,
     payload: PromocionUpdate,
     service: PromocionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        return service.update_promocion(promocion_id, payload.model_dump(exclude_unset=True))
+        result = service.update_promocion(promocion_id, payload.model_dump(exclude_unset=True))
+        auditor.log(
+            modulo=AuditModulo.PROMOCIONES,
+            accion=AuditAccion.UPDATE,
+            entidad="promociones",
+            entidad_id=promocion_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=_status_for(str(e)), detail=str(e))

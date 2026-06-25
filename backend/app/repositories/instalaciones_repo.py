@@ -14,6 +14,62 @@ class InstalacionesRepository:
         self.conn = conn
 
     # ==========================================================
+    # RESUMEN (DASHBOARD)
+    # ==========================================================
+
+    def resumen(self) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) FILTER (WHERE ei.descripcion_einstalacion = 'PENDIENTE') AS pendientes,
+                  COUNT(*) FILTER (WHERE ei.descripcion_einstalacion = 'FALLIDA') AS fallidas
+                FROM instalaciones i
+                JOIN estado_instalacion ei ON ei.estado_instalacion_id = i.estado_instalacion_id
+                """
+            )
+            counts = cur.fetchone()
+
+            cur.execute(
+                """
+                SELECT COUNT(*) AS programadas_hoy
+                FROM programacion_instalaciones p
+                JOIN estado_programacion ep ON ep.estado_programacion_id = p.estado_programacion_id
+                WHERE ep.descripcion_eprogramacion = 'PROGRAMADA'
+                  AND p.fecha_programacion_pinstalacion::date = CURRENT_DATE
+                """
+            )
+            programadas_hoy = int(cur.fetchone()["programadas_hoy"])
+
+            cur.execute(
+                """
+                SELECT
+                  p.programacion_id,
+                  p.contrato_id,
+                  p.fecha_programacion_pinstalacion AS fecha_programacion,
+                  p.tecnico_pinstalacion AS tecnico,
+                  cl.nombre_cliente,
+                  cl.apellido_cliente
+                FROM programacion_instalaciones p
+                JOIN estado_programacion ep ON ep.estado_programacion_id = p.estado_programacion_id
+                JOIN contratos c ON c.contrato_id = p.contrato_id
+                JOIN clientes cl ON cl.cliente_id = c.cliente_id
+                WHERE ep.descripcion_eprogramacion = 'PROGRAMADA'
+                  AND p.fecha_programacion_pinstalacion::date = CURRENT_DATE
+                ORDER BY p.fecha_programacion_pinstalacion
+                LIMIT 8
+                """
+            )
+            agenda_hoy = cur.fetchall()
+
+        return {
+            "pendientes": int(counts["pendientes"]),
+            "fallidas": int(counts["fallidas"]),
+            "programadas_hoy": programadas_hoy,
+            "agenda_hoy": agenda_hoy,
+        }
+
+    # ==========================================================
     # CATALOGOS / ESTADOS
     # ==========================================================
 
@@ -412,13 +468,24 @@ class InstalacionesRepository:
             return cur.fetchone()
 
     def list_detalles_instalacion(self, instalacion_id: int) -> list[dict]:
+        # Enriquecido con el costo de la salida de stock imputada a cada línea
+        # (gasto de materiales). NULL si la línea no descontó stock.
         with self.conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT *
-                FROM detalle_instalacion
-                WHERE instalacion_id = %s
-                ORDER BY det_instalacion_id ASC
+                SELECT
+                    di.*,
+                    ms.costo_unitario_mstock AS costo_unitario_dinstalacion,
+                    (di.cantidad_dinstalacion * ms.costo_unitario_mstock) AS costo_total_dinstalacion
+                FROM detalle_instalacion di
+                LEFT JOIN movimiento_stock ms
+                       ON ms.det_instalacion_id = di.det_instalacion_id
+                      AND ms.tipo_mov_id = (
+                          SELECT tipo_mov_id FROM tipo_movimiento_stock
+                          WHERE codigo_tmstock = 'SALIDA_INSTALACION'
+                      )
+                WHERE di.instalacion_id = %s
+                ORDER BY di.det_instalacion_id ASC
                 """,
                 (instalacion_id,),
             )

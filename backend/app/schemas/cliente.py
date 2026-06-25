@@ -35,3 +35,9 @@ class ClienteUpdate(BaseModel):
     telefono: str = Field(..., min_length=5, max_length=20)
     email: Optional[EmailStr] = None
     observaciones: Optional[str] = Field(None, max_length=100)
+
+
+class ClientesResumenOut(BaseModel):
+    total: int
+    activos: int
+    inactivos: int

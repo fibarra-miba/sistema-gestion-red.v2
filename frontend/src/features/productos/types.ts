@@ -9,6 +9,7 @@ export interface ProductoOut {
   modelo_producto: string
   activo_producto: boolean
   tipo_producto_id: number
+  unidad_stock_producto: string | null
   // Enriquecido vía join con tipo_producto.
   codigo_tproducto: string | null
   descripcion_tproducto: string | null
@@ -24,6 +25,7 @@ export interface ProductoCreate {
   marca_producto: string
   modelo_producto: string
   tipo_producto_id: number
+  unidad_stock_producto?: string | null
 }
 
 // PATCH parcial: backend usa exclude_unset=True.
@@ -33,7 +35,27 @@ export interface ProductoUpdate {
   marca_producto?: string
   modelo_producto?: string
   tipo_producto_id?: number
+  unidad_stock_producto?: string | null
   activo_producto?: boolean
+}
+
+// Presentaciones de compra: la "bolsa x100" → factor a unidad base de stock.
+export interface PresentacionOut {
+  presentacion_id: number
+  producto_id: number
+  nombre_presentacion: string
+  unidad_compra_presentacion: string
+  factor_a_stock: number
+}
+
+export interface PresentacionListResponse {
+  items: PresentacionOut[]
+}
+
+export interface PresentacionCreate {
+  nombre_presentacion: string
+  unidad_compra_presentacion: string
+  factor_a_stock: number
 }
 
 export interface ListProductosParams {

@@ -5,6 +5,8 @@ from typing import Any, Optional
 import psycopg
 from psycopg.rows import dict_row
 
+from app.repositories.auditoria_repo import AuditRepository
+
 
 class UsuariosRepository:
     def __init__(self, conn: psycopg.Connection):
@@ -172,30 +174,15 @@ class UsuariosRepository:
         ip_origen_auditoria: str | None,
         user_agent_auditoria: str | None,
     ) -> None:
-        query = """
-            INSERT INTO auditoria_eventos (
-                usuario_id,
-                modulo_auditoria,
-                accion_auditoria,
-                entidad_auditoria,
-                entidad_id_auditoria,
-                detalle_auditoria,
-                ip_origen_auditoria,
-                user_agent_auditoria
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        with self.conn.cursor() as cur:
-            cur.execute(
-                query,
-                (
-                    usuario_id,
-                    modulo_auditoria,
-                    accion_auditoria,
-                    entidad_auditoria,
-                    entidad_id_auditoria,
-                    detalle_auditoria,
-                    ip_origen_auditoria,
-                    user_agent_auditoria,
-                ),
-            )
+        # Writer único en AuditRepository; este wrapper conserva el call-site
+        # histórico de usuarios_service (alta, update, reset-password).
+        AuditRepository(self.conn).insert_event(
+            usuario_id=usuario_id,
+            modulo_auditoria=modulo_auditoria,
+            accion_auditoria=accion_auditoria,
+            entidad_auditoria=entidad_auditoria,
+            entidad_id_auditoria=entidad_id_auditoria,
+            detalle_auditoria=detalle_auditoria,
+            ip_origen_auditoria=ip_origen_auditoria,
+            user_agent_auditoria=user_agent_auditoria,
+        )

@@ -16,6 +16,7 @@ _SELECT_PRODUCTO = """
         p.modelo_producto,
         p.activo_producto,
         p.tipo_producto_id,
+        p.unidad_stock_producto,
         tp.codigo_tproducto,
         tp.descripcion_tproducto
     FROM productos p
@@ -92,6 +93,7 @@ class ProductosRepository:
         marca_producto: str,
         modelo_producto: str,
         tipo_producto_id: int,
+        unidad_stock_producto: Optional[str] = None,
     ) -> dict:
         query = """
             INSERT INTO productos (
@@ -99,9 +101,10 @@ class ProductosRepository:
                 descripcion_producto,
                 marca_producto,
                 modelo_producto,
-                tipo_producto_id
+                tipo_producto_id,
+                unidad_stock_producto
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING producto_id
         """
         with self.conn.cursor(row_factory=dict_row) as cur:
@@ -113,7 +116,48 @@ class ProductosRepository:
                     marca_producto,
                     modelo_producto,
                     tipo_producto_id,
+                    unidad_stock_producto,
                 ),
+            )
+            return cur.fetchone()
+
+    # ==========================================================
+    # PRESENTACIONES (unidad de compra → factor a stock)
+    # ==========================================================
+
+    def list_presentaciones(self, producto_id: int) -> List[dict]:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT presentacion_id, producto_id, nombre_presentacion,
+                       unidad_compra_presentacion, factor_a_stock
+                FROM producto_presentacion
+                WHERE producto_id = %s
+                ORDER BY presentacion_id ASC
+                """,
+                (producto_id,),
+            )
+            return cur.fetchall()
+
+    def create_presentacion(
+        self,
+        producto_id: int,
+        nombre_presentacion: str,
+        unidad_compra_presentacion: str,
+        factor_a_stock: float,
+    ) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                INSERT INTO producto_presentacion (
+                    producto_id, nombre_presentacion,
+                    unidad_compra_presentacion, factor_a_stock
+                )
+                VALUES (%s, %s, %s, %s)
+                RETURNING presentacion_id, producto_id, nombre_presentacion,
+                          unidad_compra_presentacion, factor_a_stock
+                """,
+                (producto_id, nombre_presentacion, unidad_compra_presentacion, factor_a_stock),
             )
             return cur.fetchone()
 

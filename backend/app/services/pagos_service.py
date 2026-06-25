@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from fastapi import HTTPException
 
+from app.repositories import clientes_repo
 from app.repositories.catalogos_repo import CatalogosRepo
 from app.repositories.contratos_repo import ContractRepository
 from app.repositories.pagos_repo import PagosRepo
@@ -36,6 +37,9 @@ class PagosService:
         self.catalogos_repo = catalogos_repo
         self.pricing = PricingService(precios_repo, promo_repo)
         self.cc = CuentaCorrienteService(cuenta_repo, catalogos_repo)
+
+    def resumen(self) -> dict:
+        return self.pagos_repo.resumen()
 
     def _es_contrato_cobrable(self, contrato_id: int, fecha_referencia: datetime) -> bool:
         contratos = self.contratos_repo.list_contratos_cobrables(fecha_referencia)
@@ -335,6 +339,8 @@ class PagosService:
 
         cta = self.cc._get_or_create_cuenta(pago["cliente_id"])
 
+        cliente = clientes_repo.get_cliente_by_id(self.pagos_repo.conn, pago["cliente_id"])
+
         return {
             "pago": {
                 "pago_id": pago["pago_id"],
@@ -347,6 +353,11 @@ class PagosService:
                 "total_pagado": total_pagado,
                 "saldo_pendiente": saldo_pend,
                 "excedente_credito": excedente,
+            },
+            "cliente": {
+                "cliente_id": pago["cliente_id"],
+                "nombre_cliente": cliente["nombre_cliente"],
+                "apellido_cliente": cliente["apellido_cliente"],
             },
             "factura": {
                 "factura_venta_id": pago["factura_venta_id"],

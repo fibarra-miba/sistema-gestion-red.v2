@@ -67,7 +67,7 @@ async def _registrar_mov(admin_client, pago_id: int, monto: Decimal, medio_pago_
 
 @pytest.mark.anyio
 async def test_get_pago_detalle_y_movimientos_y_movimiento_404(admin_client, db_conn):
-    contrato_id, _ = _get_contrato_activo_y_cliente(db_conn)
+    contrato_id, cliente_id = _get_contrato_activo_y_cliente(db_conn)
     medio_pago_id = _get_medio_pago_id(db_conn)
     tipo_pago_id = _get_tipo_pago_id(db_conn)
 
@@ -96,6 +96,10 @@ async def test_get_pago_detalle_y_movimientos_y_movimiento_404(admin_client, db_
     out = r.json()
     assert out["pago"]["pago_id"] == pago_id
     assert out["factura"]["factura_venta_id"] == pago["factura_venta_id"]
+    # Recibo v1: el detalle expone el cliente (para el documento imprimible).
+    assert out["cliente"]["cliente_id"] == cliente_id
+    assert out["cliente"]["nombre_cliente"]
+    assert out["cliente"]["apellido_cliente"]
     assert isinstance(out["movimientos"], list)
     assert len(out["movimientos"]) == 1
     assert len(out["movimientos"][0]["comprobantes"]) == 1
