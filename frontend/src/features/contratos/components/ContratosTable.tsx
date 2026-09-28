@@ -30,7 +30,7 @@ export type ContratoActionKind =
   | 'cancel'
   | 'terminate'
   | 'change-plan'
-  | 'confirmar-tecnica'
+  | 'programar'
 
 interface Props {
   rows: ContractCommercialOut[] | undefined
@@ -170,7 +170,7 @@ function RowActions({
     flags.canTerminate ||
     flags.canCancel ||
     flags.canChangePlan ||
-    flags.canConfirmarTecnica
+    flags.canProgramar
 
   const handleOpen = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -209,9 +209,9 @@ function RowActions({
             <PlayArrowIcon fontSize="small" sx={{ mr: 1 }} /> Activar
           </MenuItem>
         )}
-        {flags.canConfirmarTecnica && (
-          <MenuItem onClick={() => fire('confirmar-tecnica')}>
-            <BuildIcon fontSize="small" sx={{ mr: 1 }} /> Confirmar condición técnica
+        {flags.canProgramar && (
+          <MenuItem onClick={() => fire('programar')}>
+            <BuildIcon fontSize="small" sx={{ mr: 1 }} /> Programar instalación
           </MenuItem>
         )}
         {flags.canSuspend && (

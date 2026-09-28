@@ -72,21 +72,14 @@ INSERT INTO promociones (
 -- PRODUCTOS PARA INSTALACIONES
 -- ============================
 
-INSERT INTO tipo_producto (
-  codigo_tproducto,
-  descripcion_tproducto,
-  activo_tproducto
-) VALUES
-  ('MATERIAL', 'Material de instalación', TRUE),
-  ('EQUIPO', 'Equipo entregado al cliente', TRUE);
-
 INSERT INTO productos (
   nombre_producto,
   descripcion_producto,
   marca_producto,
   modelo_producto,
   activo_producto,
-  tipo_producto_id
+  tipo_producto_id,
+  unidad_stock_producto
 ) VALUES
   (
     'Cable UTP CAT6',
@@ -94,7 +87,8 @@ INSERT INTO productos (
     'Genérico',
     'CAT6',
     TRUE,
-    (SELECT tipo_producto_id FROM tipo_producto WHERE codigo_tproducto = 'MATERIAL')
+    (SELECT tipo_producto_id FROM tipo_producto WHERE codigo_tproducto = 'MATERIAL'),
+    'metro'
   ),
   (
     'Router WiFi',
@@ -102,7 +96,8 @@ INSERT INTO productos (
     'TP-Link',
     'Archer C24',
     TRUE,
-    (SELECT tipo_producto_id FROM tipo_producto WHERE codigo_tproducto = 'EQUIPO')
+    (SELECT tipo_producto_id FROM tipo_producto WHERE codigo_tproducto = 'EQUIPO'),
+    'unidad'
   );
 
 -- ============================

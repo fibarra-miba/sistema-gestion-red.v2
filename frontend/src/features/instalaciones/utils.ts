@@ -158,6 +158,11 @@ const dateTimeFmt = new Intl.DateTimeFormat('es-AR', {
   minute: '2-digit',
 })
 
+// Usado por el KPI del dashboard y por la pantalla de garantías.
+export function depositosActivosLabel(cantidad: number): string {
+  return cantidad === 1 ? '1 depósito activo' : `${cantidad} depósitos activos`
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)

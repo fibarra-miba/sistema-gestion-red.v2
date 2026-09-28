@@ -100,6 +100,14 @@ export interface InstalacionOut {
   domicilio_resumen?: string | null
 }
 
+// Corrección de datos de carga (PATCH parcial). No toca el estado ni la
+// programación de origen: para eso están las acciones y el reprogramar.
+export interface InstalacionUpdate {
+  fecha_instalacion?: string
+  codigo_instalacion?: string | null
+  observacion_instalacion?: string | null
+}
+
 export interface InstalacionListResponse {
   items: InstalacionOut[]
 }
@@ -174,6 +182,9 @@ export interface GarantiaOut {
   instalacion_id: number
   contrato_id: number
   producto_id: number
+  // Depósito reembolsable entregado por el equipo. Null en garantías
+  // cargadas antes de este modelo.
+  monto_garantia: number | null
   fecha_inicio_garantia: string
   fecha_fin_garantia: string | null
   estado_garantia_id: number
@@ -185,6 +196,8 @@ export interface GarantiaOut {
   marca_producto: string | null
   modelo_producto: string | null
   descripcion_egarantia: string | null
+  cliente_nombre: string | null
+  cliente_apellido: string | null
 }
 
 export interface GarantiaListResponse {
@@ -195,20 +208,33 @@ export interface GarantiaListResponse {
 export interface GarantiaCreate {
   instalacion_id: number
   producto_id: number
+  monto_garantia?: number | null
   fecha_inicio_garantia?: string | null
 }
 
-// PATCH parcial (exclude_unset). Hoy se usa para anular.
+// PATCH parcial (exclude_unset). Se usa para anular y para corregir
+// datos de carga (monto, fechas, motivo, resolución, estado).
 export interface GarantiaUpdate {
   estado_garantia_id?: number
+  monto_garantia?: number | null
   fecha_inicio_garantia?: string | null
   fecha_fin_garantia?: string | null
   motivo_garantia?: string | null
   resolucion_garantia?: string | null
 }
 
+// Resumen agregado de depósitos (garantías). ACTIVA = comprometido,
+// DEVUELTA = devuelto, RETENIDA = retenido.
+export interface GarantiasResumen {
+  comprometido: number
+  cantidad_activas: number
+  devuelto: number
+  retenido: number
+}
+
 export interface ListGarantiasParams {
   instalacion_id?: number
+  cliente_id?: number
   contrato_id?: number
   estado_garantia_id?: number
   limit?: number

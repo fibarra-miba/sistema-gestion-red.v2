@@ -3,9 +3,9 @@
 import pytest
 
 
-# El seed (010) inserta un único tipo_producto 'SERVICIO' (id=1) y un producto
-# 'Cable UTP' de ese tipo. Lo usamos como tipo válido de base.
-TIPO_SERVICIO_ID = 1
+# Los tipos de producto vienen del catálogo BASE (005_catalogos_base.sql), no
+# del seed: 1 MATERIAL, 2 EQUIPO. Usamos MATERIAL como tipo válido de base.
+TIPO_MATERIAL_ID = 1
 
 
 def _producto_payload(**overrides):
@@ -14,7 +14,7 @@ def _producto_payload(**overrides):
         "descripcion_producto": "Equipo de prueba",
         "marca_producto": "TP-Link",
         "modelo_producto": "AX10",
-        "tipo_producto_id": TIPO_SERVICIO_ID,
+        "tipo_producto_id": TIPO_MATERIAL_ID,
     }
     payload.update(overrides)
     return payload
@@ -34,7 +34,7 @@ async def test_create_producto_ok(admin_client):
     assert data["nombre_producto"] == "Router Test"
     assert data["activo_producto"] is True
     # Enriquecido con el tipo (join), evita N+1 en el front.
-    assert data["codigo_tproducto"] == "SERVICIO"
+    assert data["codigo_tproducto"] == "MATERIAL"
 
 
 @pytest.mark.anyio
@@ -113,11 +113,11 @@ async def test_list_productos_y_filtros(admin_client):
 
     # filtro por tipo.
     por_tipo = await admin_client.get(
-        "/productos", params={"tipo_producto_id": TIPO_SERVICIO_ID}
+        "/productos", params={"tipo_producto_id": TIPO_MATERIAL_ID}
     )
     assert por_tipo.status_code == 200, por_tipo.text
     assert all(
-        p["tipo_producto_id"] == TIPO_SERVICIO_ID for p in por_tipo.json()["items"]
+        p["tipo_producto_id"] == TIPO_MATERIAL_ID for p in por_tipo.json()["items"]
     )
 
 

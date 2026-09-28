@@ -13,6 +13,10 @@ export function useCreateGarantia() {
       qc.invalidateQueries({
         queryKey: instalacionesKeys.garantias(garantia.instalacion_id),
       })
+      // Un depósito nuevo suma al comprometido: hay que refrescar el KPI del
+      // dashboard y el listado global, no solo la sección de la instalación.
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasLists() })
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasResumen() })
     },
   })
 }

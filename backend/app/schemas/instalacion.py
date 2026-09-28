@@ -29,23 +29,6 @@ class InstalacionesResumenOut(BaseModel):
 
 
 # ==========================================================
-# CONTRATOS - CONDICION TECNICA
-# ==========================================================
-
-class ConfirmarCondicionTecnicaIn(BaseModel):
-    apto: bool
-    fecha_programacion_pinstalacion: Optional[datetime] = None
-    tecnico_pinstalacion: Optional[str] = Field(default=None, max_length=50)
-    notas_pinstalacion: Optional[str] = Field(default=None, max_length=500)
-
-
-class ConfirmarCondicionTecnicaOut(BaseModel):
-    contrato_id: int
-    estado_contrato_id: int
-    programacion_id: Optional[int] = None
-
-
-# ==========================================================
 # PROGRAMACION
 # ==========================================================
 
@@ -125,6 +108,15 @@ class InstalacionCreate(BaseModel):
     fecha_instalacion: Optional[datetime] = None
 
 
+# Corrección de datos de carga de una instalación ya ejecutada. No toca el
+# ciclo de vida (estado) ni la programación de origen: para eso están las
+# acciones completar/cancelar/fallar/dar-baja y reprogramar.
+class InstalacionUpdate(BaseModel):
+    fecha_instalacion: Optional[datetime] = None
+    codigo_instalacion: Optional[str] = Field(default=None, max_length=20)
+    observacion_instalacion: Optional[str] = Field(default=None, max_length=500)
+
+
 class InstalacionResponse(BaseModel):
     instalacion_id: int
     programacion_id: int
@@ -135,6 +127,10 @@ class InstalacionResponse(BaseModel):
     estado_instalacion_id: int
     observacion_instalacion: Optional[str] = None
     fecha_creacion_instalacion: datetime
+    # Contexto para mostrar en la UI sin exponer solo ids.
+    cliente_nombre: Optional[str] = None
+    cliente_apellido: Optional[str] = None
+    domicilio_resumen: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -194,6 +190,7 @@ class GarantiaCreate(BaseModel):
     instalacion_id: int = Field(..., ge=1)
     producto_id: int = Field(..., ge=1)
     fecha_inicio_garantia: Optional[datetime] = None
+    monto_garantia: Optional[float] = Field(default=None, ge=0)
 
 
 # Update acotado al ciclo de vida: anular (estado ANULADA + resolución) y
@@ -204,6 +201,7 @@ class GarantiaUpdate(BaseModel):
     fecha_fin_garantia: Optional[datetime] = None
     motivo_garantia: Optional[str] = Field(default=None, max_length=200)
     resolucion_garantia: Optional[str] = None
+    monto_garantia: Optional[float] = Field(default=None, ge=0)
 
 
 class GarantiaOut(BaseModel):
@@ -211,6 +209,7 @@ class GarantiaOut(BaseModel):
     instalacion_id: int
     contrato_id: int
     producto_id: int
+    monto_garantia: Optional[float] = None
     fecha_inicio_garantia: datetime
     fecha_fin_garantia: Optional[datetime] = None
     estado_garantia_id: int
@@ -222,6 +221,8 @@ class GarantiaOut(BaseModel):
     marca_producto: Optional[str] = None
     modelo_producto: Optional[str] = None
     descripcion_egarantia: Optional[str] = None
+    cliente_nombre: Optional[str] = None
+    cliente_apellido: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -229,3 +230,12 @@ class GarantiaOut(BaseModel):
 
 class GarantiaListResponse(BaseModel):
     items: List[GarantiaOut]
+
+
+# Depósitos reembolsables retenidos actualmente ("comprometido" = ACTIVAS),
+# devueltos y retenidos. Para el panel de garantías.
+class GarantiasResumenOut(BaseModel):
+    comprometido: float
+    cantidad_activas: int
+    devuelto: float
+    retenido: float

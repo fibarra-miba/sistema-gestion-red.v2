@@ -3,11 +3,12 @@ import { useAuth } from '@/features/auth'
 import {
   CobranzasSection,
   ContratosSection,
+  DepositosSection,
   InstalacionesSection,
 } from '@/features/dashboard'
 
 export default function HomePage() {
-  const { user, hasCapability } = useAuth()
+  const { user, hasCapability, hasRole } = useAuth()
 
   // Cada sección se monta sólo si el rol tiene la capability — así no se dispara
   // el fetch del /resumen correspondiente (y no hay 403). El mapa capability→rol
@@ -15,6 +16,10 @@ export default function HomePage() {
   const showComercial = hasCapability('can_manage_clientes')
   const showInstalaciones = hasCapability('can_manage_instalaciones')
   const showCobranzas = hasCapability('can_manage_pagos')
+  // /instalaciones/garantias/resumen es ADMIN/OPERADOR únicamente — más
+  // restrictivo que can_manage_instalaciones (que también da TECNICO).
+  // Gateamos por rol para no disparar un fetch que sabemos que da 403.
+  const showDepositos = hasRole('ADMIN', 'OPERADOR')
 
   return (
     <Stack spacing={3}>
@@ -35,6 +40,7 @@ export default function HomePage() {
       {showComercial && <ContratosSection />}
       {showInstalaciones && <InstalacionesSection />}
       {showCobranzas && <CobranzasSection />}
+      {showDepositos && <DepositosSection />}
     </Stack>
   )
 }

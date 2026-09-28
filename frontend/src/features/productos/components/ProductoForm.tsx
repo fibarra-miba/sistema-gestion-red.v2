@@ -149,9 +149,17 @@ export default function ProductoForm({
           <TextField
             label="Unidad de stock"
             placeholder="unidad, metro, ..."
+            required
             error={!!errors.unidad_stock_producto}
-            helperText={errors.unidad_stock_producto?.message ?? 'Unidad base de consumo'}
+            helperText={
+              errors.unidad_stock_producto?.message ??
+              'Unidad base de consumo. Se usa al cargar materiales.'
+            }
             {...register('unidad_stock_producto', {
+              // Obligatoria: es la que después se autocompleta al cargar
+              // materiales en una instalación. Sin ella hay que tipearla a mano
+              // cada vez, que es justo lo que se quiere evitar.
+              required: 'Indicá la unidad de stock.',
               maxLength: { value: 20, message: 'Máximo 20 caracteres' },
             })}
           />

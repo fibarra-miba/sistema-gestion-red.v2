@@ -14,7 +14,7 @@ import {
 import { isApiError } from '@/types/api'
 import { useSnackbar } from '@/components/ui/SnackbarProvider'
 import { useAjusteStock, useDevolucionStock } from '../hooks/useStockMovimientos'
-import type { ExistenciaOut } from '../types'
+import type { MovimientoStockTarget } from '../types'
 
 type TipoMov = 'AJUSTE_POSITIVO' | 'AJUSTE_NEGATIVO' | 'DEVOLUCION'
 
@@ -25,7 +25,7 @@ interface FormValues {
 }
 
 interface Props {
-  existencia: ExistenciaOut | null
+  existencia: MovimientoStockTarget | null
   open: boolean
   onClose: () => void
 }
@@ -95,7 +95,10 @@ export default function MovimientoStockDialog({ existencia, open, onClose }: Pro
           sx={{ mt: 0.5 }}
         >
           <Typography variant="body2" color="text.secondary">
-            {existencia.nombre_producto} — existencia actual: {existencia.cantidad} {unidad}
+            {existencia.nombre_producto}
+            {existencia.cantidad !== undefined
+              ? ` — existencia actual: ${existencia.cantidad} ${unidad}`
+              : ` — se mide en ${unidad}`}
           </Typography>
 
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}

@@ -91,13 +91,16 @@ export default function ClienteForm({
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <TextField
             label="DNI"
-            required
             error={!!errors.dni}
-            helperText={errors.dni?.message}
+            helperText={errors.dni?.message ?? 'Opcional'}
             {...register('dni', {
-              required: 'DNI requerido',
-              minLength: { value: 5, message: 'Mínimo 5 caracteres' },
-              maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+              validate: (value) => {
+                const dni = value.trim()
+                if (!dni) return true
+                if (dni.length < 5) return 'Mínimo 5 caracteres'
+                if (dni.length > 20) return 'Máximo 20 caracteres'
+                return true
+              },
             })}
           />
           <TextField

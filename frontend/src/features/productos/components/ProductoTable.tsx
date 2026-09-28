@@ -1,5 +1,6 @@
-import { Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material'
+import { Button, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined'
 import ToggleOnIcon from '@mui/icons-material/ToggleOn'
 import ToggleOffIcon from '@mui/icons-material/ToggleOff'
 import DataTable, {
@@ -15,6 +16,9 @@ interface ProductoTableProps {
   pagination?: DataTablePagination
   canManage?: boolean
   onEdit: (producto: ProductoOut) => void
+  // Acceso directo a cargar existencia: es el paso natural justo después de
+  // dar de alta un producto, y desde acá se evita ir a buscarlo a Stock.
+  onCargarStock?: (producto: ProductoOut) => void
   onToggleActivo: (producto: ProductoOut) => void
 }
 
@@ -25,6 +29,7 @@ export default function ProductoTable({
   pagination,
   canManage = false,
   onEdit,
+  onCargarStock,
   onToggleActivo,
 }: ProductoTableProps) {
   const columns: DataTableColumn<ProductoOut>[] = [
@@ -92,7 +97,7 @@ export default function ProductoTable({
     columns.push({
       key: 'acciones',
       label: '',
-      width: 110,
+      width: 230,
       align: 'right',
       render: (r) => (
         <Stack
@@ -106,6 +111,16 @@ export default function ProductoTable({
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          {onCargarStock && (
+            <Button
+              size="small"
+              startIcon={<Inventory2OutlinedIcon fontSize="small" />}
+              onClick={() => onCargarStock(r)}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              Cargar stock
+            </Button>
+          )}
           <Tooltip title={r.activo_producto ? 'Desactivar' : 'Activar'}>
             <IconButton
               size="small"

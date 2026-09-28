@@ -36,9 +36,6 @@ class ClienteService:
         conn: psycopg.Connection,
         data: Dict[str, Any]
     ):
-        if not data.get("dni"):
-            raise ValueError("DNI_REQUIRED")
-
         data_repo = {
             "nombre_cliente": data.get("nombre"),
             "apellido_cliente": data.get("apellido"),

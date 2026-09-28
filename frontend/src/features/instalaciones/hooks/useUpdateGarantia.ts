@@ -4,25 +4,29 @@ import { instalacionesKeys } from '../keys'
 import type { GarantiaOut, GarantiaUpdate } from '../types'
 import type { ApiError } from '@/types/api'
 
-interface AnularArgs {
+interface Vars {
   garantiaId: number
   payload: GarantiaUpdate
 }
 
-// Anular = PATCH a estado ANULADA + resolución. El backend valida la transición
-// y completa fecha_fin si no se envía.
-export function useAnularGarantia() {
+// Update genérico de garantía: corrige monto, fechas, motivo, resolución
+// y/o estado. Lo usa EditarGarantiaDialog (corrección libre, incluso sobre
+// una garantía ANULADA). Invalida todo lo que puede quedar desactualizado:
+// el detalle de la instalación dueña, el listado de garantías de esa
+// instalación, el listado global (pantalla /garantias) y el resumen.
+export function useUpdateGarantia() {
   const qc = useQueryClient()
 
-  return useMutation<GarantiaOut, ApiError, AnularArgs>({
+  return useMutation<GarantiaOut, ApiError, Vars>({
     mutationFn: ({ garantiaId, payload }) =>
       instalacionesService.updateGarantia(garantiaId, payload),
     onSuccess: (garantia) => {
       qc.invalidateQueries({
+        queryKey: instalacionesKeys.detail(garantia.instalacion_id),
+      })
+      qc.invalidateQueries({
         queryKey: instalacionesKeys.garantias(garantia.instalacion_id),
       })
-      // Anular saca el depósito del comprometido: sin esto el KPI del
-      // dashboard y la pantalla global siguen contando plata que ya no está.
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasLists() })
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasResumen() })
     },

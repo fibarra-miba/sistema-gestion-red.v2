@@ -43,6 +43,7 @@ class DomicilioService:
 
         data_repo = {
             "complejo": data.get("complejo"),
+            "torre": data.get("torre"),
             "piso": data.get("piso"),
             "depto": data.get("depto"),
             "calle": data.get("calle"),

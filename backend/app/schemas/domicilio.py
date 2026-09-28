@@ -7,6 +7,7 @@ class DomicilioCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     complejo: Optional[str] = None
+    torre: Optional[str] = None
     piso: Optional[int] = None
     depto: Optional[str] = None
     calle: Optional[str] = None
@@ -37,6 +38,7 @@ class DomicilioOut(BaseModel):
     domicilio_id: int
     cliente_id: int
     complejo: Optional[str] = None
+    torre: Optional[str] = None
     piso: Optional[int] = None
     depto: Optional[str] = None
     calle: Optional[str] = None
@@ -53,6 +55,7 @@ class DomicilioVigenteOut(BaseModel):
     domicilio_id: int
     cliente_id: int
     complejo: Optional[str] = None
+    torre: Optional[str] = None
     piso: Optional[int] = None
     depto: Optional[str] = None
     calle: Optional[str] = None

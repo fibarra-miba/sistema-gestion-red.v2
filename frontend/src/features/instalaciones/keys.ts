@@ -1,4 +1,5 @@
 import type {
+  ListGarantiasParams,
   ListInstalacionesParams,
   ListProgramacionesParams,
 } from './types'
@@ -20,8 +21,17 @@ export const instalacionesKeys = {
     [...instalacionesKeys.all, 'detalles', instalacionId] as const,
 
   // Garantías por instalación
+  garantiasAll: () => [...instalacionesKeys.all, 'garantias'] as const,
   garantias: (instalacionId: number) =>
-    [...instalacionesKeys.all, 'garantias', instalacionId] as const,
+    [...instalacionesKeys.garantiasAll(), instalacionId] as const,
+
+  // Listado global de garantías (pantalla /garantias)
+  garantiasLists: () => [...instalacionesKeys.garantiasAll(), 'list'] as const,
+  garantiasList: (params: ListGarantiasParams) =>
+    [...instalacionesKeys.garantiasLists(), params] as const,
+
+  // Resumen agregado de depósitos
+  garantiasResumen: () => [...instalacionesKeys.garantiasAll(), 'resumen'] as const,
 
   // Programaciones
   programacionesAll: () => [...instalacionesKeys.all, 'programaciones'] as const,

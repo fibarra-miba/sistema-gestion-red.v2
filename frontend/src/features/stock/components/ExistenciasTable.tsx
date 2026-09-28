@@ -1,4 +1,4 @@
-import { Box, Chip, IconButton, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Chip, IconButton, Tooltip, Typography } from '@mui/material'
 import HistoryIcon from '@mui/icons-material/History'
 import TuneIcon from '@mui/icons-material/Tune'
 import DataTable, {
@@ -73,7 +73,7 @@ export default function ExistenciasTable({
       key: 'acciones',
       label: '',
       align: 'right',
-      width: canManage ? 96 : 56,
+      width: canManage ? 210 : 56,
       render: (e) => (
         <Box sx={{ display: 'inline-flex' }}>
           <Tooltip title="Movimientos (kardex)">
@@ -82,11 +82,13 @@ export default function ExistenciasTable({
             </IconButton>
           </Tooltip>
           {canManage && (
-            <Tooltip title="Ajuste / devolución">
-              <IconButton size="small" onClick={() => onMovimiento?.(e)}>
-                <TuneIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <Button
+              size="small"
+              startIcon={<TuneIcon fontSize="small" />}
+              onClick={() => onMovimiento?.(e)}
+            >
+              Cargar / ajustar
+            </Button>
           )}
         </Box>
       ),

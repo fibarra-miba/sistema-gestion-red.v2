@@ -23,7 +23,22 @@
 \ir core/003_indexes.sql
 \ir core/005_catalogos_base.sql
 \ir core/006_post_seed.sql
-\ir core/010_seed.sql
+
+-- El seed demo (010) NO es parte del esquema base: carga planes/clientes de
+-- ejemplo. Se controla con la env var RED_SEED del contenedor postgres:
+--   RED_SEED=1 -> DEV (base con datos para probar)
+--   RED_SEED=0 / ausente -> PRD (base limpia; los datos reales los carga el negocio)
+\getenv red_seed RED_SEED
+\if :{?red_seed}
+  \if :red_seed
+    \echo '== Seed demo (RED_SEED=1) =='
+    \ir core/010_seed.sql
+  \else
+    \echo '== Seed demo OMITIDO (RED_SEED=0) =='
+  \endif
+\else
+  \echo '== Seed demo OMITIDO (RED_SEED no seteada) =='
+\endif
 
 \echo '== RED AI (schema red_ai) =='
 \ir red_ai/001_schema_red_ai.sql

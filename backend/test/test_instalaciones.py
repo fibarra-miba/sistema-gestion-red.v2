@@ -1,5 +1,7 @@
 # test/test_instalaciones.py
 
+from datetime import datetime, timezone
+
 import pytest
 
 
@@ -62,38 +64,89 @@ async def _crear_instalacion_pendiente(admin_client):
 
 
 # ==========================================================
-# 1. CONDICION TECNICA
+# 1. ACTIVAR / PROGRAMAR
 # ==========================================================
 
-@pytest.mark.anyio
-async def test_condicion_tecnica_apto_activa_contrato(admin_client):
-    res = await admin_client.post(
-        "/contratos/1/confirmar-condicion-tecnica",
-        json={"apto": True},
-    )
-
-    assert res.status_code == 200, res.text
-    data = res.json()
-
-    assert data["estado_contrato_id"] == 3
-    assert data["programacion_id"] is None
-
-
-@pytest.mark.anyio
-async def test_condicion_tecnica_requiere_instalacion(admin_client):
-    res = await admin_client.post(
-        "/contratos/1/confirmar-condicion-tecnica",
+async def _producto(client, nombre):
+    r = await client.post(
+        "/productos",
         json={
-            "apto": False,
-            "fecha_programacion_pinstalacion": "2030-01-01T10:00:00Z",
+            "nombre_producto": nombre,
+            "marca_producto": "Genérico",
+            "modelo_producto": "STD",
+            "tipo_producto_id": 1,
+            "unidad_stock_producto": "unidad",
         },
     )
+    assert r.status_code == 200, r.text
+    return r.json()["producto_id"]
+
+
+@pytest.mark.anyio
+async def test_activar_contrato_crea_instalacion_pendiente(admin_client):
+    contrato_id = await _crear_contrato_operativo(admin_client)
+
+    res = await admin_client.post(f"/contratos/{contrato_id}/activate")
+    assert res.status_code == 200, res.text
+
+    items = (
+        await admin_client.get(f"/instalaciones?contrato_id={contrato_id}")
+    ).json()["items"]
+    assert len(items) == 1
+    assert items[0]["estado_instalacion_id"] == 1  # PENDIENTE
+
+
+@pytest.mark.anyio
+async def test_activar_permite_cargar_productos(admin_client):
+    contrato_id = await _crear_contrato_operativo(admin_client)
+    await admin_client.post(f"/contratos/{contrato_id}/activate")
+
+    instalacion_id = (
+        await admin_client.get(f"/instalaciones?contrato_id={contrato_id}")
+    ).json()["items"][0]["instalacion_id"]
+
+    prod = await _producto(admin_client, "Conector activación directa")
+    await admin_client.post(
+        "/stock/ajustes",
+        json={"producto_id": prod, "cantidad": 5, "positivo": True, "motivo": "alta"},
+    )
+
+    res = await admin_client.post(
+        f"/instalaciones/{instalacion_id}/detalles",
+        json={
+            "producto_id": prod,
+            "cantidad_dinstalacion": 2,
+            "unidad_dinstalacion": "unidad",
+        },
+    )
+    assert res.status_code == 200, res.text
+
+
+@pytest.mark.anyio
+async def test_programar_instalacion_deja_pendiente_instalacion(admin_client):
+    contrato_id = await _crear_contrato_operativo(admin_client)
+
+    res = await admin_client.post(
+        f"/contratos/{contrato_id}/programar-instalacion",
+        json={"fecha_programacion_pinstalacion": "2030-01-01T10:00:00Z"},
+    )
 
     assert res.status_code == 200, res.text
     data = res.json()
-
     assert data["estado_contrato_id"] == 2
     assert data["programacion_id"] is not None
+
+
+@pytest.mark.anyio
+async def test_activar_solo_desde_borrador(admin_client):
+    contrato_id = await _crear_contrato_operativo(admin_client)
+
+    primera = await admin_client.post(f"/contratos/{contrato_id}/activate")
+    assert primera.status_code == 200, primera.text
+
+    # Ya está ACTIVO: no puede volver a activarse.
+    segunda = await admin_client.post(f"/contratos/{contrato_id}/activate")
+    assert segunda.status_code == 400, segunda.text
 
 
 # ==========================================================
@@ -361,3 +414,126 @@ async def test_no_ejecutar_programacion_completada(admin_client):
     )
 
     assert second.status_code == 400
+
+
+# ==========================================================
+# 10. EDICION DE DATOS DE CARGA (PATCH)
+# ==========================================================
+
+def _fecha_utc(valor: str) -> datetime:
+    return datetime.fromisoformat(valor).astimezone(timezone.utc)
+
+
+@pytest.mark.anyio
+async def test_editar_fecha_instalacion_completada(admin_client):
+    """El caso real: corregir la fecha de una instalación ya completada."""
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+    await admin_client.post(f"/instalaciones/{instalacion_id}/completar")
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"fecha_instalacion": "2026-01-15T10:00:00Z"},
+    )
+
+    assert res.status_code == 200, res.text
+    esperada = datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc)
+    assert _fecha_utc(res.json()["fecha_instalacion"]) == esperada
+
+    res_get = await admin_client.get(f"/instalaciones/{instalacion_id}")
+    assert _fecha_utc(res_get.json()["fecha_instalacion"]) == esperada
+
+
+@pytest.mark.anyio
+async def test_editar_instalacion_no_cambia_estado(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+    await admin_client.post(f"/instalaciones/{instalacion_id}/completar")
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"fecha_instalacion": "2026-01-15T10:00:00Z"},
+    )
+
+    assert res.status_code == 200, res.text
+    assert res.json()["estado_instalacion_id"] == 2  # COMPLETADA
+
+
+@pytest.mark.anyio
+async def test_editar_codigo_y_observacion(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={
+            "codigo_instalacion": "INS-0001",
+            "observacion_instalacion": "Se reubicó el ONT.",
+        },
+    )
+
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["codigo_instalacion"] == "INS-0001"
+    assert data["observacion_instalacion"] == "Se reubicó el ONT."
+
+
+@pytest.mark.anyio
+async def test_editar_instalacion_patch_parcial_no_pisa_otros_campos(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+    await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"codigo_instalacion": "INS-0002"},
+    )
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"observacion_instalacion": "Nota nueva."},
+    )
+
+    assert res.status_code == 200, res.text
+    assert res.json()["codigo_instalacion"] == "INS-0002"
+
+
+@pytest.mark.anyio
+async def test_editar_instalacion_rechaza_fecha_futura(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"fecha_instalacion": "2099-01-01T10:00:00Z"},
+    )
+
+    assert res.status_code == 422, res.text
+
+
+@pytest.mark.anyio
+async def test_editar_instalacion_rechaza_fecha_nula(admin_client):
+    """fecha_instalacion es NOT NULL: mandar null explícito es 422, no un 500."""
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res = await admin_client.patch(
+        f"/instalaciones/{instalacion_id}",
+        json={"fecha_instalacion": None},
+    )
+
+    assert res.status_code == 422, res.text
+
+
+@pytest.mark.anyio
+async def test_editar_instalacion_inexistente(admin_client):
+    res = await admin_client.patch(
+        "/instalaciones/999999",
+        json={"fecha_instalacion": "2026-01-15T10:00:00Z"},
+    )
+
+    assert res.status_code == 404, res.text
+
+
+@pytest.mark.anyio
+async def test_tecnico_no_puede_editar_instalacion(tecnico_client):
+    """El TÉCNICO opera instalaciones pero no corrige datos de carga.
+    El guard de rol corta antes del handler, así que el id no importa."""
+    res = await tecnico_client.patch(
+        "/instalaciones/1",
+        json={"fecha_instalacion": "2026-01-15T10:00:00Z"},
+    )
+
+    assert res.status_code == 403, res.text

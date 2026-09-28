@@ -44,3 +44,12 @@ export interface PagosResumen {
   pagos_parciales_mes: number
   top_morosos: TopMorosoItem[]
 }
+
+// Depósitos de garantía (comodato de equipos). ACTIVA = comprometido,
+// DEVUELTA = devuelto, RETENIDA = retenido.
+export interface DepositosResumen {
+  comprometido: number
+  cantidad_activas: number
+  devuelto: number
+  retenido: number
+}

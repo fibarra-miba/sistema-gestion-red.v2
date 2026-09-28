@@ -14,6 +14,16 @@ export interface ExistenciaOut {
   costo_promedio: number
 }
 
+// Lo mínimo que necesita el diálogo de movimiento. Una fila de existencias lo
+// cumple, y también un producto recién creado que todavía no tiene movimientos
+// (ahí `cantidad` es desconocida y no se muestra).
+export interface MovimientoStockTarget {
+  producto_id: number
+  nombre_producto: string
+  unidad_stock_producto: string | null
+  cantidad?: number
+}
+
 export interface ExistenciaListResponse {
   items: ExistenciaOut[]
 }

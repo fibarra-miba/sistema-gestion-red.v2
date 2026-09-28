@@ -21,6 +21,7 @@ from app.schemas.instalacion import (
     ReintentarInstalacionIn,
     EjecutarProgramacionIn,
     InstalacionCreate,
+    InstalacionUpdate,
     InstalacionResponse,
     InstalacionListResponse,
     InstalacionAccionOut,
@@ -31,6 +32,7 @@ from app.schemas.instalacion import (
     GarantiaUpdate,
     GarantiaOut,
     GarantiaListResponse,
+    GarantiasResumenOut,
     InstalacionesResumenOut,
 )
 from app.services.instalaciones_service import InstalacionesService
@@ -214,6 +216,7 @@ def list_garantias(
     instalacion_id: Optional[int] = Query(default=None, ge=1),
     contrato_id: Optional[int] = Query(default=None, ge=1),
     estado_garantia_id: Optional[int] = Query(default=None, ge=1),
+    cliente_id: Optional[int] = Query(default=None, ge=1),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     service: InstalacionesService = Depends(get_service),
@@ -223,6 +226,7 @@ def list_garantias(
             instalacion_id=instalacion_id,
             contrato_id=contrato_id,
             estado_garantia_id=estado_garantia_id,
+            cliente_id=cliente_id,
             limit=limit,
             offset=offset,
         )
@@ -255,6 +259,37 @@ def list_instalaciones(
         programacion_id=programacion_id,
     )
     return {"items": items}
+
+
+@router.patch(
+    "/{instalacion_id}",
+    response_model=InstalacionResponse,
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
+)
+def update_instalacion(
+    instalacion_id: int,
+    payload: InstalacionUpdate,
+    service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
+):
+    try:
+        data = payload.model_dump(exclude_unset=True)
+        result = service.update_instalacion(instalacion_id, data)
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.UPDATE,
+            entidad="instalaciones",
+            entidad_id=instalacion_id,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=_instalacion_status(str(e)), detail=str(e))
+
+
+def _instalacion_status(detail: str) -> int:
+    if detail == InstalacionesService.INSTALACION_NO_ENCONTRADA:
+        return 404
+    return 422
 
 
 @router.post("/{instalacion_id}/completar", response_model=InstalacionAccionOut)
@@ -429,6 +464,19 @@ def crear_garantia(
         raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
 
 
+# Declarada antes de /garantias/{garantia_id}: si fuera después, FastAPI
+# intentaría parsear "resumen" como el int del path param y devolvería 422.
+@router.get(
+    "/garantias/resumen",
+    response_model=GarantiasResumenOut,
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
+)
+def get_garantias_resumen(
+    service: InstalacionesService = Depends(get_service),
+):
+    return service.resumen_garantias()
+
+
 @router.get("/garantias/{garantia_id}", response_model=GarantiaOut)
 def get_garantia(
     garantia_id: int,
@@ -475,6 +523,8 @@ def _garantia_status(detail: str) -> int:
         InstalacionesService.GARANTIA_PRODUCTO_NO_EQUIPO,
         InstalacionesService.GARANTIA_ESTADO_INVALIDO,
         InstalacionesService.GARANTIA_RESOLUCION_REQUERIDA,
+        InstalacionesService.GARANTIA_RESOLUCION_RETENCION_REQUERIDA,
+        InstalacionesService.GARANTIA_FECHAS_INVALIDAS,
     ):
         return 422
     return 400

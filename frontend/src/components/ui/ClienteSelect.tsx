@@ -74,7 +74,7 @@ export default function ClienteSelect({
         if (reason === 'input') setInput(next)
       }}
       getOptionLabel={(c) =>
-        `${c.apellido_cliente}, ${c.nombre_cliente} — DNI ${c.dni_cliente}`
+        `${c.apellido_cliente}, ${c.nombre_cliente}${c.dni_cliente ? ` — DNI ${c.dni_cliente}` : ''}`
       }
       isOptionEqualToValue={(a, b) => a.cliente_id === b.cliente_id}
       loading={isLoading}

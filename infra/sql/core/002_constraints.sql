@@ -421,9 +421,20 @@ ALTER TABLE garantia
     OR fecha_fin_garantia >= fecha_inicio_garantia
   );
 
+-- Un depósito negativo no existe. NULL = garantía histórica sin monto cargado.
+ALTER TABLE garantia
+  ADD CONSTRAINT chk_garantia_monto_no_negativo
+  CHECK (monto_garantia IS NULL OR monto_garantia >= 0);
+
 -- ============================
 -- PRODUCTOS
 -- ============================
+-- Sin unicidad por código, recargar el catálogo duplica en silencio y las
+-- búsquedas por código pasan a elegir una fila cualquiera.
+ALTER TABLE tipo_producto
+  ADD CONSTRAINT uq_tipo_producto_codigo
+  UNIQUE (codigo_tproducto);
+
 ALTER TABLE productos
   ADD CONSTRAINT fk_producto_tipo
   FOREIGN KEY (tipo_producto_id)

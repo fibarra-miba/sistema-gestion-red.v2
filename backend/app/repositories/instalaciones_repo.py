@@ -9,6 +9,21 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 
+# SELECT enriquecido: suma nombre del cliente y datos del domicilio para que la
+# UI no muestre solo ids. Las JOIN son INNER (contrato/domicilio son FK NOT NULL).
+_INSTALACION_SELECT_BASE = """
+    SELECT
+        i.*,
+        c.nombre_cliente   AS cliente_nombre,
+        c.apellido_cliente AS cliente_apellido,
+        d.complejo, d.torre, d.piso, d.depto, d.calle, d.numero
+    FROM instalaciones i
+    JOIN contratos  ct ON ct.contrato_id  = i.contrato_id
+    JOIN clientes   c  ON c.cliente_id    = ct.cliente_id
+    JOIN domicilios d  ON d.domicilio_id  = i.domicilio_id
+"""
+
+
 class InstalacionesRepository:
     def __init__(self, conn: Connection):
         self.conn = conn
@@ -337,11 +352,7 @@ class InstalacionesRepository:
     def get_instalacion_by_id(self, instalacion_id: int) -> Optional[dict]:
         with self.conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
-                """
-                SELECT *
-                FROM instalaciones
-                WHERE instalacion_id = %s
-                """,
+                _INSTALACION_SELECT_BASE + " WHERE i.instalacion_id = %s",
                 (instalacion_id,),
             )
             return cur.fetchone()
@@ -369,29 +380,26 @@ class InstalacionesRepository:
         params: list = []
 
         if contrato_id is not None:
-            where.append("contrato_id = %s")
+            where.append("i.contrato_id = %s")
             params.append(contrato_id)
 
         if domicilio_id is not None:
-            where.append("domicilio_id = %s")
+            where.append("i.domicilio_id = %s")
             params.append(domicilio_id)
 
         if estado_instalacion_id is not None:
-            where.append("estado_instalacion_id = %s")
+            where.append("i.estado_instalacion_id = %s")
             params.append(estado_instalacion_id)
 
         if programacion_id is not None:
-            where.append("programacion_id = %s")
+            where.append("i.programacion_id = %s")
             params.append(programacion_id)
 
-        query = """
-            SELECT *
-            FROM instalaciones
-        """
+        query = _INSTALACION_SELECT_BASE
         if where:
             query += " WHERE " + " AND ".join(where)
 
-        query += " ORDER BY instalacion_id ASC"
+        query += " ORDER BY i.instalacion_id ASC"
 
         with self.conn.cursor(row_factory=dict_row) as cur:
             cur.execute(query, tuple(params))
@@ -413,6 +421,21 @@ class InstalacionesRepository:
                 """,
                 (estado_instalacion_id, fecha_instalacion, instalacion_id),
             )
+
+    def update_instalacion(self, instalacion_id: int, fields: dict) -> Optional[dict]:
+        if not fields:
+            return self.get_instalacion_by_id(instalacion_id)
+
+        set_clause = ", ".join(f"{key} = %s" for key in fields.keys())
+        values = list(fields.values())
+        values.append(instalacion_id)
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE instalaciones SET {set_clause} WHERE instalacion_id = %s",
+                values,
+            )
+        return self.get_instalacion_by_id(instalacion_id)
 
     def update_programacion_estado(
         self,
@@ -505,6 +528,7 @@ class InstalacionesRepository:
         estado_garantia_id: int,
         motivo_garantia: str | None,
         resolucion_garantia: str | None,
+        monto_garantia: float | None = None,
     ) -> dict:
         with self.conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -513,19 +537,21 @@ class InstalacionesRepository:
                     instalacion_id,
                     contrato_id,
                     producto_id,
+                    monto_garantia,
                     fecha_inicio_garantia,
                     fecha_fin_garantia,
                     estado_garantia_id,
                     motivo_garantia,
                     resolucion_garantia
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING *
                 """,
                 (
                     instalacion_id,
                     contrato_id,
                     producto_id,
+                    monto_garantia,
                     fecha_inicio_garantia,
                     fecha_fin_garantia,
                     estado_garantia_id,
@@ -535,13 +561,14 @@ class InstalacionesRepository:
             )
             return cur.fetchone()
 
-    # SELECT enriquecido con producto + estado (evita N+1 en el frontend).
+    # SELECT enriquecido con producto + estado + cliente (evita N+1 en el frontend).
     _SELECT_GARANTIA = """
         SELECT
             g.garantia_id,
             g.instalacion_id,
             g.contrato_id,
             g.producto_id,
+            g.monto_garantia,
             g.fecha_inicio_garantia,
             g.fecha_fin_garantia,
             g.estado_garantia_id,
@@ -551,10 +578,14 @@ class InstalacionesRepository:
             p.nombre_producto,
             p.marca_producto,
             p.modelo_producto,
-            eg.descripcion_egarantia
+            eg.descripcion_egarantia,
+            cl.nombre_cliente AS cliente_nombre,
+            cl.apellido_cliente AS cliente_apellido
         FROM garantia g
         JOIN productos p ON p.producto_id = g.producto_id
         JOIN estado_garantia eg ON eg.estado_garantia_id = g.estado_garantia_id
+        JOIN contratos c ON c.contrato_id = g.contrato_id
+        JOIN clientes cl ON cl.cliente_id = c.cliente_id
     """
 
     def get_garantia_by_id(self, garantia_id: int) -> Optional[dict]:
@@ -567,6 +598,7 @@ class InstalacionesRepository:
         instalacion_id: int | None = None,
         contrato_id: int | None = None,
         estado_garantia_id: int | None = None,
+        cliente_id: int | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict]:
@@ -582,6 +614,9 @@ class InstalacionesRepository:
         if estado_garantia_id is not None:
             where.append("g.estado_garantia_id = %s")
             params.append(estado_garantia_id)
+        if cliente_id is not None:
+            where.append("c.cliente_id = %s")
+            params.append(cliente_id)
 
         query = self._SELECT_GARANTIA
         if where:
@@ -652,15 +687,56 @@ class InstalacionesRepository:
             return row[0] if row else None
 
     def exists_garantia_activa(
-        self, instalacion_id: int, producto_id: int, estado_activa_id: int
+        self,
+        instalacion_id: int,
+        producto_id: int,
+        estado_activa_id: int,
+        exclude_garantia_id: int | None = None,
     ) -> bool:
+        query = """
+            SELECT 1 FROM garantia
+            WHERE instalacion_id = %s AND producto_id = %s AND estado_garantia_id = %s
+        """
+        params: list = [instalacion_id, producto_id, estado_activa_id]
+
+        if exclude_garantia_id is not None:
+            query += " AND garantia_id != %s"
+            params.append(exclude_garantia_id)
+
+        query += " LIMIT 1"
+
         with self.conn.cursor() as cur:
+            cur.execute(query, tuple(params))
+            return cur.fetchone() is not None
+
+    # Resumen del depósito reembolsable: lo comprometido (ACTIVAS), lo devuelto
+    # y lo retenido. Resuelve estados por descripcion_egarantia, no por id.
+    def resumen_garantias(self) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT 1 FROM garantia
-                WHERE instalacion_id = %s AND producto_id = %s AND estado_garantia_id = %s
-                LIMIT 1
-                """,
-                (instalacion_id, producto_id, estado_activa_id),
+                SELECT
+                    COALESCE(SUM(g.monto_garantia) FILTER (
+                        WHERE eg.descripcion_egarantia = 'ACTIVA'
+                    ), 0) AS comprometido,
+                    COUNT(*) FILTER (
+                        WHERE eg.descripcion_egarantia = 'ACTIVA'
+                    ) AS cantidad_activas,
+                    COALESCE(SUM(g.monto_garantia) FILTER (
+                        WHERE eg.descripcion_egarantia = 'DEVUELTA'
+                    ), 0) AS devuelto,
+                    COALESCE(SUM(g.monto_garantia) FILTER (
+                        WHERE eg.descripcion_egarantia = 'RETENIDA'
+                    ), 0) AS retenido
+                FROM garantia g
+                JOIN estado_garantia eg ON eg.estado_garantia_id = g.estado_garantia_id
+                """
             )
-            return cur.fetchone() is not None
+            row = cur.fetchone()
+
+        return {
+            "comprometido": float(row["comprometido"]),
+            "cantidad_activas": int(row["cantidad_activas"]),
+            "devuelto": float(row["devuelto"]),
+            "retenido": float(row["retenido"]),
+        }

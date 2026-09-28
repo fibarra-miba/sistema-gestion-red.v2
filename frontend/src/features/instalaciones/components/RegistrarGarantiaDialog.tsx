@@ -19,7 +19,14 @@ import type { GarantiaCreate } from '../types'
 
 interface FormValues {
   producto_id: string
+  monto_garantia: string
   fecha_inicio_garantia: string
+}
+
+const emptyValues: FormValues = {
+  producto_id: '',
+  monto_garantia: '',
+  fecha_inicio_garantia: '',
 }
 
 interface Props {
@@ -48,12 +55,12 @@ export default function RegistrarGarantiaDialog({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { producto_id: '', fecha_inicio_garantia: '' },
+    defaultValues: emptyValues,
   })
 
   const close = () => {
     if (createGarantia.isPending) return
-    reset({ producto_id: '', fecha_inicio_garantia: '' })
+    reset(emptyValues)
     createGarantia.reset()
     onClose()
   }
@@ -62,12 +69,13 @@ export default function RegistrarGarantiaDialog({
     const payload: GarantiaCreate = {
       instalacion_id: instalacionId,
       producto_id: Number(values.producto_id),
+      monto_garantia: Number(values.monto_garantia),
       fecha_inicio_garantia: values.fecha_inicio_garantia
         ? fromDateTimeInputValue(values.fecha_inicio_garantia)
         : null,
     }
     await createGarantia.mutateAsync(payload)
-    reset({ producto_id: '', fecha_inicio_garantia: '' })
+    reset(emptyValues)
     createGarantia.reset()
     showSuccess('Garantía registrada.')
     onClose()
@@ -110,6 +118,31 @@ export default function RegistrarGarantiaDialog({
                   error={!!errors.producto_id}
                   helperText={errors.producto_id?.message}
                   required
+                />
+              )}
+            />
+
+            <Controller
+              name="monto_garantia"
+              control={control}
+              rules={{
+                required: 'Indicá el monto del depósito.',
+                validate: (v) => {
+                  const n = Number(v)
+                  if (Number.isNaN(n)) return 'Debe ser un número.'
+                  if (n < 0) return 'No puede ser negativo.'
+                  return true
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  type="number"
+                  label="Monto del depósito"
+                  required
+                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                  error={!!errors.monto_garantia}
+                  helperText={errors.monto_garantia?.message}
                 />
               )}
             />
