@@ -1,0 +1,3 @@
+# Los backups contienen datos reales del negocio: NUNCA se versionan.
+*
+!.gitignore
