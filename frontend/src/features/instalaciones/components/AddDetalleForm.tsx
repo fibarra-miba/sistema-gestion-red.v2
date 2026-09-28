@@ -38,6 +38,7 @@ export default function AddDetalleForm({ instalacionId }: Props) {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({ defaultValues: DEFAULTS })
 
@@ -89,7 +90,17 @@ export default function AddDetalleForm({ instalacionId }: Props) {
               <ProductoSelect
                 size="small"
                 value={field.value ? Number(field.value) : null}
-                onChange={(id) => field.onChange(id != null ? String(id) : '')}
+                onChange={(id, producto) => {
+                  field.onChange(id != null ? String(id) : '')
+                  // La unidad la define el producto (unidad base de stock).
+                  // Se completa sola; queda editable por si el consumo de esta
+                  // instalación se midió distinto.
+                  setValue(
+                    'unidad_dinstalacion',
+                    producto?.unidad_stock_producto ?? '',
+                    { shouldValidate: true },
+                  )
+                }}
                 error={!!errors.producto_id}
                 helperText={errors.producto_id?.message}
                 required
@@ -133,7 +144,9 @@ export default function AddDetalleForm({ instalacionId }: Props) {
                 label="Unidad"
                 placeholder="ej. m, und"
                 error={!!errors.unidad_dinstalacion}
-                helperText={errors.unidad_dinstalacion?.message}
+                helperText={
+                  errors.unidad_dinstalacion?.message ?? 'Se toma del producto.'
+                }
                 required
               />
             )}

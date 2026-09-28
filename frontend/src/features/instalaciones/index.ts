@@ -17,6 +17,7 @@ export {
   contratoLabelFromFields,
   domicilioLabelFromFields,
   formatDateTime,
+  depositosActivosLabel,
   toDateTimeInputValue,
   fromDateTimeInputValue,
 } from './utils'
@@ -30,12 +31,16 @@ export { useReintentarInstalacion } from './hooks/useReintentarInstalacion'
 export { useProgramaciones } from './hooks/useProgramaciones'
 export { useReprogramar } from './hooks/useReprogramar'
 export { useCreateInstalacion } from './hooks/useCreateInstalacion'
+export { useUpdateInstalacion } from './hooks/useUpdateInstalacion'
 export { useEjecutarProgramacion } from './hooks/useEjecutarProgramacion'
 export { useDetallesInstalacion } from './hooks/useDetallesInstalacion'
 export { useCreateDetalleInstalacion } from './hooks/useCreateDetalleInstalacion'
 export { useGarantias } from './hooks/useGarantias'
+export { useGarantiasList } from './hooks/useGarantiasList'
 export { useCreateGarantia } from './hooks/useCreateGarantia'
 export { useAnularGarantia } from './hooks/useAnularGarantia'
+export { useUpdateGarantia } from './hooks/useUpdateGarantia'
+export { useResumenGarantias } from './hooks/useResumenGarantias'
 
 export { default as InstalacionEstadoChip } from './components/InstalacionEstadoChip'
 export {

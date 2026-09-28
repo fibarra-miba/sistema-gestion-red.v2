@@ -2,6 +2,7 @@ import { http } from '@/services/http'
 import type {
   ClientesResumen,
   ContratosResumen,
+  DepositosResumen,
   InstalacionesResumen,
   PagosResumen,
 } from '../types'
@@ -27,6 +28,13 @@ export const dashboardService = {
 
   async pagos(): Promise<PagosResumen> {
     const { data } = await http.get<PagosResumen>('/pagos/resumen')
+    return data
+  },
+
+  async depositos(): Promise<DepositosResumen> {
+    const { data } = await http.get<DepositosResumen>(
+      '/instalaciones/garantias/resumen',
+    )
     return data
   },
 }

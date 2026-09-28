@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import {
   Alert,
   Button,
@@ -7,27 +7,22 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle,
-  FormControlLabel,
   Stack,
-  Switch,
   TextField,
 } from '@mui/material'
 import { isApiError } from '@/types/api'
 import type {
   ContractCommercialOut,
-  ContractConfirmTechnicalCondition,
+  ContractProgramarInstalacion,
 } from '../types'
 
 interface FormValues {
-  apto: boolean
   fecha_programacion_pinstalacion: string // datetime-local (sin zona)
   tecnico_pinstalacion: string
   notas_pinstalacion: string
 }
 
 const DEFAULT_VALUES: FormValues = {
-  apto: true,
   fecha_programacion_pinstalacion: '',
   tecnico_pinstalacion: '',
   notas_pinstalacion: '',
@@ -38,11 +33,11 @@ interface Props {
   contrato: ContractCommercialOut | null
   loading?: boolean
   error?: unknown
-  onConfirm: (payload: ContractConfirmTechnicalCondition) => void
+  onConfirm: (payload: ContractProgramarInstalacion) => void
   onCancel: () => void
 }
 
-export default function CondicionTecnicaDialog({
+export default function ProgramarInstalacionDialog({
   open,
   contrato,
   loading,
@@ -53,8 +48,6 @@ export default function CondicionTecnicaDialog({
   const {
     register,
     handleSubmit,
-    control,
-    watch,
     reset,
     formState: { errors },
   } = useForm<FormValues>({ defaultValues: DEFAULT_VALUES })
@@ -63,14 +56,11 @@ export default function CondicionTecnicaDialog({
     if (!open) reset(DEFAULT_VALUES)
   }, [open, reset])
 
-  const apto = watch('apto')
-
   const submit = (values: FormValues) => {
-    const payload: ContractConfirmTechnicalCondition = {
-      apto: values.apto,
-      fecha_programacion_pinstalacion: values.fecha_programacion_pinstalacion
-        ? new Date(values.fecha_programacion_pinstalacion).toISOString()
-        : null,
+    const payload: ContractProgramarInstalacion = {
+      fecha_programacion_pinstalacion: new Date(
+        values.fecha_programacion_pinstalacion,
+      ).toISOString(),
       tecnico_pinstalacion: values.tecnico_pinstalacion.trim() || null,
       notas_pinstalacion: values.notas_pinstalacion.trim() || null,
     }
@@ -87,47 +77,25 @@ export default function CondicionTecnicaDialog({
       fullWidth
     >
       <form onSubmit={handleSubmit(submit)} noValidate>
-        <DialogTitle>Confirmar condición técnica</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
             {contrato && (
               <DialogContentText>
-                Contrato #{contrato.contrato_id} — {contrato.cliente_apellido},{' '}
-                {contrato.cliente_nombre}
+                Programar instalación — Contrato #{contrato.contrato_id} —{' '}
+                {contrato.cliente_apellido}, {contrato.cliente_nombre}
               </DialogContentText>
             )}
-
-            <Controller
-              control={control}
-              name="apto"
-              render={({ field }) => (
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={field.value}
-                      onChange={(_, v) => field.onChange(v)}
-                    />
-                  }
-                  label={
-                    field.value
-                      ? 'Apto técnicamente'
-                      : 'No apto técnicamente'
-                  }
-                />
-              )}
-            />
 
             <TextField
               label="Fecha de instalación programada"
               type="datetime-local"
+              required
               slotProps={{ inputLabel: { shrink: true } }}
               error={!!errors.fecha_programacion_pinstalacion}
               helperText={errors.fecha_programacion_pinstalacion?.message}
               {...register('fecha_programacion_pinstalacion', {
+                required: 'Indicá la fecha de la instalación',
                 validate: (v) => {
-                  // Si apto=true, la fecha debería venir — pero el backend lo
-                  // valida finalmente. Acá sólo validamos formato.
-                  if (!v) return true
                   const d = new Date(v)
                   if (Number.isNaN(d.getTime())) return 'Fecha inválida'
                   return true
@@ -145,7 +113,7 @@ export default function CondicionTecnicaDialog({
             />
 
             <TextField
-              label={apto ? 'Notas' : 'Motivo / notas'}
+              label="Notas"
               multiline
               rows={3}
               error={!!errors.notas_pinstalacion}
@@ -163,7 +131,7 @@ export default function CondicionTecnicaDialog({
             Cancelar
           </Button>
           <Button type="submit" variant="contained" disabled={loading}>
-            Confirmar
+            Programar
           </Button>
         </DialogActions>
       </form>

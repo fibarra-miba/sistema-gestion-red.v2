@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add'
 import PageHeader from '@/components/ui/PageHeader'
 import { useSnackbar } from '@/components/ui/SnackbarProvider'
 import { useAuth } from '@/features/auth'
+import { MovimientoStockDialog } from '@/features/stock'
 import {
   useProductos,
   useCreateProducto,
@@ -33,6 +34,8 @@ export default function ProductosPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<ProductoOut | null>(null)
+  // Producto sobre el que se va a cargar/ajustar existencia.
+  const [cargandoStock, setCargandoStock] = useState<ProductoOut | null>(null)
 
   const offset = params.offset ?? 0
 
@@ -113,6 +116,7 @@ export default function ProductosPage() {
         error={error}
         canManage={canManage}
         onEdit={(p) => canManage && setEditing(p)}
+        onCargarStock={canManage ? (p) => setCargandoStock(p) : undefined}
         onToggleActivo={handleToggleActivo}
         pagination={{
           limit: PAGE_SIZE,
@@ -159,6 +163,18 @@ export default function ProductosPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <MovimientoStockDialog
+        open={cargandoStock !== null}
+        existencia={
+          cargandoStock && {
+            producto_id: cargandoStock.producto_id,
+            nombre_producto: cargandoStock.nombre_producto,
+            unidad_stock_producto: cargandoStock.unidad_stock_producto,
+          }
+        }
+        onClose={() => setCargandoStock(null)}
+      />
     </Stack>
   )
 }

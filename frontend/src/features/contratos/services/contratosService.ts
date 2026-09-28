@@ -5,8 +5,8 @@ import type {
   ContractChangePlan,
   ContractCommercialListResponse,
   ContractCommercialOut,
-  ContractConfirmTechnicalCondition,
-  ContractConfirmTechnicalConditionResponse,
+  ContractProgramarInstalacion,
+  ContractProgramarInstalacionResponse,
   ContractCreate,
   ContractOut,
   ListContratosParams,
@@ -101,12 +101,12 @@ export const contratosService = {
     return data
   },
 
-  async confirmarCondicionTecnica(
+  async programarInstalacion(
     contratoId: number,
-    payload: ContractConfirmTechnicalCondition,
-  ): Promise<ContractConfirmTechnicalConditionResponse> {
-    const { data } = await http.post<ContractConfirmTechnicalConditionResponse>(
-      `/contratos/${contratoId}/confirmar-condicion-tecnica`,
+    payload: ContractProgramarInstalacion,
+  ): Promise<ContractProgramarInstalacionResponse> {
+    const { data } = await http.post<ContractProgramarInstalacionResponse>(
+      `/contratos/${contratoId}/programar-instalacion`,
       payload,
     )
     return data

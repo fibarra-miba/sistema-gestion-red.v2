@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,8 +21,12 @@ from app.routes.usuarios import router as usuarios_router
 
 app = FastAPI(title="Sistema RED API")
 
+# Orígenes permitidos por CORS. Configurable por ambiente vía CORS_ORIGINS
+# (lista separada por comas). Default = front de DEV.
 origins = [
-    "http://localhost:5173",
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    if o.strip()
 ]
 
 app.add_middleware(

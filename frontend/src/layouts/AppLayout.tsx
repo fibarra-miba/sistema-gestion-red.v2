@@ -18,6 +18,7 @@ import DescriptionIcon from '@mui/icons-material/Description'
 import CategoryIcon from '@mui/icons-material/Category'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import EngineeringIcon from '@mui/icons-material/Engineering'
+import SavingsIcon from '@mui/icons-material/Savings'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import StorefrontIcon from '@mui/icons-material/Storefront'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
@@ -76,6 +77,12 @@ const NAV_ITEMS: NavItem[] = [
     to: '/instalaciones',
     label: 'Instalaciones',
     icon: <EngineeringIcon />,
+    anyOf: ['can_manage_instalaciones'],
+  },
+  {
+    to: '/garantias',
+    label: 'Garantías',
+    icon: <SavingsIcon />,
     anyOf: ['can_manage_instalaciones'],
   },
   {

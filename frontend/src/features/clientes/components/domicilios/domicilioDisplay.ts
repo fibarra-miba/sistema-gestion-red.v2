@@ -6,6 +6,7 @@ export function formatDomicilioLine(d: DomicilioOut): string {
   const parts: string[] = []
   if (d.calle) parts.push(d.numero != null ? `${d.calle} ${d.numero}` : d.calle)
   if (d.complejo) parts.push(d.complejo)
+  if (d.torre) parts.push(`Torre ${d.torre}`)
   if (d.piso != null) parts.push(`Piso ${d.piso}`)
   if (d.depto) parts.push(`Dto. ${d.depto}`)
   return parts.length ? parts.join(' · ') : 'Domicilio sin datos de ubicación'

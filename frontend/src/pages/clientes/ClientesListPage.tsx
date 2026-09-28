@@ -47,7 +47,13 @@ export default function ClientesListPage() {
   const createMutation = useCreateCliente()
 
   const columns: DataTableColumn<ClienteOut>[] = [
-    { key: 'dni_cliente', label: 'DNI', width: 140, showFrom: 'sm' },
+    {
+      key: 'dni_cliente',
+      label: 'DNI',
+      width: 140,
+      showFrom: 'sm',
+      render: (r) => r.dni_cliente ?? '—',
+    },
     {
       key: 'nombre_cliente',
       label: 'Nombre',
@@ -71,7 +77,7 @@ export default function ClientesListPage() {
     const payload: ClienteCreate = {
       nombre: values.nombre.trim(),
       apellido: values.apellido.trim(),
-      dni: values.dni.trim(),
+      dni: values.dni.trim() || null,
       telefono: values.telefono.trim(),
       email: values.email.trim() || null,
       observaciones: values.observaciones.trim() || null,

@@ -7,11 +7,13 @@ import type {
   GarantiaCreate,
   GarantiaListResponse,
   GarantiaOut,
+  GarantiasResumen,
   GarantiaUpdate,
   InstalacionAccionOut,
   InstalacionCreate,
   InstalacionListResponse,
   InstalacionOut,
+  InstalacionUpdate,
   ListGarantiasParams,
   ListInstalacionesParams,
   ListProgramacionesParams,
@@ -44,6 +46,18 @@ export const instalacionesService = {
 
   async create(payload: InstalacionCreate): Promise<InstalacionOut> {
     const { data } = await http.post<InstalacionOut>('/instalaciones', payload)
+    return data
+  },
+
+  // Corrección de datos de carga (fecha / código / observación).
+  async update(
+    instalacionId: number,
+    payload: InstalacionUpdate,
+  ): Promise<InstalacionOut> {
+    const { data } = await http.patch<InstalacionOut>(
+      `/instalaciones/${instalacionId}`,
+      payload,
+    )
     return data
   },
 
@@ -136,6 +150,13 @@ export const instalacionesService = {
     const { data } = await http.patch<GarantiaOut>(
       `/instalaciones/garantias/${garantiaId}`,
       payload,
+    )
+    return data
+  },
+
+  async resumenGarantias(): Promise<GarantiasResumen> {
+    const { data } = await http.get<GarantiasResumen>(
+      '/instalaciones/garantias/resumen',
     )
     return data
   },

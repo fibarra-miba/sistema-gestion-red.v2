@@ -86,14 +86,13 @@ export interface ContractAssignPromo {
   promocion_id: number
 }
 
-export interface ContractConfirmTechnicalCondition {
-  apto: boolean
-  fecha_programacion_pinstalacion?: string | null
+export interface ContractProgramarInstalacion {
+  fecha_programacion_pinstalacion: string
   tecnico_pinstalacion?: string | null
   notas_pinstalacion?: string | null
 }
 
-export interface ContractConfirmTechnicalConditionResponse {
+export interface ContractProgramarInstalacionResponse {
   contrato_id: number
   estado_contrato_id: number
   programacion_id: number | null

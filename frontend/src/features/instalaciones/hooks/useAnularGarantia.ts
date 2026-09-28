@@ -21,6 +21,10 @@ export function useAnularGarantia() {
       qc.invalidateQueries({
         queryKey: instalacionesKeys.garantias(garantia.instalacion_id),
       })
+      // Anular saca el depósito del comprometido: sin esto el KPI del
+      // dashboard y la pantalla global siguen contando plata que ya no está.
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasLists() })
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasResumen() })
     },
   })
 }

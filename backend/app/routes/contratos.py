@@ -16,7 +16,7 @@ from app.schemas.contrato import (
     ContractCommercialResponse,
     ContractCommercialListResponse,
     ContractChangePlan,
-    ContractConfirmTechnicalCondition,
+    ContractProgramarInstalacion,
     ContractAssignPromo,
     ContratosResumenOut,
 )
@@ -38,7 +38,8 @@ router = APIRouter(
 
 def get_service(conn: Connection = Depends(get_db)) -> ContractService:
     repo = ContractRepository(conn)
-    return ContractService(repo)
+    instalaciones_repo = InstalacionesRepository(conn)
+    return ContractService(repo, instalaciones_repo)
 
 
 @router.post(
@@ -301,27 +302,23 @@ def quitar_promocion(
 
 
 @router.post(
-    "/{contrato_id}/confirmar-condicion-tecnica",
+    "/{contrato_id}/programar-instalacion",
     dependencies=[Depends(require_roles(*WRITE_ROLES))],
 )
-def confirmar_condicion_tecnica(
+def programar_instalacion(
     contrato_id: int,
-    payload: ContractConfirmTechnicalCondition,
-    conn=Depends(get_db),
+    payload: ContractProgramarInstalacion,
+    service: ContractService = Depends(get_service),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        repo = ContractRepository(conn)
-        instalaciones_repo = InstalacionesRepository(conn)
-        service = ContractService(repo, instalaciones_repo)
-
-        result = service.confirmar_condicion_tecnica(
+        result = service.programar_instalacion(
             contrato_id=contrato_id,
             **payload.model_dump(),
         )
         auditor.log(
             modulo=AuditModulo.CONTRATOS,
-            accion=AuditAccion.CONFIRM_TECH,
+            accion=AuditAccion.PROG_CREATE,
             entidad="contratos",
             entidad_id=contrato_id,
         )

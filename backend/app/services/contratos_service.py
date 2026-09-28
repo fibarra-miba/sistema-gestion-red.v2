@@ -221,8 +221,11 @@ class ContractService:
     def activate(self, contrato_id: int) -> None:
         contrato = self.get_contract(contrato_id)
 
-        if contrato["estado_contrato_id"] not in (self.BORRADOR, self.PENDIENTE_INSTALACION):
+        if contrato["estado_contrato_id"] != self.BORRADOR:
             raise ValueError("El contrato no puede activarse desde su estado actual.")
+
+        if self.instalaciones_repo is None:
+            raise ValueError("InstalacionesRepository no configurado en ContractService.")
 
         self._validar_no_solapamiento_activo_mismo_domicilio(contrato)
 
@@ -230,6 +233,42 @@ class ContractService:
             self.repo.update_estado(contrato_id, self.ACTIVO, fecha_fin=None)
         except psycopg.errors.ExclusionViolation:
             raise ValueError("Ya existe un contrato ACTIVO vigente para ese domicilio.")
+
+        # Toda activación deja una instalación PENDIENTE asociada, para cargar
+        # los productos consumidos y los datos del trabajo. Idempotente.
+        if not self.instalaciones_repo.list_instalaciones(contrato_id=contrato_id):
+            self._crear_instalacion_directa(contrato)
+
+    def _crear_instalacion_directa(self, contrato: dict) -> dict:
+        """Activación sin visita programada: crea una programación ya cumplida y
+        la instalación PENDIENTE asociada (la FK programacion_id es NOT NULL)."""
+        now = datetime.now(timezone.utc)
+
+        estado_prog_completada = self.instalaciones_repo.get_estado_programacion_id("COMPLETADA")
+        if estado_prog_completada is None:
+            raise ValueError("No existe el estado de programación 'COMPLETADA'.")
+        estado_inst_pendiente = self.instalaciones_repo.get_estado_instalacion_id("PENDIENTE")
+        if estado_inst_pendiente is None:
+            raise ValueError("No existe el estado de instalación 'PENDIENTE'.")
+
+        programacion = self.instalaciones_repo.create_programacion(
+            contrato_id=int(contrato["contrato_id"]),
+            domicilio_id=int(contrato["domicilio_id"]),
+            fecha_programacion_pinstalacion=now,
+            estado_programacion_id=estado_prog_completada,
+            tecnico_pinstalacion=None,
+            notas_pinstalacion="Activación sin visita programada",
+        )
+
+        return self.instalaciones_repo.create_instalacion(
+            programacion_id=int(programacion["programacion_id"]),
+            contrato_id=int(contrato["contrato_id"]),
+            domicilio_id=int(contrato["domicilio_id"]),
+            codigo_instalacion=None,
+            fecha_instalacion=now,
+            estado_instalacion_id=estado_inst_pendiente,
+            observacion_instalacion=None,
+        )
 
     def suspend(self, contrato_id: int) -> None:
         contrato = self.get_contract(contrato_id)
@@ -296,14 +335,13 @@ class ContractService:
         return nuevo
 
     # ==========================================================
-    # CONDICIÓN TÉCNICA
+    # PROGRAMAR INSTALACIÓN
     # ==========================================================
 
-    def confirmar_condicion_tecnica(
+    def programar_instalacion(
         self,
         contrato_id: int,
-        apto: bool,
-        fecha_programacion_pinstalacion: datetime | None = None,
+        fecha_programacion_pinstalacion: datetime,
         tecnico_pinstalacion: str | None = None,
         notas_pinstalacion: str | None = None,
     ) -> dict:
@@ -315,25 +353,7 @@ class ContractService:
             raise ValueError("Contrato no encontrado.")
 
         if contrato["estado_contrato_id"] != self.BORRADOR:
-            raise ValueError("Solo contratos en BORRADOR pueden confirmar condición técnica.")
-
-        if apto:
-            self._validar_no_solapamiento_activo_mismo_domicilio(contrato)
-            try:
-                self.repo.update_estado_only(contrato_id, self.ACTIVO)
-            except psycopg.errors.ExclusionViolation:
-                raise ValueError("Ya existe un contrato ACTIVO vigente para ese domicilio.")
-
-            return {
-                "contrato_id": contrato_id,
-                "estado_contrato_id": self.ACTIVO,
-                "programacion_id": None,
-            }
-
-        if fecha_programacion_pinstalacion is None:
-            raise ValueError(
-                "Debe informar fecha_programacion_pinstalacion cuando requiere instalación."
-            )
+            raise ValueError("Solo contratos en BORRADOR pueden programar instalación.")
 
         estado_programacion_id = self.instalaciones_repo.get_estado_programacion_id("PROGRAMADA")
         if estado_programacion_id is None:

@@ -14,7 +14,7 @@ export interface ClienteOut {
   cliente_id: number
   nombre_cliente: string
   apellido_cliente: string
-  dni_cliente: string
+  dni_cliente: string | null
   telefono_cliente: string
   email_cliente: string | null
   fecha_alta_cliente: string | null
@@ -25,7 +25,7 @@ export interface ClienteOut {
 export interface ClienteCreate {
   nombre: string
   apellido: string
-  dni: string
+  dni?: string | null
   telefono: string
   email?: string | null
   estado_cliente_id: number
@@ -35,7 +35,7 @@ export interface ClienteCreate {
 export interface ClienteUpdate {
   nombre: string
   apellido: string
-  dni: string
+  dni?: string | null
   telefono: string
   email?: string | null
   observaciones?: string | null
@@ -55,6 +55,7 @@ export interface DomicilioOut {
   domicilio_id: number
   cliente_id: number
   complejo: string | null
+  torre: string | null
   piso: number | null
   depto: string | null
   calle: string | null
@@ -69,6 +70,7 @@ export interface DomicilioOut {
 // estado_domicilio por compatibilidad con tests, pero no lo usamos.
 export interface DomicilioCreate {
   complejo?: string | null
+  torre?: string | null
   piso?: number | null
   depto?: string | null
   calle?: string | null

@@ -83,7 +83,7 @@ export default function ClienteDetailPage() {
     const payload: ClienteUpdate = {
       nombre: values.nombre.trim(),
       apellido: values.apellido.trim(),
-      dni: values.dni.trim(),
+      dni: values.dni.trim() || null,
       telefono: values.telefono.trim(),
       email: values.email.trim() || null,
       observaciones: values.observaciones.trim() || null,
@@ -104,6 +104,7 @@ export default function ClienteDetailPage() {
       calle: values.calle.trim() || null,
       numero: values.numero.trim() ? Number(values.numero) : null,
       complejo: values.complejo.trim() || null,
+      torre: values.torre.trim() || null,
       piso: values.piso.trim() ? Number(values.piso) : null,
       depto: values.depto.trim() || null,
       referencias: values.referencias.trim() || null,
@@ -157,7 +158,11 @@ export default function ClienteDetailPage() {
             spacing={1}
             sx={{ alignItems: 'center', mt: 0.75, flexWrap: 'wrap', rowGap: 0.5 }}
           >
-            <Chip label={`DNI ${cliente.dni_cliente}`} size="small" variant="outlined" />
+            <Chip
+              label={cliente.dni_cliente ? `DNI ${cliente.dni_cliente}` : 'Sin DNI'}
+              size="small"
+              variant="outlined"
+            />
             <Chip
               label={`Estado ${cliente.estado_cliente_id}`}
               size="small"
@@ -224,7 +229,7 @@ export default function ClienteDetailPage() {
             initialValues={{
               nombre: cliente.nombre_cliente,
               apellido: cliente.apellido_cliente,
-              dni: cliente.dni_cliente,
+              dni: cliente.dni_cliente ?? '',
               telefono: cliente.telefono_cliente,
               email: cliente.email_cliente ?? '',
               observaciones: cliente.observacion_cliente ?? '',

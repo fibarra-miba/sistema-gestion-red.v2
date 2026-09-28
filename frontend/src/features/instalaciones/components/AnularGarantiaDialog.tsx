@@ -93,7 +93,7 @@ export default function AnularGarantiaDialog({ garantia, onClose }: Props) {
               render={({ field }) => (
                 <TextField
                   {...field}
-                  label="Motivo (falla reportada)"
+                  label="Motivo"
                   placeholder="Ej. Router no enciende"
                   multiline
                   rows={2}
@@ -110,7 +110,7 @@ export default function AnularGarantiaDialog({ garantia, onClose }: Props) {
               render={({ field }) => (
                 <TextField
                   {...field}
-                  label="Resolución (acción tomada)"
+                  label="Resolución (cómo se cerró)"
                   placeholder="Ej. Reemplazado por equipo nuevo"
                   multiline
                   rows={2}

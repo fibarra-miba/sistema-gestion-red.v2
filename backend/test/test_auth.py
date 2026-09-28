@@ -1,6 +1,8 @@
 import pytest
 from psycopg import Connection
 
+from app.core.security import SESSION_COOKIE_NAME
+
 
 def _count(conn: Connection, table: str) -> int:
     with conn.cursor() as cur:
@@ -45,8 +47,11 @@ async def test_login_ok_admin(client):
     assert data["activo_usuario"] is True
     assert data["requiere_cambio_password_usuario"] is False
 
+    # El nombre de la cookie es configurable por ambiente (SESSION_COOKIE_NAME:
+    # red_session_dev en DEV, red_session_prd en PRD). Leemos la misma fuente
+    # que usa la app en vez de hardcodear el default.
     set_cookie = response.headers.get("set-cookie", "")
-    assert "red_session=" in set_cookie
+    assert f"{SESSION_COOKIE_NAME}=" in set_cookie
 
 
 @pytest.mark.anyio

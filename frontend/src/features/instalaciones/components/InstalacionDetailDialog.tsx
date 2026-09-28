@@ -17,6 +17,8 @@ import {
   TableRow,
   Typography,
 } from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
+import { useState } from 'react'
 import { isApiError } from '@/types/api'
 import { useAuth } from '@/features/auth'
 import { useInstalacion } from '../hooks/useInstalacion'
@@ -28,6 +30,7 @@ import {
 } from '../utils'
 import InstalacionEstadoChip from './InstalacionEstadoChip'
 import AddDetalleForm from './AddDetalleForm'
+import EditarInstalacionDialog from './EditarInstalacionDialog'
 import GarantiasSection from './GarantiasSection'
 import type { DetalleInstalacionOut } from '../types'
 
@@ -47,6 +50,9 @@ export default function InstalacionDetailDialog({
   const { hasRole } = useAuth()
   // Garantías: solo ADMIN/OPERADOR registran/anulan (el TÉCNICO solo ve).
   const canManageGarantias = hasRole('ADMIN', 'OPERADOR')
+  // Misma regla para corregir los datos de carga (fecha/código/observación).
+  const canEdit = hasRole('ADMIN', 'OPERADOR')
+  const [editOpen, setEditOpen] = useState(false)
 
   const active = open && instalacionId != null
   const { data: inst, isLoading, error } = useInstalacion(
@@ -97,7 +103,22 @@ export default function InstalacionDetailDialog({
                   {instalacionDomicilioLabel(inst)}
                 </Typography>
               </Stack>
-              <InstalacionEstadoChip estadoId={inst.estado_instalacion_id} />
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', flexShrink: 0 }}
+              >
+                <InstalacionEstadoChip estadoId={inst.estado_instalacion_id} />
+                {canEdit && (
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => setEditOpen(true)}
+                  >
+                    Editar
+                  </Button>
+                )}
+              </Stack>
             </Stack>
 
             <Paper variant="outlined" sx={{ p: 2 }}>
@@ -245,6 +266,12 @@ export default function InstalacionDetailDialog({
       <DialogActions>
         <Button onClick={onClose}>Cerrar</Button>
       </DialogActions>
+
+      <EditarInstalacionDialog
+        open={editOpen}
+        instalacion={inst ?? null}
+        onClose={() => setEditOpen(false)}
+      />
     </Dialog>
   )
 }

@@ -19,12 +19,12 @@ import {
   useCreateContrato,
   useContratoActions,
   useChangePlan,
-  useConfirmarCondicionTecnica,
+  useProgramarInstalacion,
   ContratoDetailDialog,
   contratoDisplayName,
   type ContractCommercialOut,
   type ContractCreate,
-  type ContractConfirmTechnicalCondition,
+  type ContractProgramarInstalacion,
   type ListContratosParams,
 } from '@/features/contratos'
 import ContratoForm from '@/features/contratos/components/ContratoForm'
@@ -33,7 +33,7 @@ import ContratosTable, {
 } from '@/features/contratos/components/ContratosTable'
 import ContratoFilterBar from '@/features/contratos/components/ContratoFilterBar'
 import ChangePlanDialog from '@/features/contratos/components/ChangePlanDialog'
-import CondicionTecnicaDialog from '@/features/contratos/components/CondicionTecnicaDialog'
+import ProgramarInstalacionDialog from '@/features/contratos/components/ProgramarInstalacionDialog'
 
 export default function ContratosPage() {
   const { showSuccess } = useSnackbar()
@@ -50,14 +50,14 @@ export default function ContratosPage() {
   const createMutation = useCreateContrato()
   const actions = useContratoActions()
   const changePlanMutation = useChangePlan()
-  const tecnicaMutation = useConfirmarCondicionTecnica()
+  const programarMutation = useProgramarInstalacion()
 
   // ---- Dialog state ----
   const [createOpen, setCreateOpen] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [changePlanTarget, setChangePlanTarget] =
     useState<ContractCommercialOut | null>(null)
-  const [tecnicaTarget, setTecnicaTarget] =
+  const [programarTarget, setProgramarTarget] =
     useState<ContractCommercialOut | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<{
     kind: 'cancel' | 'terminate' | 'suspend' | 'resume' | 'activate'
@@ -89,8 +89,8 @@ export default function ContratosPage() {
       case 'change-plan':
         setChangePlanTarget(contrato)
         return
-      case 'confirmar-tecnica':
-        setTecnicaTarget(contrato)
+      case 'programar':
+        setProgramarTarget(contrato)
         return
       case 'activate':
       case 'suspend':
@@ -150,21 +150,21 @@ export default function ContratosPage() {
     changePlanMutation.reset()
   }
 
-  const handleTecnica = async (payload: ContractConfirmTechnicalCondition) => {
-    if (!tecnicaTarget) return
-    await tecnicaMutation.mutateAsync({
-      contratoId: tecnicaTarget.contrato_id,
+  const handleProgramar = async (payload: ContractProgramarInstalacion) => {
+    if (!programarTarget) return
+    await programarMutation.mutateAsync({
+      contratoId: programarTarget.contrato_id,
       payload,
     })
-    setTecnicaTarget(null)
-    tecnicaMutation.reset()
-    showSuccess('Condición técnica confirmada.')
+    setProgramarTarget(null)
+    programarMutation.reset()
+    showSuccess('Instalación programada.')
   }
 
-  const closeTecnica = () => {
-    if (tecnicaMutation.isPending) return
-    setTecnicaTarget(null)
-    tecnicaMutation.reset()
+  const closeProgramar = () => {
+    if (programarMutation.isPending) return
+    setProgramarTarget(null)
+    programarMutation.reset()
   }
 
   // ---- Confirm dialog props derived from confirmTarget ----
@@ -254,14 +254,14 @@ export default function ContratosPage() {
         onCancel={closeChangePlan}
       />
 
-      {/* Condición técnica */}
-      <CondicionTecnicaDialog
-        open={tecnicaTarget != null}
-        contrato={tecnicaTarget}
-        loading={tecnicaMutation.isPending}
-        error={tecnicaMutation.error}
-        onConfirm={handleTecnica}
-        onCancel={closeTecnica}
+      {/* Programar instalación */}
+      <ProgramarInstalacionDialog
+        open={programarTarget != null}
+        contrato={programarTarget}
+        loading={programarMutation.isPending}
+        error={programarMutation.error}
+        onConfirm={handleProgramar}
+        onCancel={closeProgramar}
       />
 
       {/* Confirmación genérica (activate/suspend/resume/cancel/terminate) */}
@@ -342,7 +342,7 @@ function confirmDialogProps(
     case 'activate':
       return {
         title: `Activar ${titlePrefix}`,
-        description: `El contrato ${nombre} pasará a estado ACTIVO.`,
+        description: `El contrato ${nombre} pasará a estado ACTIVO y se creará una instalación PENDIENTE para cargar los productos y datos del trabajo.`,
         confirmLabel: 'Activar',
         confirmColor: 'primary',
       }

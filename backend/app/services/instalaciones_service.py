@@ -114,68 +114,6 @@ class InstalacionesService:
             raise ValueError("Ya existe un contrato ACTIVO vigente para ese domicilio.")
 
     # ==========================================================
-    # CONTRATOS - CONDICION TECNICA
-    # ==========================================================
-
-    def confirmar_condicion_tecnica(
-        self,
-        contrato_id: int,
-        apto: bool,
-        fecha_programacion_pinstalacion: Optional[datetime] = None,
-        tecnico_pinstalacion: Optional[str] = None,
-        notas_pinstalacion: Optional[str] = None,
-    ) -> dict:
-        contrato = self.contratos_repo.get_by_id_for_update(contrato_id)
-        if not contrato:
-            raise ValueError("Contrato no encontrado.")
-
-        if int(contrato["estado_contrato_id"]) != self.BORRADOR:
-            raise ValueError(
-                "Solo contratos en BORRADOR pueden confirmar condición técnica."
-            )
-
-        if apto:
-            self._validar_no_solapamiento_activo_mismo_domicilio(contrato)
-            try:
-                self.contratos_repo.update_estado_only(contrato_id, self.ACTIVO)
-            except psycopg.errors.ExclusionViolation:
-                raise ValueError(
-                    "Ya existe un contrato ACTIVO vigente para ese domicilio."
-                )
-
-            return {
-                "contrato_id": contrato_id,
-                "estado_contrato_id": self.ACTIVO,
-                "programacion_id": None,
-            }
-
-        if fecha_programacion_pinstalacion is None:
-            raise ValueError(
-                "Debe informar fecha_programacion_pinstalacion cuando requiere instalación."
-            )
-
-        estado_programada = self._estado_programacion_id("PROGRAMADA")
-
-        self.contratos_repo.update_estado_only(
-            contrato_id, self.PENDIENTE_INSTALACION
-        )
-
-        programacion = self.instalaciones_repo.create_programacion(
-            contrato_id=int(contrato["contrato_id"]),
-            domicilio_id=int(contrato["domicilio_id"]),
-            fecha_programacion_pinstalacion=fecha_programacion_pinstalacion,
-            estado_programacion_id=estado_programada,
-            tecnico_pinstalacion=tecnico_pinstalacion,
-            notas_pinstalacion=notas_pinstalacion,
-        )
-
-        return {
-            "contrato_id": contrato_id,
-            "estado_contrato_id": self.PENDIENTE_INSTALACION,
-            "programacion_id": int(programacion["programacion_id"]),
-        }
-
-    # ==========================================================
     # PROGRAMACION
     # ==========================================================
 
@@ -385,8 +323,40 @@ class InstalacionesService:
             fecha_instalacion=fecha_instalacion,
         )
 
+    @staticmethod
+    def _domicilio_resumen(row: dict) -> Optional[str]:
+        """Resumen legible del domicilio para la UI. Si hay torre/piso/depto se
+        muestra Complejo + Torre + Piso + Depto; si no, calle + número."""
+        torre = row.get("torre")
+        piso = row.get("piso")
+        depto = row.get("depto")
+
+        if torre or piso is not None or depto:
+            partes = []
+            if row.get("complejo"):
+                partes.append(str(row["complejo"]))
+            if torre:
+                partes.append(f"Torre {torre}")
+            if piso is not None:
+                partes.append(f"Piso {piso}")
+            if depto:
+                partes.append(f"Dto. {depto}")
+            if partes:
+                return " · ".join(partes)
+
+        calle = row.get("calle")
+        if calle:
+            numero = row.get("numero")
+            return f"{calle} {numero}" if numero is not None else str(calle)
+
+        return None
+
+    def _con_resumen(self, row: dict) -> dict:
+        row["domicilio_resumen"] = self._domicilio_resumen(row)
+        return row
+
     def get_instalacion(self, instalacion_id: int) -> dict:
-        return self._get_instalacion(instalacion_id)
+        return self._con_resumen(self._get_instalacion(instalacion_id))
 
     def list_instalaciones(
         self,
@@ -395,11 +365,40 @@ class InstalacionesService:
         estado_instalacion_id: Optional[int] = None,
         programacion_id: Optional[int] = None,
     ) -> list[dict]:
-        return self.instalaciones_repo.list_instalaciones(
+        rows = self.instalaciones_repo.list_instalaciones(
             contrato_id=contrato_id,
             domicilio_id=domicilio_id,
             estado_instalacion_id=estado_instalacion_id,
             programacion_id=programacion_id,
+        )
+        return [self._con_resumen(row) for row in rows]
+
+    INSTALACION_NO_ENCONTRADA = "Instalación no encontrada."
+    INSTALACION_FECHA_REQUERIDA = "La fecha de instalación no puede quedar vacía."
+    INSTALACION_FECHA_FUTURA = "La fecha de instalación no puede ser futura."
+
+    def update_instalacion(self, instalacion_id: int, data: dict) -> dict:
+        """Corrección de datos de carga (fecha, código, observación). Se admite
+        en cualquier estado: es un arreglo de dato, no una transición."""
+        self._get_instalacion(instalacion_id)
+
+        if "fecha_instalacion" in data:
+            fecha = data["fecha_instalacion"]
+            if fecha is None:
+                raise ValueError(self.INSTALACION_FECHA_REQUERIDA)
+            # Un datetime sin tz se interpreta como UTC (la columna es TIMESTAMPTZ).
+            if fecha.tzinfo is None:
+                fecha = fecha.replace(tzinfo=timezone.utc)
+            if fecha > datetime.now(timezone.utc):
+                raise ValueError(self.INSTALACION_FECHA_FUTURA)
+            data["fecha_instalacion"] = fecha
+
+        for campo in ("codigo_instalacion", "observacion_instalacion"):
+            if isinstance(data.get(campo), str):
+                data[campo] = data[campo].strip() or None
+
+        return self._con_resumen(
+            self.instalaciones_repo.update_instalacion(instalacion_id, data)
         )
 
     def completar_instalacion(self, instalacion_id: int) -> dict:
@@ -554,9 +553,10 @@ class InstalacionesService:
     GARANTIA_PRODUCTO_NO_INSTALADO = "El producto no figura en los detalles de la instalación."
     GARANTIA_PRODUCTO_NO_EQUIPO = "Solo se pueden garantizar productos de tipo EQUIPO."
     GARANTIA_ACTIVA_DUPLICADA = "Ya existe una garantía activa para ese producto en esta instalación."
-    GARANTIA_TERMINAL = "La garantía está anulada y no admite cambios."
     GARANTIA_ESTADO_INVALIDO = "El estado de garantía no existe."
     GARANTIA_RESOLUCION_REQUERIDA = "La resolución es obligatoria al anular la garantía."
+    GARANTIA_RESOLUCION_RETENCION_REQUERIDA = "La resolución es obligatoria al retener el depósito."
+    GARANTIA_FECHAS_INVALIDAS = "La fecha de fin no puede ser anterior a la de inicio."
 
     def _estado_garantia_id(self, descripcion: str) -> int:
         estado_id = self.instalaciones_repo.get_estado_garantia_id(descripcion)
@@ -569,6 +569,7 @@ class InstalacionesService:
         instalacion_id: int,
         producto_id: int,
         fecha_inicio_garantia: Optional[datetime] = None,
+        monto_garantia: Optional[float] = None,
     ) -> dict:
         instalacion = self._get_instalacion(instalacion_id)
         contrato_id = int(instalacion["contrato_id"])
@@ -602,6 +603,7 @@ class InstalacionesService:
                 estado_garantia_id=estado_activa,
                 motivo_garantia=None,
                 resolucion_garantia=None,
+                monto_garantia=monto_garantia,
             )
         except psycopg.errors.UniqueViolation:
             raise ValueError(self.GARANTIA_ACTIVA_DUPLICADA)
@@ -619,6 +621,7 @@ class InstalacionesService:
         instalacion_id: Optional[int] = None,
         contrato_id: Optional[int] = None,
         estado_garantia_id: Optional[int] = None,
+        cliente_id: Optional[int] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict]:
@@ -626,34 +629,85 @@ class InstalacionesService:
             instalacion_id=instalacion_id,
             contrato_id=contrato_id,
             estado_garantia_id=estado_garantia_id,
+            cliente_id=cliente_id,
             limit=limit,
             offset=offset,
         )
+
+    def resumen_garantias(self) -> dict:
+        return self.instalaciones_repo.resumen_garantias()
 
     def update_garantia(self, garantia_id: int, data: dict) -> dict:
         garantia = self.instalaciones_repo.get_garantia_by_id(garantia_id)
         if not garantia:
             raise ValueError(self.GARANTIA_NO_ENCONTRADA)
 
-        estado_anulada = self._estado_garantia_id("ANULADA")
-
-        # ANULADA es terminal: el reemplazo abre una garantía nueva, no se edita esta.
-        if int(garantia["estado_garantia_id"]) == estado_anulada:
-            raise ValueError(self.GARANTIA_TERMINAL)
-
         if "estado_garantia_id" in data and not self.instalaciones_repo.exists_estado_garantia(
             data["estado_garantia_id"]
         ):
             raise ValueError(self.GARANTIA_ESTADO_INVALIDO)
 
-        target_estado = data.get("estado_garantia_id", int(garantia["estado_garantia_id"]))
+        estado_actual = int(garantia["estado_garantia_id"])
+        target_estado = int(data.get("estado_garantia_id", estado_actual))
 
-        # Al anular: resolución obligatoria y fecha_fin por defecto = ahora.
-        if int(target_estado) == estado_anulada:
+        estado_anulada = self._estado_garantia_id("ANULADA")
+        estado_retenida = self._estado_garantia_id("RETENIDA")
+        estado_devuelta = self._estado_garantia_id("DEVUELTA")
+        estado_activa = self._estado_garantia_id("ACTIVA")
+
+        # Anular o retener exige justificar el cierre con una resolución.
+        if target_estado in (estado_anulada, estado_retenida):
             resolucion = data.get("resolucion_garantia") or garantia.get("resolucion_garantia")
             if not resolucion:
-                raise ValueError(self.GARANTIA_RESOLUCION_REQUERIDA)
+                if target_estado == estado_anulada:
+                    raise ValueError(self.GARANTIA_RESOLUCION_REQUERIDA)
+                raise ValueError(self.GARANTIA_RESOLUCION_RETENCION_REQUERIDA)
+
+        # Cierre del depósito (anulada/devuelta/retenida): fecha_fin por defecto = ahora.
+        if target_estado in (estado_anulada, estado_devuelta, estado_retenida):
             if not data.get("fecha_fin_garantia"):
                 data["fecha_fin_garantia"] = datetime.now(timezone.utc)
 
+        # Solo la TRANSICIÓN real hacia ACTIVA (reapertura). Si ya está activa,
+        # esto no debe correr: limpiar la fecha de cierre en cada edición borra
+        # el dato de una garantía que solo venía a corregir, por ejemplo, el monto.
+        if target_estado == estado_activa and estado_actual != estado_activa:
+            # Reactivar exige que no haya otra garantía ACTIVA para el mismo
+            # equipo: el índice único parcial lo garantiza en DB, pero acá se
+            # valida antes para devolver 409 en vez de un 500 por IntegrityError.
+            if self.instalaciones_repo.exists_garantia_activa(
+                int(garantia["instalacion_id"]),
+                int(garantia["producto_id"]),
+                estado_activa,
+                exclude_garantia_id=garantia_id,
+            ):
+                raise ValueError(self.GARANTIA_ACTIVA_DUPLICADA)
+            # Al reabrir, el cierre anterior deja de aplicar — salvo que el
+            # payload mande uno nuevo de forma explícita.
+            if "fecha_fin_garantia" not in data:
+                data["fecha_fin_garantia"] = None
+
+        # chk_garantia_fechas se valida acá y no en la DB: una CheckViolation
+        # sube como IntegrityError y termina en 500. Se compara el resultado
+        # final del merge, no solo lo que vino en el payload.
+        self._validar_fechas_garantia(garantia, data)
+
         return self.instalaciones_repo.update_garantia(garantia_id, data)
+
+    @staticmethod
+    def _aware(valor: Optional[datetime]) -> Optional[datetime]:
+        """Las columnas son TIMESTAMPTZ: un datetime naive se lee como UTC."""
+        if valor is not None and valor.tzinfo is None:
+            return valor.replace(tzinfo=timezone.utc)
+        return valor
+
+    def _validar_fechas_garantia(self, garantia: dict, data: dict) -> None:
+        inicio = self._aware(
+            data.get("fecha_inicio_garantia", garantia["fecha_inicio_garantia"])
+        )
+        fin = self._aware(
+            data.get("fecha_fin_garantia", garantia.get("fecha_fin_garantia"))
+        )
+
+        if inicio is not None and fin is not None and fin < inicio:
+            raise ValueError(self.GARANTIA_FECHAS_INVALIDAS)

@@ -15,7 +15,7 @@ export { useContrato } from './hooks/useContrato'
 export { useCreateContrato } from './hooks/useCreateContrato'
 export { useContratoActions } from './hooks/useContratoActions'
 export { useChangePlan } from './hooks/useChangePlan'
-export { useConfirmarCondicionTecnica } from './hooks/useConfirmarCondicionTecnica'
+export { useProgramarInstalacion } from './hooks/useProgramarInstalacion'
 
 export { default as ContratoEstadoChip } from './components/ContratoEstadoChip'
 export { default as ContratoDetailDialog } from './components/ContratoDetailDialog'

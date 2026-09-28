@@ -12,6 +12,7 @@ export interface DomicilioFormValues {
   calle: string
   numero: string
   complejo: string
+  torre: string
   piso: string
   depto: string
   referencias: string
@@ -21,6 +22,7 @@ const DEFAULT_VALUES: DomicilioFormValues = {
   calle: '',
   numero: '',
   complejo: '',
+  torre: '',
   piso: '',
   depto: '',
   referencias: '',
@@ -89,7 +91,15 @@ export default function DomicilioForm({
             label="Complejo / Barrio"
             error={!!errors.complejo}
             helperText={errors.complejo?.message}
+            sx={{ flex: 1 }}
             {...register('complejo')}
+          />
+          <TextField
+            label="Torre / Edificio"
+            error={!!errors.torre}
+            helperText={errors.torre?.message}
+            sx={{ width: { sm: 140 } }}
+            {...register('torre')}
           />
           <TextField
             label="Piso"

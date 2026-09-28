@@ -119,14 +119,7 @@ class ContractAssignPromo(BaseModel):
     promocion_id: int = Field(..., ge=1)
 
 
-class ContractConfirmTechnicalCondition(BaseModel):
-    apto: bool
-    fecha_programacion_pinstalacion: Optional[datetime] = None
+class ContractProgramarInstalacion(BaseModel):
+    fecha_programacion_pinstalacion: datetime
     tecnico_pinstalacion: Optional[str] = Field(default=None, max_length=50)
     notas_pinstalacion: Optional[str] = Field(default=None, max_length=500)
-
-
-class ContractConfirmTechnicalConditionResponse(BaseModel):
-    contrato_id: int
-    estado_contrato_id: int
-    programacion_id: Optional[int] = None

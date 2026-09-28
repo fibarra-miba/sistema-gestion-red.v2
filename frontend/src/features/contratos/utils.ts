@@ -72,12 +72,14 @@ export interface ContratoActionFlags {
   canTerminate: boolean  // baja
   canCancel: boolean
   canChangePlan: boolean
-  canConfirmarTecnica: boolean
+  canProgramar: boolean  // programar instalación
 }
 
 export function contratoActions(estadoId: number): ContratoActionFlags {
   switch (estadoId) {
     case ESTADO_CONTRATO.BORRADOR:
+      // Desde BORRADOR el operador elige: activar (crea instalación PENDIENTE)
+      // o programar la instalación para una visita posterior.
       return {
         canActivate: true,
         canSuspend: false,
@@ -85,17 +87,19 @@ export function contratoActions(estadoId: number): ContratoActionFlags {
         canTerminate: false,
         canCancel: true,
         canChangePlan: false,
-        canConfirmarTecnica: true,
+        canProgramar: true,
       }
     case ESTADO_CONTRATO.PENDIENTE_INSTALACION:
+      // Ya está programado; se activa al completar la instalación (módulo
+      // instalaciones), no por activación directa.
       return {
-        canActivate: true,
+        canActivate: false,
         canSuspend: false,
         canResume: false,
         canTerminate: false,
         canCancel: true,
         canChangePlan: false,
-        canConfirmarTecnica: true,
+        canProgramar: false,
       }
     case ESTADO_CONTRATO.ACTIVO:
       return {
@@ -105,7 +109,7 @@ export function contratoActions(estadoId: number): ContratoActionFlags {
         canTerminate: true,
         canCancel: false,
         canChangePlan: true,
-        canConfirmarTecnica: false,
+        canProgramar: false,
       }
     case ESTADO_CONTRATO.SUSPENDIDO:
       return {
@@ -115,7 +119,7 @@ export function contratoActions(estadoId: number): ContratoActionFlags {
         canTerminate: true,
         canCancel: false,
         canChangePlan: false,
-        canConfirmarTecnica: false,
+        canProgramar: false,
       }
     default:
       // BAJA / CANCELADO: estados terminales
@@ -126,7 +130,7 @@ export function contratoActions(estadoId: number): ContratoActionFlags {
         canTerminate: false,
         canCancel: false,
         canChangePlan: false,
-        canConfirmarTecnica: false,
+        canProgramar: false,
       }
   }
 }

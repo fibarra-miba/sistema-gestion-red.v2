@@ -40,10 +40,27 @@ INSERT INTO estado_instalacion (descripcion_einstalacion) VALUES
   ('CANCELADA'),
   ('FALLIDA');
 
+-- Tipos de producto: estructurales, no demo. El código ramifica sobre el
+-- código EQUIPO (solo esos admiten garantía/depósito). El orden fija los ids:
+-- 1 MATERIAL, 2 EQUIPO.
+INSERT INTO tipo_producto (
+  codigo_tproducto,
+  descripcion_tproducto,
+  activo_tproducto
+) VALUES
+  ('MATERIAL', 'Material de instalación', TRUE),
+  ('EQUIPO', 'Equipo entregado al cliente', TRUE);
+
+-- La garantía es un depósito reembolsable. ACTIVA = plata retenida (la que
+-- suma al dinero comprometido); DEVUELTA / RETENIDA son los dos cierres
+-- posibles según el equipo haya vuelto o no; ANULADA es error de carga.
+-- El orden fija los ids: 1 ACTIVA, 2 VENCIDA, 3 ANULADA, 4 DEVUELTA, 5 RETENIDA.
 INSERT INTO estado_garantia (descripcion_egarantia) VALUES
   ('ACTIVA'),
   ('VENCIDA'),
-  ('ANULADA');
+  ('ANULADA'),
+  ('DEVUELTA'),
+  ('RETENIDA');
 
 INSERT INTO estado_facturas_ventas (descripcion_efventa) VALUES
   ('EMITIDA');
