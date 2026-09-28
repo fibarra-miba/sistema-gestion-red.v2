@@ -72,6 +72,65 @@ print_urls() {
     echo "pgAdmin:  http://localhost:${PGADMIN_PORT}" )
 }
 
+# ======================================================
+# Migraciones — ledger de aplicadas (tabla schema_migrations)
+#
+# infra/sql/migrations/ queda FUERA del init a propósito (ver 00_init.sql): una
+# base nueva nace con el schema completo desde core/, y las migraciones existen
+# para las bases YA levantadas. Hasta acá se aplicaban a mano y sin registro de
+# cuáles habían corrido — eso no sobrevive a un pipeline de despliegue.
+#
+# El directorio ./sql ya está montado en el contenedor de postgres como
+# /docker-entrypoint-initdb.d, así que las migraciones se leen desde adentro sin
+# montar nada nuevo.
+#
+# Las migraciones traen su PROPIO BEGIN/COMMIT, por eso NO se usa
+# --single-transaction: anidar transacciones rompería la atomicidad (el COMMIT
+# interno cerraría la externa antes de tiempo). Con ON_ERROR_STOP=1 un fallo
+# aborta psql antes de llegar al INSERT que registra la versión.
+# ======================================================
+
+MIGRATIONS_DIR="infra/sql/migrations"
+MIGRATIONS_IN_PG="/docker-entrypoint-initdb.d/migrations"
+
+# `docker compose exec -T` reenvía stdin al contenedor y se lo consume entero.
+# Sin </dev/null, psql se tragaría la respuesta destinada al `read` de
+# confirmación (y con `set -e`, el read quedaba en EOF y abortaba el script).
+# Ninguna invocación de acá usa stdin: todas van por -c o -f.
+mig_psql() {
+  core_compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 "$@" </dev/null
+}
+
+mig_ledger_exists() {
+  [ "$(mig_psql -tAc "SELECT to_regclass('public.schema_migrations') IS NOT NULL;" 2>/dev/null | tr -d '[:space:]')" = "t" ]
+}
+
+mig_create_ledger() {
+  mig_psql -q -c "CREATE TABLE IF NOT EXISTS schema_migrations (
+     version    TEXT PRIMARY KEY,
+     applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   );" >/dev/null
+}
+
+# Migraciones presentes en el repo, ordenadas por nombre (el prefijo es la fecha).
+mig_files() {
+  find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' -type f 2>/dev/null \
+    | xargs -r -n1 basename | LC_ALL=C sort
+}
+
+mig_applied() {
+  mig_psql -tAc "SELECT version FROM schema_migrations ORDER BY version;" 2>/dev/null \
+    | tr -d '\r' | sed '/^[[:space:]]*$/d' | LC_ALL=C sort
+}
+
+mig_pending() {
+  comm -23 <(mig_files) <(mig_applied)
+}
+
+mig_record() {
+  mig_psql -q -c "INSERT INTO schema_migrations (version) VALUES ('$1') ON CONFLICT DO NOTHING;" >/dev/null
+}
+
 case "$1" in
   up)
     ensure_env
@@ -278,6 +337,101 @@ case "$1" in
     fi
     ;;
 
+  migrations)
+    ensure_env
+    set -a; . "$ENV_FILE"; set +a
+    if ! mig_ledger_exists; then
+      echo "[${ENV}] Sin ledger todavía (no existe schema_migrations)."
+      echo ""
+      echo "Migraciones en el repo:"
+      mig_files | sed 's/^/  ? /'
+      echo ""
+      echo "Estado desconocido: no hay registro de cuáles se aplicaron."
+      echo "Si esta base ya está al día, marcalas como aplicadas:"
+      echo "  ./red ${ENV} migrate --baseline"
+      exit 0
+    fi
+    echo "[${ENV}] Estado de migraciones:"
+    applied="$(mig_applied)"
+    mig_files | while read -r f; do
+      if echo "$applied" | grep -qxF "$f"; then echo "  ✓ aplicada   $f"; else echo "  · PENDIENTE  $f"; fi
+    done
+    n=$(mig_pending | sed '/^$/d' | wc -l)
+    echo ""
+    echo "Pendientes: ${n}"
+    ;;
+
+  migrate)
+    ensure_env
+    set -a; . "$ENV_FILE"; set +a
+
+    # --baseline: marca como aplicadas TODAS las migraciones del repo sin
+    # ejecutarlas. Es el modo correcto para adoptar el ledger sobre una base que
+    # ya existe: DEV/PRD las recibieron a mano, y una base nueva las trae
+    # incorporadas en core/001_schema.sql. Ejecutarlas de nuevo sería redundante
+    # (son idempotentes, pero no hay motivo para correrlas sobre datos reales).
+    if [ "$2" = "--baseline" ]; then
+      if mig_ledger_exists && [ -n "$(mig_applied)" ]; then
+        echo "[${ENV}] El ledger ya tiene versiones registradas. Baseline cancelado."
+        echo "Rebaselinar taparía migraciones realmente pendientes. Ver: ./red ${ENV} migrations"
+        exit 1
+      fi
+      echo "[${ENV}] BASELINE — se marcarán como aplicadas SIN ejecutarlas:"
+      mig_files | sed 's/^/  /'
+      echo ""
+      read -r -p "Confirmar baseline en [${ENV}]? [s/N]: " confirm
+      case "$confirm" in s|S) ;; *) echo "Baseline cancelado."; exit 0 ;; esac
+      mig_create_ledger
+      mig_files | while read -r f; do mig_record "$f"; done
+      echo "[${ENV}] Baseline completo. Registradas: $(mig_applied | wc -l)"
+      exit 0
+    fi
+
+    if ! mig_ledger_exists; then
+      echo "[${ENV}] No existe el ledger (schema_migrations), así que no se sabe"
+      echo "qué migraciones ya corrieron sobre esta base."
+      echo ""
+      echo "Si la base ya está al día (caso de DEV/PRD actuales, y de cualquier"
+      echo "base recién creada por 00_init.sql):"
+      echo "  ./red ${ENV} migrate --baseline"
+      exit 1
+    fi
+
+    pending="$(mig_pending | sed '/^$/d')"
+    if [ -z "$pending" ]; then
+      echo "[${ENV}] Sin migraciones pendientes. Nada que hacer."
+      exit 0
+    fi
+
+    echo "[${ENV}] Migraciones pendientes:"
+    echo "$pending" | sed 's/^/  /'
+    echo ""
+    # En PRD esto toca datos reales: se pide confirmación, salvo --yes (CI).
+    if [ "$ENV" = "prd" ] && [ "$2" != "--yes" ]; then
+      echo ">>> ESTÁS EN PRD: esto modifica el schema de la base con DATOS REALES. <<<"
+      echo "    Recomendado: ./red prd backup pre-migracion"
+      echo ""
+      read -r -p "Confirmar aplicación en [prd]? [s/N]: " confirm
+      case "$confirm" in s|S) ;; *) echo "Migración cancelada."; exit 0 ;; esac
+    fi
+
+    # Here-string y no pipe: un `while` alimentado por pipe corre en subshell y
+    # el `exit 1` del fallo no abortaría el script (seguiría con la siguiente
+    # migración y terminaría reportando éxito).
+    while read -r f; do
+      [ -z "$f" ] && continue
+      echo "[${ENV}] Aplicando ${f}..."
+      if mig_psql -q -f "${MIGRATIONS_IN_PG}/${f}" >/dev/null; then
+        mig_record "$f"
+        echo "[${ENV}]   OK, registrada."
+      else
+        echo "[${ENV}]   FALLÓ ${f}. Nada se registró; corregí y volvé a correr."
+        exit 1
+      fi
+    done <<< "$pending"
+    echo "[${ENV}] Listo. Pendientes ahora: $(mig_pending | sed '/^$/d' | wc -l)"
+    ;;
+
   open)      ensure_env; ( set -a; . "$ENV_FILE"; xdg-open "http://localhost:${FRONT_PORT}" >/dev/null 2>&1 || echo "Abrí: http://localhost:${FRONT_PORT}" ) ;;
   open-api)  ensure_env; ( set -a; . "$ENV_FILE"; xdg-open "http://localhost:${API_PORT}/docs" >/dev/null 2>&1 || echo "Abrí: http://localhost:${API_PORT}/docs" ) ;;
   open-n8n)  ensure_n8n_env; ( set -a; . "$ENV_N8N_FILE"; xdg-open "http://localhost:${N8N_PORT}" >/dev/null 2>&1 || echo "Abrí: http://localhost:${N8N_PORT}" ) ;;
@@ -310,6 +464,10 @@ case "$1" in
     echo "  backup [tag]        Snapshot de la base -> infra/backups/<env>/ (tag def: manual)"
     echo "  backups             Lista los backups del ambiente"
     echo "  restore <archivo>   Restaura la base desde un .dump (SOBREESCRIBE)"
+    echo ""
+    echo "  migrations          Lista migraciones y cuáles están aplicadas"
+    echo "  migrate             Aplica las migraciones pendientes"
+    echo "  migrate --baseline  Marca todas como aplicadas SIN ejecutarlas (adopción inicial)"
     echo ""
     echo "  open | open-api | open-n8n"
     echo ""
