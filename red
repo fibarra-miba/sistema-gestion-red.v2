@@ -15,6 +15,7 @@ set -e
 
 COMPOSE_FILE="infra/docker-compose.yml"
 COMPOSE_DEV_FILE="infra/docker-compose.dev.yml"
+COMPOSE_PROXY_FILE="infra/docker-compose.proxy.yml"
 COMPOSE_N8N_FILE="infra/docker-compose.n8n.yml"
 ENV_N8N_FILE="infra/.env.n8n"
 
@@ -49,27 +50,48 @@ ensure_n8n_env() {
   fi
 }
 
-# Stack core del ambiente seleccionado. DEV suma el override de hot reload.
-core_compose() {
+# Archivos de compose según ambiente:
+#   DEV -> base + override de hot reload (publica puertos, suma pgAdmin)
+#   PRD -> base + proxy (Traefik; único que publica puertos: 80/443)
+env_files() {
   local files=(-f "$COMPOSE_FILE")
-  [ "$ENV" = "dev" ] && files+=(-f "$COMPOSE_DEV_FILE")
+  if [ "$ENV" = "dev" ]; then
+    files+=(-f "$COMPOSE_DEV_FILE")
+  else
+    files+=(-f "$COMPOSE_PROXY_FILE")
+  fi
+  printf '%s\n' "${files[@]}"
+}
+
+# Stack core del ambiente seleccionado.
+core_compose() {
+  local files=(); mapfile -t files < <(env_files)
   docker compose --env-file "$ENV_FILE" "${files[@]}" "$@"
 }
 
 # Core + addon n8n.
 n8n_compose() {
-  local files=(-f "$COMPOSE_FILE")
-  [ "$ENV" = "dev" ] && files+=(-f "$COMPOSE_DEV_FILE")
+  local files=(); mapfile -t files < <(env_files)
   files+=(-f "$COMPOSE_N8N_FILE")
   docker compose --env-file "$ENV_FILE" --env-file "$ENV_N8N_FILE" "${files[@]}" "$@"
 }
 
 print_urls() {
   ( set -a; . "$ENV_FILE"
-    echo "Frontend: http://localhost:${FRONT_PORT}"
-    echo "API:      http://localhost:${API_PORT}"
-    echo "Swagger:  http://localhost:${API_PORT}/docs"
-    echo "pgAdmin:  http://localhost:${PGADMIN_PORT}" )
+    if [ "$ENV" = "dev" ]; then
+      echo "Frontend: http://localhost:${FRONT_PORT}"
+      echo "API:      http://localhost:${API_PORT}"
+      echo "Swagger:  http://localhost:${API_PORT}/docs"
+      echo "pgAdmin:  http://localhost:${PGADMIN_PORT}"
+    else
+      # Un solo origen: el front y la API comparten host, la API cuelga de /api.
+      echo "App:      https://${APP_HOST}"
+      echo "API:      https://${APP_HOST}/api"
+      echo "Swagger:  https://${APP_HOST}/api/docs"
+      echo ""
+      echo "Postgres NO publica puerto (red interna). Para entrar:"
+      echo "  docker exec -it ${COMPOSE_PROJECT_NAME}_postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+    fi )
 }
 
 # ======================================================

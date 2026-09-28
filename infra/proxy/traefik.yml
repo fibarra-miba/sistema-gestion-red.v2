@@ -1,0 +1,54 @@
+# ======================================================
+# Traefik — configuración ESTÁTICA (se lee una vez, al arrancar).
+#
+# Lo que cambia sin reiniciar (certificados, middlewares, rutas) vive en
+# dynamic/ y en los labels de cada contenedor. Esa es la razón de elegir Traefik
+# sobre nginx para un host multi-producto: cada stack declara sus propias rutas
+# en su compose y no hay archivo central que editar al sumar un producto.
+# ======================================================
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+accessLog: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    # Todo lo que llegue por HTTP se redirige a HTTPS. No hay contenido servido
+    # en claro: el :80 existe solo para redirigir (y, más adelante, para el
+    # desafío HTTP-01 de Let's Encrypt si se usara ese método).
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    # Nada se expone por defecto: un contenedor se publica solo si lleva
+    # explícitamente `traefik.enable=true`. Es la diferencia entre "olvidé
+    # apagarlo" y "decidí prenderlo".
+    exposedByDefault: false
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# El dashboard queda accesible solo desde dentro de la red del proxy (no hay
+# router que lo publique). En el host va detrás de Cloudflare Access.
+api:
+  dashboard: true
+  insecure: false
+
+# Habilita el endpoint interno que usa `traefik healthcheck --ping` (el
+# healthcheck del contenedor). No se publica: solo responde dentro del propio
+# contenedor.
+ping: {}

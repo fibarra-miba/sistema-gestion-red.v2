@@ -1,0 +1,44 @@
+# ======================================================
+# Addon PROXY — Traefik delante del stack.
+#
+# Se aplica junto al base (y NO en DEV, que entra directo por localhost:<puerto>).
+# Es el único servicio que publica puertos en el host: 80 y 443.
+#
+# En el host real este stack se muda a /srv/infra y la red `edge` pasa a ser
+# `external`, compartida por todos los productos. Localmente se queda dentro del
+# proyecto para no tener que crear la red a mano.
+# ======================================================
+
+services:
+  proxy:
+    # Pinneada y al día: Docker >= 29 rechaza clientes que negocian una API
+    # anterior a la 1.44, y las Traefik v3 viejas (v3.3 y anteriores) negocian
+    # 1.24 — no llegan ni a leer los labels.
+    image: traefik:v3.7.13
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_proxy
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Solo lectura. Traefik necesita el socket para descubrir contenedores por
+      # labels; montarlo equivale a dar root en el host, así que en el servidor
+      # conviene interponer un docker-socket-proxy que filtre a solo-lectura.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./proxy/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./proxy/dynamic:/etc/traefik/dynamic:ro
+      - ./proxy/certs:/etc/traefik/certs:ro
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
