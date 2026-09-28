@@ -5,12 +5,32 @@
 # frontend servido estático por nginx. Todo parametrizado por env file
 # (infra/.env.dev | infra/.env.prd), seleccionado por el launcher ./red.
 #
-# DEV agrega encima docker-compose.dev.yml (bind-mounts + hot reload).
-# PRD usa SOLO este archivo.
+# DEV agrega encima docker-compose.dev.yml (bind-mounts, hot reload y los
+# puertos publicados que acá se quitaron). PRD suma docker-compose.proxy.yml.
 #
 # Aislamiento entre ambientes: COMPOSE_PROJECT_NAME namespacea contenedores
 # Y volúmenes -> red_dev_pgdata vs red_prd_pgdata (bases físicamente separadas).
-# ======================================================
+#
+# ------------------------------------------------------
+# REDES — este es el límite de seguridad del stack.
+#
+# Ningún servicio publica puertos acá: el único que escucha en el host es
+# Traefik (ver docker-compose.proxy.yml). Postgres vive SOLO en la red `data`,
+# que es `internal: true`, así que no tiene ruta hacia/desde Internet ni puerto
+# mapeado en el host. Para llegarle: `docker exec` o un túnel SSH.
+#
+# Esto importa especialmente porque Docker escribe sus reglas de iptables POR
+# DEBAJO de UFW: un `ports:` publicado atraviesa un firewall bien configurado.
+# La única defensa confiable es no publicar el puerto.
+# ------------------------------------------------------
+
+# Rotación de logs: el driver json-file crece sin techo y llenar el disco de
+# logs es una de las formas más comunes (y más tontas) de caerse.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
@@ -23,23 +43,19 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       # Controla si el init carga el seed demo (010). Ver infra/sql/00_init.sql.
       RED_SEED: ${RED_SEED:-0}
-    ports:
-      - "${PG_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: ${COMPOSE_PROJECT_NAME:-red}_pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-    ports:
-      - "${PGADMIN_PORT}:80"
-    depends_on:
-      - postgres
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 2g
+    logging: *default-logging
 
   api:
     build:
@@ -50,12 +66,56 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DATABASE_URL_TEST: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_test
+      # Con el front y la API en el MISMO origen (ver labels de Traefik), no hay
+      # request cross-origin: en PRD esto va vacío y el navegador nunca pide CORS.
       CORS_ORIGINS: ${CORS_ORIGINS}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME}
-    ports:
-      - "${API_PORT}:8000"
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    networks:
+      - edge
+      - data
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    # python:3.12-slim no trae curl ni wget; se usa el propio intérprete.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 1g
+    logging: *default-logging
+    # Labels en formato LISTA, no mapping, y no es cosmético:
+    #
+    # Compose interpola ${VAR} en los VALORES de un mapping pero NO en las
+    # CLAVES. Con `clave: valor`, el nombre del router quedaría literalmente
+    # "...${COMPOSE_PROJECT_NAME}-api..." y Traefik ignoraría el label. Y poner
+    # un nombre fijo tampoco sirve: DEV y PRD comparten ESTE archivo, Traefik ve
+    # un único daemon, y dos routers con el mismo nombre y distinta config hacen
+    # que descarte LOS DOS ("router defined multiple times").
+    #
+    # En formato lista cada ítem es un valor completo, así que sí se interpola y
+    # cada ambiente/producto obtiene nombres propios.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-red}_edge"
+      # La API vive bajo /api del MISMO host que el front. StripPrefix se lo saca
+      # antes de reenviar, así que el backend sigue viendo /auth/login sin cambios.
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.rule=Host(`${APP_HOST}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.middlewares=${COMPOSE_PROJECT_NAME:-red}-api-strip@docker,seguridad@file"
+      - "traefik.http.middlewares.${COMPOSE_PROJECT_NAME:-red}-api-strip.stripprefix.prefixes=/api"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME:-red}-api.loadbalancer.server.port=8000"
+      # Router aparte SOLO para el login, con rate limit encima. Gana sobre el
+      # router general de /api porque Traefik prioriza por longitud de regla y
+      # Path(...) exacto es más largo que PathPrefix(/api).
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.rule=Host(`${APP_HOST}`) && Path(`/api/auth/login`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.service=${COMPOSE_PROJECT_NAME:-red}-api"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.middlewares=login-ratelimit@file,${COMPOSE_PROJECT_NAME:-red}-api-strip@docker,seguridad@file"
 
   frontend:
     build:
@@ -65,10 +125,42 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     container_name: ${COMPOSE_PROJECT_NAME:-red}_frontend
     restart: always
-    ports:
-      - "${FRONT_PORT}:80"
+    networks:
+      - edge
     depends_on:
       - api
+    # 127.0.0.1 y no localhost: nginx escucha solo IPv4 (`listen 80;`) y dentro
+    # del contenedor `localhost` resuelve primero a ::1 -> connection refused.
+    # Importa porque Traefik EXCLUYE del ruteo a los contenedores que no están
+    # healthy: un healthcheck mal escrito no degrada, deja el servicio en 404.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 256m
+    logging: *default-logging
+    # Formato lista por el mismo motivo que en `api` (ver comentario allá).
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-red}_edge"
+      # Catch-all del host: cae acá todo lo que no matcheó /api (el router de la
+      # API tiene más prioridad por ser una regla más específica).
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-front.rule=Host(`${APP_HOST}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-front.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-front.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-front.middlewares=seguridad@file"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME:-red}-front.loadbalancer.server.port=80"
+
+networks:
+  # Lo que Traefik puede alcanzar.
+  edge:
+    name: ${COMPOSE_PROJECT_NAME:-red}_edge
+  # Sin ruta a Internet y sin puertos al host. Acá vive el estado.
+  data:
+    name: ${COMPOSE_PROJECT_NAME:-red}_data
+    internal: true
 
 volumes:
   pgdata:

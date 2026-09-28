@@ -1,0 +1,52 @@
+# ======================================================
+# Traefik — configuración DINÁMICA (se recarga sola, sin reiniciar).
+#
+# Acá van las piezas compartidas por todos los productos del host. Las rutas de
+# cada producto NO van acá: viven en los labels de su propio compose.
+# ======================================================
+
+tls:
+  stores:
+    default:
+      # Certificado por defecto. En local es un self-signed generado por
+      # infra/proxy/make-local-cert.sh (el navegador va a advertir, es esperado).
+      # En el host esto se reemplaza por Let's Encrypt vía DNS-01, que permite
+      # emitir sin exponer ningún puerto.
+      defaultCertificate:
+        certFile: /etc/traefik/certs/local.crt
+        keyFile: /etc/traefik/certs/local.key
+  options:
+    default:
+      minVersion: VersionTLS12
+
+http:
+  middlewares:
+    # Cabeceras de seguridad aplicadas a todo lo que se publica.
+    seguridad:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # HSTS deliberadamente APAGADO en local: fijaría el host a HTTPS en el
+        # navegador con un certificado self-signed, y es molesto de revertir.
+        # Se enciende junto con el certificado real (fase C8):
+        #   stsSeconds: 31536000
+        #   stsIncludeSubdomains: true
+
+    # Freno de fuerza bruta en el login. Hasta ahora no había ninguno: con una
+    # pantalla de login pública, eso es probar contraseñas gratis.
+    #
+    # 5 por minuto por IP, con ráfaga de 10: un usuario que erra la contraseña
+    # tres veces no lo nota; un atacante pasa de miles de intentos por minuto a
+    # unos pocos.
+    #
+    # OJO al poner Cloudflare delante: sin configurar en qué posición de
+    # X-Forwarded-For está el cliente real, Traefik vería SIEMPRE la IP de
+    # Cloudflare y limitaría a todos los usuarios como si fueran uno solo.
+    # Ahí hay que sumar `forwardedHeaders.trustedIPs` en el entrypoint y
+    # `sourceCriterion.ipStrategy.depth` acá.
+    login-ratelimit:
+      rateLimit:
+        average: 5
+        period: 1m
+        burst: 10

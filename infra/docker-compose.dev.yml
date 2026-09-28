@@ -4,16 +4,41 @@
 # Convierte el stack production-shaped en stack de desarrollo:
 #   - api: bind-mount del código + uvicorn --reload (hot reload backend).
 #   - frontend: node + vite dev server (hot reload frontend), sin nginx.
+#   - REINTRODUCE los puertos publicados que el base quitó: en DEV se entra
+#     directo por localhost:<puerto>, sin proxy ni TLS ni /etc/hosts.
+#   - Suma pgAdmin, que es herramienta de desarrollo y no va a producción.
+#
+# Los labels de Traefik que trae el base quedan inertes acá: sin proxy
+# levantado, nadie los lee.
 #
 # Usa tags !reset / !override (Compose >= 2.24) para reemplazar valores del base
 # en vez de concatenarlos (build, ports, volumes).
 # ======================================================
 
 services:
+  postgres:
+    # En DEV la base se expone al host a propósito (psql, pgAdmin, clientes GUI).
+    # Se suma `edge` porque `data` es internal y no alcanza para publicar puerto.
+    networks:
+      - data
+      - edge
+    ports:
+      - "${PG_PORT}:5432"
+
   api:
     volumes:
       - ../backend:/app
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${API_PORT}:8000"
+    # DEV no se rutea: entra por localhost:<puerto>. Se descartan los labels del
+    # base para que estos contenedores ni aparezcan en el proxy de PRD, que ve
+    # el mismo daemon de Docker.
+    labels: !override
+      - "traefik.enable=false"
+    # El healthcheck del base apunta a /health, que existe; pero con --reload el
+    # proceso se reinicia solo y puede marcar unhealthy de más. En DEV no aporta.
+    healthcheck: !reset null
 
   frontend:
     # En DEV no se construye imagen: se usa node y se corre vite dev sobre el
@@ -33,3 +58,31 @@ services:
       - "${FRONT_PORT}:5173"
     volumes:
       - ../frontend:/app
+    healthcheck: !reset null
+    mem_limit: 2g
+    labels: !override
+      - "traefik.enable=false"
+
+  # Consola de base — SOLO desarrollo. En producción se entra por `docker exec`
+  # o túnel SSH: una consola de DB publicada en Internet es superficie de ataque
+  # sin contrapartida.
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "${PGADMIN_PORT}:80"
+    networks:
+      - data
+      - edge
+    depends_on:
+      - postgres
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
