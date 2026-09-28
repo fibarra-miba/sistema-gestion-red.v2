@@ -1,29 +1,43 @@
-version: '3.9'
+# ======================================================
+# Compose BASE — forma "production" (PRD).
+#
+# Imágenes construidas, código CONGELADO (sin bind-mount), API sin --reload,
+# frontend servido estático por nginx. Todo parametrizado por env file
+# (infra/.env.dev | infra/.env.prd), seleccionado por el launcher ./red.
+#
+# DEV agrega encima docker-compose.dev.yml (bind-mounts + hot reload).
+# PRD usa SOLO este archivo.
+#
+# Aislamiento entre ambientes: COMPOSE_PROJECT_NAME namespacea contenedores
+# Y volúmenes -> red_dev_pgdata vs red_prd_pgdata (bases físicamente separadas).
+# ======================================================
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: postgres_local
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_postgres
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: mi_base
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Controla si el init carga el seed demo (010). Ver infra/sql/00_init.sql.
+      RED_SEED: ${RED_SEED:-0}
     ports:
-      - "5432:5432"
+      - "${PG_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin_local
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT}:80"
     depends_on:
       - postgres
 
@@ -31,28 +45,28 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
-    container_name: api_local
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_api
     restart: always
     environment:
-      DATABASE_URL: postgresql://admin:admin123@postgres:5432/mi_base
-      DATABASE_URL_TEST: postgresql://admin:admin123@postgres:5432/mi_base_test
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL_TEST: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}_test
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME}
     ports:
-      - "8000:8000"
-    volumes:
-      - ../backend:/app
+      - "${API_PORT}:8000"
     depends_on:
       - postgres
-      
+
   frontend:
-    image: node:20
-    container_name: frontend_local
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_frontend
     restart: always
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     ports:
-      - "5173:5173"
-    volumes:
-      - ../frontend:/app
+      - "${FRONT_PORT}:80"
     depends_on:
       - api
 

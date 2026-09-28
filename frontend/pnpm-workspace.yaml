@@ -1,0 +1,4 @@
+# pnpm 11 bloquea por defecto los scripts de postinstall de dependencias.
+# esbuild (usado por Vite) necesita el suyo para preparar su binario nativo.
+allowBuilds:
+  esbuild: true

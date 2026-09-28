@@ -1,0 +1,35 @@
+# ======================================================
+# Override de DEV — se aplica ENCIMA de docker-compose.yml.
+#
+# Convierte el stack production-shaped en stack de desarrollo:
+#   - api: bind-mount del código + uvicorn --reload (hot reload backend).
+#   - frontend: node + vite dev server (hot reload frontend), sin nginx.
+#
+# Usa tags !reset / !override (Compose >= 2.24) para reemplazar valores del base
+# en vez de concatenarlos (build, ports, volumes).
+# ======================================================
+
+services:
+  api:
+    volumes:
+      - ../backend:/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    # En DEV no se construye imagen: se usa node y se corre vite dev sobre el
+    # working tree montado. Se descarta el build del base.
+    build: !reset null
+    image: node:22
+    working_dir: /app
+    # CI=true: pnpm no es interactivo (autoriza purgar sin TTY un node_modules con
+    # layout previo, p.ej. de npm, en el bind-mount). --no-frozen-lockfile: DEV no
+    # queda atado al lockfile (devs cambian deps y reinstalan en caliente).
+    environment:
+      CI: "true"
+    # pnpm exec vite (no `pnpm run dev -- ...`): pnpm reenvía el `--` literal al
+    # script y vite ignoraría --host, quedando solo en localhost del contenedor.
+    command: sh -c "corepack enable && pnpm install --no-frozen-lockfile && pnpm exec vite --host 0.0.0.0 --port 5173"
+    ports: !override
+      - "${FRONT_PORT}:5173"
+    volumes:
+      - ../frontend:/app

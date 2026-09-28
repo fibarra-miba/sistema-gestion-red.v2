@@ -8,8 +8,10 @@
 # ---------------------------------
 .env
 .env.*
-!.env.example
-!.env.docker.example
+# Las plantillas SÍ se versionan: son el punto de partida de un clon limpio.
+# `!.env.example` solo matchea ese nombre literal — no cubría .env.dev.example
+# ni .env.prd.example, que quedaban fuera del repo.
+!*.example
 
 *.pem
 *.key
@@ -51,6 +53,8 @@ env/
 # Node / Frontend
 # ---------------------------------
 node_modules/
+.pnpm-store/
+.vite/
 
 dist/
 dist-ssr/
