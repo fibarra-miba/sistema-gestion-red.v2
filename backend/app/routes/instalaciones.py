@@ -30,6 +30,9 @@ from app.schemas.instalacion import (
     DetalleInstalacionResponse,
     DetalleInstalacionListResponse,
     GarantiaCreate,
+    CobroGarantiaCreate,
+    CobroGarantiaOut,
+    ReciboGarantiaOut,
     GarantiaUpdate,
     GarantiaOut,
     GarantiaListResponse,
@@ -47,6 +50,16 @@ router = APIRouter(
     prefix="/instalaciones",
     tags=["Instalaciones"],
     dependencies=[Depends(require_roles("ADMIN", "OPERADOR", "TECNICO"))],
+)
+
+# Garantías en router propio: COBRANZAS ve garantías y registra sus cobros
+# (es dinero que entra), pero no accede al resto de instalaciones. Se incluye
+# en main.py ANTES que `router`, si no GET /instalaciones/{instalacion_id}
+# capturaría el path estático "garantias".
+garantias_router = APIRouter(
+    prefix="/instalaciones",
+    tags=["Garantías"],
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR", "TECNICO", "COBRANZAS"))],
 )
 
 
@@ -210,9 +223,8 @@ def crear_instalacion(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# Declarada antes de /{instalacion_id} para que la ruta paramétrica no capture
-# el path estático "garantias". (Sección Garantía más abajo para POST/GET/PATCH.)
-@router.get("/garantias", response_model=GarantiaListResponse)
+# Listado de garantías (resto de la sección Garantía más abajo).
+@garantias_router.get("/garantias", response_model=GarantiaListResponse)
 def list_garantias(
     instalacion_id: Optional[int] = Query(default=None, ge=1),
     contrato_id: Optional[int] = Query(default=None, ge=1),
@@ -441,12 +453,11 @@ def list_detalles(
 # GARANTIA
 # ==========================================================
 
-# Ver garantías: cualquier rol del router (incl. TÉCNICO).
-# Crear / anular: solo ADMIN / OPERADOR (es un acto administrativo).
-# (El listado GET /garantias se declara antes de GET /{instalacion_id} para
-#  evitar que la ruta paramétrica capture "garantias".)
+# Ver garantías y sus cobros/recibos: cualquier rol de garantias_router
+# (incl. TÉCNICO y COBRANZAS). Registrar cobros: ADMIN / OPERADOR / COBRANZAS.
+# Crear / editar / anular: solo ADMIN / OPERADOR (acto administrativo).
 
-@router.post(
+@garantias_router.post(
     "/garantias",
     response_model=GarantiaOut,
     dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
@@ -464,6 +475,14 @@ def crear_garantia(
             entidad="garantias",
             entidad_id=result["garantia_id"],
         )
+        if payload.cobro:
+            auditor.log(
+                modulo=AuditModulo.INSTALACIONES,
+                accion=AuditAccion.GARANTIA_COBRO,
+                entidad="garantias",
+                entidad_id=result["garantia_id"],
+                detalle=f"total_cobrado={result['total_cobrado']} medio_pago_id={payload.cobro.medio_pago_id}",
+            )
         return result
     except ValueError as e:
         raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
@@ -471,10 +490,10 @@ def crear_garantia(
 
 # Declarada antes de /garantias/{garantia_id}: si fuera después, FastAPI
 # intentaría parsear "resumen" como el int del path param y devolvería 422.
-@router.get(
+@garantias_router.get(
     "/garantias/resumen",
     response_model=GarantiasResumenOut,
-    dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR", "COBRANZAS"))],
 )
 def get_garantias_resumen(
     service: InstalacionesService = Depends(get_service),
@@ -482,7 +501,19 @@ def get_garantias_resumen(
     return service.resumen_garantias()
 
 
-@router.get("/garantias/{garantia_id}", response_model=GarantiaOut)
+# Declarada antes de /garantias/{garantia_id} por la misma razón que /resumen.
+@garantias_router.get("/garantias/recibos/{recibo_garantia_id}", response_model=ReciboGarantiaOut)
+def get_recibo_garantia(
+    recibo_garantia_id: int,
+    service: InstalacionesService = Depends(get_service),
+):
+    try:
+        return service.get_recibo_garantia(recibo_garantia_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@garantias_router.get("/garantias/{garantia_id}", response_model=GarantiaOut)
 def get_garantia(
     garantia_id: int,
     service: InstalacionesService = Depends(get_service),
@@ -493,7 +524,43 @@ def get_garantia(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.patch(
+@garantias_router.get("/garantias/{garantia_id}/cobros", response_model=list[CobroGarantiaOut])
+def list_cobros_garantia(
+    garantia_id: int,
+    service: InstalacionesService = Depends(get_service),
+):
+    try:
+        return service.list_cobros_garantia(garantia_id)
+    except ValueError as e:
+        raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
+
+
+@garantias_router.post(
+    "/garantias/{garantia_id}/cobros",
+    response_model=CobroGarantiaOut,
+    dependencies=[Depends(require_roles("ADMIN", "OPERADOR", "COBRANZAS"))],
+)
+def registrar_cobro_garantia(
+    garantia_id: int,
+    payload: CobroGarantiaCreate,
+    service: InstalacionesService = Depends(get_service),
+    auditor: Auditor = Depends(get_auditor),
+):
+    try:
+        result = service.registrar_cobro_garantia(garantia_id, payload.model_dump())
+        auditor.log(
+            modulo=AuditModulo.INSTALACIONES,
+            accion=AuditAccion.GARANTIA_COBRO,
+            entidad="garantias",
+            entidad_id=garantia_id,
+            detalle=f"monto={result['monto_cobro_garantia']} medio_pago_id={result['medio_pago_id']}",
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=_garantia_status(str(e)), detail=str(e))
+
+
+@garantias_router.patch(
     "/garantias/{garantia_id}",
     response_model=GarantiaOut,
     dependencies=[Depends(require_roles("ADMIN", "OPERADOR"))],
@@ -519,7 +586,10 @@ def update_garantia(
 
 
 def _garantia_status(detail: str) -> int:
-    if detail == InstalacionesService.GARANTIA_NO_ENCONTRADA:
+    if detail in (
+        InstalacionesService.GARANTIA_NO_ENCONTRADA,
+        InstalacionesService.RECIBO_GARANTIA_NO_ENCONTRADO,
+    ):
         return 404
     if detail == InstalacionesService.GARANTIA_ACTIVA_DUPLICADA:
         return 409
@@ -530,6 +600,7 @@ def _garantia_status(detail: str) -> int:
         InstalacionesService.GARANTIA_RESOLUCION_REQUERIDA,
         InstalacionesService.GARANTIA_RESOLUCION_RETENCION_REQUERIDA,
         InstalacionesService.GARANTIA_FECHAS_INVALIDAS,
+        InstalacionesService.COBRO_GARANTIA_MEDIO_INVALIDO,
     ):
         return 422
     return 400

@@ -25,6 +25,7 @@ export function useAnularGarantia() {
       // dashboard y la pantalla global siguen contando plata que ya no está.
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasLists() })
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasResumen() })
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiaDetail(garantia.garantia_id) })
     },
   })
 }

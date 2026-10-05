@@ -1,5 +1,7 @@
 import { http } from '@/services/http'
 import type {
+  CobroGarantiaCreate,
+  CobroGarantiaOut,
   DetalleInstalacionCreate,
   DetalleInstalacionListResponse,
   DetalleInstalacionOut,
@@ -8,6 +10,7 @@ import type {
   GarantiaListResponse,
   GarantiaOut,
   GarantiasResumen,
+  ReciboGarantiaOut,
   GarantiaUpdate,
   InstalacionAccionOut,
   InstalacionCompletarIn,
@@ -140,6 +143,13 @@ export const instalacionesService = {
     return data.items
   },
 
+  async getGarantia(garantiaId: number): Promise<GarantiaOut> {
+    const { data } = await http.get<GarantiaOut>(
+      `/instalaciones/garantias/${garantiaId}`,
+    )
+    return data
+  },
+
   async createGarantia(payload: GarantiaCreate): Promise<GarantiaOut> {
     const { data } = await http.post<GarantiaOut>(
       '/instalaciones/garantias',
@@ -155,6 +165,31 @@ export const instalacionesService = {
     const { data } = await http.patch<GarantiaOut>(
       `/instalaciones/garantias/${garantiaId}`,
       payload,
+    )
+    return data
+  },
+
+  async listCobrosGarantia(garantiaId: number): Promise<CobroGarantiaOut[]> {
+    const { data } = await http.get<CobroGarantiaOut[]>(
+      `/instalaciones/garantias/${garantiaId}/cobros`,
+    )
+    return data
+  },
+
+  async registrarCobroGarantia(
+    garantiaId: number,
+    payload: CobroGarantiaCreate,
+  ): Promise<CobroGarantiaOut> {
+    const { data } = await http.post<CobroGarantiaOut>(
+      `/instalaciones/garantias/${garantiaId}/cobros`,
+      payload,
+    )
+    return data
+  },
+
+  async getReciboGarantia(reciboId: number): Promise<ReciboGarantiaOut> {
+    const { data } = await http.get<ReciboGarantiaOut>(
+      `/instalaciones/garantias/recibos/${reciboId}`,
     )
     return data
   },

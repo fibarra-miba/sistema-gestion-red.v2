@@ -9,6 +9,7 @@ import PromocionesPage from '@/pages/promociones/PromocionesPage'
 import ContratosPage from '@/pages/contratos/ContratosPage'
 import InstalacionesPage from '@/pages/instalaciones/InstalacionesPage'
 import GarantiasPage from '@/pages/garantias/GarantiasPage'
+import GarantiaDetailPage from '@/pages/garantias/GarantiaDetailPage'
 import ProductosPage from '@/pages/productos/ProductosPage'
 import ProveedoresPage from '@/pages/proveedores/ProveedoresPage'
 import ComprasPage from '@/pages/compras/ComprasPage'
@@ -74,7 +75,15 @@ export const router = createBrowserRouter([
             element: <RequireCapability anyOf={['can_manage_instalaciones']} />,
             children: [
               { path: 'instalaciones', element: <InstalacionesPage /> },
+            ],
+          },
+
+          {
+            // COBRANZAS también: ve depósitos y registra sus cobros.
+            element: <RequireCapability anyOf={['can_view_garantias']} />,
+            children: [
               { path: 'garantias', element: <GarantiasPage /> },
+              { path: 'garantias/:id', element: <GarantiaDetailPage /> },
             ],
           },
 

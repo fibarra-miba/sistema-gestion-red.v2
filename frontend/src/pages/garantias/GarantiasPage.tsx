@@ -14,9 +14,11 @@ import {
 import ClearIcon from '@mui/icons-material/Clear'
 import EditIcon from '@mui/icons-material/Edit'
 import BlockIcon from '@mui/icons-material/Block'
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined'
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined'
 import AssignmentReturnedOutlinedIcon from '@mui/icons-material/AssignmentReturnedOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '@/components/ui/PageHeader'
 import FilterBar from '@/components/ui/FilterBar'
 import DataTable, { type DataTableColumn } from '@/components/ui/DataTable'
@@ -28,8 +30,9 @@ import { useEstadosGarantia } from '@/features/catalogos'
 import {
   ESTADO_GARANTIA,
   GarantiaEstadoChip,
-  InstalacionDetailDialog,
   depositosActivosLabel,
+  cobroGarantiaLabel,
+  GarantiaCobrosDialog,
   formatDateTime,
   useGarantiasList,
   useResumenGarantias,
@@ -45,8 +48,10 @@ function garantiaClienteLabel(g: GarantiaOut): string {
 }
 
 export default function GarantiasPage() {
-  const { hasRole } = useAuth()
+  const navigate = useNavigate()
+  const { hasRole, hasCapability } = useAuth()
   const canManage = hasRole('ADMIN', 'OPERADOR')
+  const canCobrar = hasCapability('can_cobrar_garantias')
 
   const [filters, setFilters] = useState<ListGarantiasParams>({})
   const params = useMemo(() => filters, [filters])
@@ -56,9 +61,10 @@ export default function GarantiasPage() {
     useResumenGarantias()
   const { data: estados } = useEstadosGarantia()
 
-  const [detailInstalacionId, setDetailInstalacionId] = useState<number | null>(null)
   const [anulando, setAnulando] = useState<GarantiaOut | null>(null)
   const [editando, setEditando] = useState<GarantiaOut | null>(null)
+  const [cobrosId, setCobrosId] = useState<number | null>(null)
+  const cobrosGarantia = garantias?.find((x) => x.garantia_id === cobrosId) ?? null
 
   const hasFilters = filters.cliente_id != null || filters.estado_garantia_id != null
 
@@ -96,6 +102,24 @@ export default function GarantiasPage() {
       ),
     },
     {
+      key: 'cobro',
+      label: 'Cobro',
+      width: 190,
+      render: (g) => {
+        const c = cobroGarantiaLabel(g)
+        return (
+          <Typography
+            variant="body2"
+            noWrap
+            title={c.text}
+            sx={{ color: c.color === 'success' ? 'success.main' : 'text.primary' }}
+          >
+            {c.text}
+          </Typography>
+        )
+      },
+    },
+    {
       key: 'estado',
       label: 'Estado',
       width: 120,
@@ -119,12 +143,10 @@ export default function GarantiasPage() {
         </Stack>
       ),
     },
-    ...(canManage
-      ? [
-          {
+    {
             key: 'acciones',
             label: '',
-            width: 88,
+            width: 120,
             align: 'right' as const,
             render: (g: GarantiaOut) => {
               const esActiva = g.estado_garantia_id === ESTADO_GARANTIA.ACTIVA
@@ -135,29 +157,36 @@ export default function GarantiasPage() {
                   sx={{ justifyContent: 'flex-end' }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Tooltip title="Editar garantía">
-                    <IconButton size="small" onClick={() => setEditando(g)}>
-                      <EditIcon fontSize="small" />
+                  <Tooltip title="Cobros del depósito">
+                    <IconButton size="small" onClick={() => setCobrosId(g.garantia_id)}>
+                      <PaymentsOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title={esActiva ? 'Anular garantía' : 'Sólo ACTIVA se puede anular'}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        disabled={!esActiva}
-                        onClick={() => setAnulando(g)}
-                      >
-                        <BlockIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
+                  {canManage && (
+                    <>
+                      <Tooltip title="Editar garantía">
+                        <IconButton size="small" onClick={() => setEditando(g)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={esActiva ? 'Anular garantía' : 'Sólo ACTIVA se puede anular'}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={!esActiva}
+                            onClick={() => setAnulando(g)}
+                          >
+                            <BlockIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </>
+                  )}
                 </Stack>
               )
             },
           },
-        ]
-      : []),
   ]
 
   return (
@@ -174,11 +203,13 @@ export default function GarantiasPage() {
           sx={{
             display: 'grid',
             gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' },
           }}
         >
           {loadingResumen ? (
             <>
+              <Skeleton variant="rounded" height={96} />
+              <Skeleton variant="rounded" height={96} />
               <Skeleton variant="rounded" height={96} />
               <Skeleton variant="rounded" height={96} />
               <Skeleton variant="rounded" height={96} />
@@ -203,6 +234,18 @@ export default function GarantiasPage() {
                 value={formatCurrencyARS(resumen?.retenido ?? 0)}
                 color="warning"
                 icon={<LockOutlinedIcon fontSize="small" />}
+              />
+              <KpiCard
+                label="Cobrado"
+                value={formatCurrencyARS(resumen?.cobrado ?? 0)}
+                color="success"
+                icon={<PaymentsOutlinedIcon fontSize="small" />}
+              />
+              <KpiCard
+                label="Pendiente de cobro"
+                value={formatCurrencyARS(resumen?.pendiente_cobro ?? 0)}
+                color="warning"
+                icon={<PaymentsOutlinedIcon fontSize="small" />}
               />
             </>
           )}
@@ -265,14 +308,8 @@ export default function GarantiasPage() {
         loading={isLoading}
         error={error}
         getRowKey={(g) => g.garantia_id}
-        onRowClick={(g) => setDetailInstalacionId(g.instalacion_id)}
+        onRowClick={(g) => navigate(`/garantias/${g.garantia_id}`)}
         emptyMessage="No hay depósitos de garantía registrados."
-      />
-
-      <InstalacionDetailDialog
-        open={detailInstalacionId != null}
-        instalacionId={detailInstalacionId ?? undefined}
-        onClose={() => setDetailInstalacionId(null)}
       />
 
       {canManage && (
@@ -281,6 +318,11 @@ export default function GarantiasPage() {
           <EditarGarantiaDialog garantia={editando} onClose={() => setEditando(null)} />
         </>
       )}
+      <GarantiaCobrosDialog
+        garantia={cobrosGarantia}
+        canCobrar={canCobrar}
+        onClose={() => setCobrosId(null)}
+      />
     </Stack>
   )
 }

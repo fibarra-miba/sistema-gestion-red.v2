@@ -30,6 +30,16 @@ export const instalacionesKeys = {
   garantiasList: (params: ListGarantiasParams) =>
     [...instalacionesKeys.garantiasLists(), params] as const,
 
+  // Cobros de una garantía
+  cobros: (garantiaId: number) =>
+    [...instalacionesKeys.garantiasAll(), 'cobros', garantiaId] as const,
+
+  garantiaDetail: (garantiaId: number) =>
+    [...instalacionesKeys.garantiasAll(), 'detail', garantiaId] as const,
+
+  recibo: (reciboId: number) =>
+    [...instalacionesKeys.garantiasAll(), 'recibo', reciboId] as const,
+
   // Resumen agregado de depósitos
   garantiasResumen: () => [...instalacionesKeys.garantiasAll(), 'resumen'] as const,
 

@@ -15,6 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_pinstalaciones_fecha ON programacion_instalacione
 CREATE INDEX IF NOT EXISTS idx_instalaciones_estado ON instalaciones(estado_instalacion_id);
 CREATE INDEX IF NOT EXISTS idx_garantia_contrato ON garantia(contrato_id);
 CREATE INDEX IF NOT EXISTS idx_garantia_instalacion ON garantia(instalacion_id);
+CREATE INDEX IF NOT EXISTS idx_cobros_garantia_garantia ON cobros_garantia(garantia_id);
 CREATE INDEX IF NOT EXISTS idx_dinstalacion_producto ON detalle_instalacion(producto_id);
 CREATE INDEX IF NOT EXISTS idx_contratos_cobrables ON contratos (estado_contrato_id, fecha_inicio_contrato, fecha_fin_contrato, contrato_id)
   WHERE estado_contrato_id = 3;

@@ -40,9 +40,14 @@ body {
     visibility: visible;
   }
 
+  /* Sin bottom: con inset:0 la caja tomaba la altura del diálogo y el
+     contenido desbordaba el borde. */
   .recibo-print {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: auto;
     margin: 0;
     padding: 24px;
     width: 100%;

@@ -184,6 +184,7 @@ export interface DetalleInstalacionListResponse {
 
 export interface GarantiaOut {
   garantia_id: number
+  cliente_id: number
   instalacion_id: number
   contrato_id: number
   producto_id: number
@@ -203,6 +204,57 @@ export interface GarantiaOut {
   descripcion_egarantia: string | null
   cliente_nombre: string | null
   cliente_apellido: string | null
+  // Cobro del depósito. saldo_pendiente_cobro es null si no hay monto.
+  total_cobrado: number
+  saldo_pendiente_cobro: number | null
+}
+
+// Recibo emitido y guardado por el backend al registrar el cobro. Es un
+// snapshot inmutable: se muestra tal cual, nunca recompuesto con datos actuales.
+export interface ReciboGarantiaOut {
+  recibo_garantia_id: number
+  cobro_garantia_id: number
+  garantia_id: number
+  numero_recibo_garantia: string
+  fecha_emision_recibo_garantia: string
+  importe_recibo_garantia: number
+  cliente_nombre: string
+  cliente_apellido: string
+  producto_descripcion: string
+  monto_garantia: number
+  total_cobrado_al_emitir: number
+  saldo_pendiente_al_emitir: number
+  medio_pago_descripcion: string
+  comprobante_cobro_garantia: string | null
+  fecha_cobro_garantia: string
+}
+
+export interface CobroGarantiaOut {
+  cobro_garantia_id: number
+  garantia_id: number
+  fecha_cobro_garantia: string
+  monto_cobro_garantia: number
+  medio_pago_id: number
+  descripcion_medio_pago: string
+  comprobante_cobro_garantia: string | null
+  fecha_creacion_cobro_garantia: string
+  recibo: ReciboGarantiaOut
+}
+
+export interface CobroGarantiaCreate {
+  fecha_cobro_garantia?: string
+  monto_cobro_garantia: number
+  medio_pago_id: number
+  comprobante_cobro_garantia?: string | null
+}
+
+// Cobro inicial opcional en el alta de la garantía. Defaults backend:
+// fecha = inicio de la garantía, monto = monto de la garantía.
+export interface CobroGarantiaInicialIn {
+  fecha_cobro_garantia?: string
+  monto_cobro_garantia?: number
+  medio_pago_id: number
+  comprobante_cobro_garantia?: string | null
 }
 
 export interface GarantiaListResponse {
@@ -215,6 +267,7 @@ export interface GarantiaCreate {
   producto_id: number
   monto_garantia?: number | null
   fecha_inicio_garantia?: string | null
+  cobro?: CobroGarantiaInicialIn
 }
 
 // PATCH parcial (exclude_unset). Se usa para anular y para corregir
@@ -235,6 +288,8 @@ export interface GarantiasResumen {
   cantidad_activas: number
   devuelto: number
   retenido: number
+  cobrado: number
+  pendiente_cobro: number
 }
 
 export interface ListGarantiasParams {

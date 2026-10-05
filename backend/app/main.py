@@ -10,7 +10,7 @@ from app.routes.clientes import router as clientes_router
 from app.routes.compras import router as compras_router
 from app.routes.contratos import router as contratos_router
 from app.routes.domicilios import router as domicilios_router
-from app.routes.instalaciones import router as instalaciones_router
+from app.routes.instalaciones import garantias_router, router as instalaciones_router
 from app.routes.pagos import router as pagos_router
 from app.routes.planes import router as planes_router
 from app.routes.productos import router as productos_router
@@ -50,6 +50,9 @@ app.include_router(domicilios_router)
 app.include_router(contratos_router)
 app.include_router(pagos_router)
 app.include_router(catalogos_router)
+# garantias_router antes: comparte prefijo /instalaciones y /{instalacion_id}
+# capturaría "garantias" si se registrara después.
+app.include_router(garantias_router)
 app.include_router(instalaciones_router)
 app.include_router(planes_router)
 app.include_router(productos_router)

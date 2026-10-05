@@ -38,12 +38,19 @@ class ComprobanteIn(BaseModel):
     hash: Optional[str] = Field(default=None, max_length=64)
 
 
+class CargoAdicionalIn(BaseModel):
+    concepto: str = Field(..., min_length=1, max_length=60)
+    importe: PositiveMoney
+
+
 class GenerarPeriodoIn(BaseModel):
     periodo_anio_pago: conint(ge=2000, le=2100)
     periodo_mes_pago: conint(ge=1, le=12)
     fecha_emision: Optional[date] = None
     fecha_vencimiento: Optional[date] = None
     bonificacion_previa: Optional[Money] = 0
+    # Cargo único sumado a la factura del período (p. ej. instalación).
+    cargo_adicional: Optional[CargoAdicionalIn] = None
 
 
 class GenerarLoteIn(BaseModel):

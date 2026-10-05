@@ -1,3 +1,4 @@
+import { formatCurrencyARS } from '@/lib/format'
 import type { InstalacionOut, ProgramacionInstalacionOut } from './types'
 
 // IDs de estado. Fuente: backend/test/sql/010_seed.sql.
@@ -238,4 +239,31 @@ export function programacionDomicilioLabel(
   p: ProgramacionInstalacionOut,
 ): string {
   return domicilioLabelFromFields(p.domicilio_id, p.domicilio_resumen)
+}
+
+// Estado de cobro del depósito para listados: "Cobrado", "Parcial $X de $Y",
+// "Pendiente $Y" o "—" si la garantía no tiene monto.
+export function cobroGarantiaLabel(g: {
+  monto_garantia: number | null
+  total_cobrado: number
+  saldo_pendiente_cobro: number | null
+}): { text: string; color: 'success' | 'warning' | 'default' } {
+  const monto = g.monto_garantia
+  if (monto == null || monto <= 0) return { text: '—', color: 'default' }
+  if ((g.saldo_pendiente_cobro ?? 0) <= 0) return { text: 'Cobrado', color: 'success' }
+  if (g.total_cobrado > 0) {
+    return {
+      text: `Parcial ${formatCurrencyARS(g.total_cobrado)} de ${formatCurrencyARS(monto)}`,
+      color: 'warning',
+    }
+  }
+  return { text: `Pendiente ${formatCurrencyARS(monto)}`, color: 'warning' }
+}
+
+// Medio de pago por defecto para cobros: TRANSFERENCIA si existe.
+export function defaultMedioPagoId(
+  medios: { id: number; descripcion: string }[] | undefined,
+): string {
+  const m = medios?.find((x) => x.descripcion.trim().toUpperCase() === 'TRANSFERENCIA')
+  return m ? String(m.id) : ''
 }

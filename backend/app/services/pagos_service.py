@@ -66,6 +66,7 @@ class PagosService:
         fecha_emision: date,
         fecha_vencimiento: date | None,
         bonificacion_previa,
+        cargo_adicional=None,
     ) -> dict:
         contrato = self.contratos_repo.get_contrato(contrato_id)
         if not contrato:
@@ -101,6 +102,15 @@ class PagosService:
         estado_pago_pend_id = self.catalogos_repo.get_estado_pago_id("PENDIENTE")
 
         concepto = f"Servicio Internet {periodo_mes_pago:02d}/{periodo_anio_pago}"
+        importe_base = Decimal(pr.importe_factura)
+        total = Decimal(pr.total)
+        # El cargo va al importe (no sólo al total): el recálculo de bonificación
+        # hace total = importe - bonificación y debe seguir cerrando.
+        if cargo_adicional is not None:
+            cargo = Decimal(cargo_adicional.importe)
+            concepto = f"{concepto} + {cargo_adicional.concepto}"
+            importe_base += cargo
+            total += cargo
 
         factura_id = self.pagos_repo.insert_factura_venta(
             cliente_id=contrato["cliente_id"],
@@ -108,9 +118,9 @@ class PagosService:
             concepto=concepto,
             fecha_emision=_as_dt(fecha_emision) or datetime.now(timezone.utc),
             fecha_vencimiento=_as_dt(fecha_vencimiento),
-            importe_base=pr.importe_factura,
+            importe_base=importe_base,
             bonificacion=pr.bonificacion,
-            total=pr.total,
+            total=total,
         )
 
         pago_id = self.pagos_repo.insert_pago(
@@ -124,15 +134,15 @@ class PagosService:
         saldo = self.cc.aplicar_movimiento(
             cliente_id=contrato["cliente_id"],
             tipo_codigo="FACTURA",
-            importe=pr.total,
+            importe=total,
             factura_venta_id=factura_id,
             pago_id=None,
             observacion=f"Factura período {periodo_mes_pago:02d}/{periodo_anio_pago}",
         )
 
         total_pagado = Decimal("0.00")
-        saldo_pend = Decimal(pr.total)
-        estado_sync = self._sync_estado_pago(pago_id, total_pagado, Decimal(pr.total))
+        saldo_pend = total
+        estado_sync = self._sync_estado_pago(pago_id, total_pagado, total)
 
         return {
             "pago_id": pago_id,
@@ -141,7 +151,7 @@ class PagosService:
             "periodo_anio_pago": periodo_anio_pago,
             "periodo_mes_pago": periodo_mes_pago,
             "estado": estado_sync,
-            "total_factura": Decimal(pr.total),
+            "total_factura": total,
             "total_pagado": total_pagado,
             "saldo_pendiente": saldo_pend,
             "excedente_credito": Decimal("0.00"),

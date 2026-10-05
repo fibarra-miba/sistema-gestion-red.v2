@@ -28,6 +28,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_compras": True,
         "can_manage_stock": True,
         "can_view_stock": True,
+        "can_view_garantias": True,
+        "can_cobrar_garantias": True,
     },
     "OPERADOR": {
         "can_manage_users": False,
@@ -43,6 +45,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_compras": True,
         "can_manage_stock": True,
         "can_view_stock": True,
+        "can_view_garantias": True,
+        "can_cobrar_garantias": True,
     },
     "TECNICO": {
         "can_manage_users": False,
@@ -59,6 +63,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_stock": False,
         # Lectura de existencias (sin escritura): el técnico consulta stock.
         "can_view_stock": True,
+        "can_view_garantias": True,
+        "can_cobrar_garantias": False,
     },
     "COBRANZAS": {
         "can_manage_users": False,
@@ -74,6 +80,8 @@ ROLE_CAPABILITIES: dict[str, dict[str, bool]] = {
         "can_manage_compras": False,
         "can_manage_stock": False,
         "can_view_stock": False,
+        "can_view_garantias": True,
+        "can_cobrar_garantias": True,
     },
 }
 

@@ -18,14 +18,18 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import BlockIcon from '@mui/icons-material/Block'
 import EditIcon from '@mui/icons-material/Edit'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import { Link as RouterLink } from 'react-router-dom'
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined'
 import { isApiError } from '@/types/api'
 import { formatCurrencyARS } from '@/lib/format'
 import { useGarantias } from '../hooks/useGarantias'
-import { formatDateTime } from '../utils'
+import { cobroGarantiaLabel, formatDateTime } from '../utils'
 import GarantiaEstadoChip, { ESTADO_GARANTIA } from './GarantiaEstadoChip'
 import RegistrarGarantiaDialog from './RegistrarGarantiaDialog'
 import AnularGarantiaDialog from './AnularGarantiaDialog'
 import EditarGarantiaDialog from './EditarGarantiaDialog'
+import GarantiaCobrosDialog from './GarantiaCobrosDialog'
 import type { DetalleInstalacionOut, GarantiaOut } from '../types'
 
 interface Props {
@@ -41,6 +45,8 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
   const [registrarOpen, setRegistrarOpen] = useState(false)
   const [anulando, setAnulando] = useState<GarantiaOut | null>(null)
   const [editando, setEditando] = useState<GarantiaOut | null>(null)
+  const [cobrosId, setCobrosId] = useState<number | null>(null)
+  const cobrosGarantia = garantias?.find((x) => x.garantia_id === cobrosId) ?? null
 
   // Equipos elegibles: productos instalados que NO tienen garantía activa.
   // El select además filtra por tipo EQUIPO. El backend revalida todo.
@@ -91,15 +97,16 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
               <TableCell sx={{ fontWeight: 600 }}>Equipo</TableCell>
               <TableCell sx={{ fontWeight: 600, width: 110 }}>Estado</TableCell>
               <TableCell sx={{ fontWeight: 600, width: 120 }}>Monto</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: 150 }}>Cobro</TableCell>
               <TableCell sx={{ fontWeight: 600, width: 150 }}>Inicio / Fin</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Motivo / Resolución</TableCell>
-              {canManage && <TableCell sx={{ width: 88 }} />}
+              {canManage && <TableCell sx={{ width: 150 }} />}
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={canManage ? 6 : 5}>
+                <TableCell colSpan={canManage ? 7 : 6}>
                   <Skeleton height={24} />
                 </TableCell>
               </TableRow>
@@ -107,7 +114,7 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
 
             {!isLoading && (!garantias || garantias.length === 0) && (
               <TableRow>
-                <TableCell colSpan={canManage ? 6 : 5}>
+                <TableCell colSpan={canManage ? 7 : 6}>
                   <Box sx={{ py: 2, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
                       Esta instalación no tiene garantías registradas.
@@ -141,6 +148,9 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
                     </Typography>
                   </TableCell>
                   <TableCell>
+                    <Typography variant="caption">{cobroGarantiaLabel(g).text}</Typography>
+                  </TableCell>
+                  <TableCell>
                     <Typography variant="caption" sx={{ display: 'block' }}>
                       {formatDateTime(g.fecha_inicio_garantia)}
                     </Typography>
@@ -164,6 +174,20 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
                   </TableCell>
                   {canManage && (
                     <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                      <Tooltip title="Ver detalle">
+                        <IconButton
+                          size="small"
+                          component={RouterLink}
+                          to={`/garantias/${g.garantia_id}`}
+                        >
+                          <OpenInNewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Cobros del depósito">
+                        <IconButton size="small" onClick={() => setCobrosId(g.garantia_id)}>
+                          <PaymentsOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Editar garantía">
                         <IconButton size="small" onClick={() => setEditando(g)}>
                           <EditIcon fontSize="small" />
@@ -200,6 +224,11 @@ export default function GarantiasSection({ instalacionId, detalles, canManage }:
           />
           <AnularGarantiaDialog garantia={anulando} onClose={() => setAnulando(null)} />
           <EditarGarantiaDialog garantia={editando} onClose={() => setEditando(null)} />
+          <GarantiaCobrosDialog
+            garantia={cobrosGarantia}
+            canCobrar={canManage}
+            onClose={() => setCobrosId(null)}
+          />
         </>
       )}
     </Box>

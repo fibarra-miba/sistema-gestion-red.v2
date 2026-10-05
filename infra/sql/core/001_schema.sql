@@ -260,6 +260,38 @@ CREATE TABLE IF NOT EXISTS garantia (
   fecha_creacion_garantia       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Cobro del depósito de garantía (normalmente 1 por el total; a veces en partes).
+-- NO es factura ni mueve cuenta corriente: solo registra que el dinero entró.
+CREATE TABLE IF NOT EXISTS cobros_garantia (
+  cobro_garantia_id             BIGSERIAL PRIMARY KEY,
+  garantia_id                   BIGINT NOT NULL,
+  fecha_cobro_garantia          TIMESTAMPTZ NOT NULL,
+  monto_cobro_garantia          NUMERIC(12,2) NOT NULL CHECK (monto_cobro_garantia > 0),
+  medio_pago_id                 BIGINT NOT NULL,
+  comprobante_cobro_garantia    VARCHAR(200),
+  fecha_creacion_cobro_garantia TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Recibo de cada cobro (siempre se emite). Guarda un SNAPSHOT de los datos al
+-- emitir: el saldo cambia con cobros posteriores y el recibo debe poder
+-- reimprimirse tal como se emitió.
+CREATE TABLE IF NOT EXISTS recibos_garantia (
+  recibo_garantia_id            BIGSERIAL PRIMARY KEY,
+  cobro_garantia_id             BIGINT NOT NULL UNIQUE,
+  numero_recibo_garantia        VARCHAR(20) NOT NULL UNIQUE,
+  fecha_emision_recibo_garantia TIMESTAMPTZ NOT NULL DEFAULT now(),
+  importe_recibo_garantia       NUMERIC(12,2) NOT NULL,
+  cliente_nombre                VARCHAR(50) NOT NULL,
+  cliente_apellido              VARCHAR(50) NOT NULL,
+  producto_descripcion          VARCHAR(200) NOT NULL,
+  monto_garantia                NUMERIC(12,2) NOT NULL,
+  total_cobrado_al_emitir       NUMERIC(12,2) NOT NULL,
+  saldo_pendiente_al_emitir     NUMERIC(12,2) NOT NULL,
+  medio_pago_descripcion        VARCHAR(50) NOT NULL,
+  comprobante_cobro_garantia    VARCHAR(200),
+  fecha_cobro_garantia          TIMESTAMPTZ NOT NULL
+);
+
 
 
 -- ======================================================

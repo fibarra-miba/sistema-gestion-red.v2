@@ -69,13 +69,20 @@ def generar_periodo_contrato(
             fecha_emision=fecha_emision,
             fecha_vencimiento=body.fecha_vencimiento,
             bonificacion_previa=body.bonificacion_previa,
+            cargo_adicional=body.cargo_adicional,
+        )
+    detalle = f"contrato_id={contrato_id} periodo={body.periodo_anio_pago}-{body.periodo_mes_pago}"
+    if body.cargo_adicional:
+        detalle += (
+            f" cargo_adicional={body.cargo_adicional.concepto}:"
+            f"{body.cargo_adicional.importe}"
         )
     auditor.log(
         modulo=AuditModulo.PAGOS,
         accion=AuditAccion.GEN_INDIVIDUAL,
         entidad="pagos",
         entidad_id=res["pago_id"],
-        detalle=f"contrato_id={contrato_id} periodo={body.periodo_anio_pago}-{body.periodo_mes_pago}",
+        detalle=detalle,
     )
     return {
         "pago": {

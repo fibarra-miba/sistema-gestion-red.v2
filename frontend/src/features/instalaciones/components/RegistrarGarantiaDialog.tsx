@@ -5,28 +5,41 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  MenuItem,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material'
+import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { isApiError } from '@/types/api'
 import { useSnackbar } from '@/components/ui/SnackbarProvider'
 import { ProductoSelect } from '@/features/productos'
+import { useMediosPagos } from '@/features/catalogos'
+import { instalacionesService } from '../services/instalacionesService'
+import ReciboGarantiaDialog from './ReciboGarantiaDialog'
 import { useCreateGarantia } from '../hooks/useCreateGarantia'
-import { fromDateTimeInputValue } from '../utils'
-import type { GarantiaCreate } from '../types'
+import { defaultMedioPagoId, fromDateTimeInputValue } from '../utils'
+import type { GarantiaCreate, ReciboGarantiaOut } from '../types'
 
 interface FormValues {
   producto_id: string
   monto_garantia: string
   fecha_inicio_garantia: string
+  registrar_cobro: boolean
+  medio_pago_id: string
+  comprobante: string
 }
 
 const emptyValues: FormValues = {
   producto_id: '',
   monto_garantia: '',
   fecha_inicio_garantia: '',
+  registrar_cobro: true,
+  medio_pago_id: '',
+  comprobante: '',
 }
 
 interface Props {
@@ -49,14 +62,26 @@ export default function RegistrarGarantiaDialog({
   const { showSuccess } = useSnackbar()
   const createGarantia = useCreateGarantia()
 
+  const { data: medios } = useMediosPagos()
+  const [recibo, setRecibo] = useState<ReciboGarantiaOut | null>(null)
+
   const {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: emptyValues,
   })
+  const registrarCobro = watch('registrar_cobro')
+
+  // TRANSFERENCIA por defecto apenas carga el catálogo (sin pisar una elección).
+  useEffect(() => {
+    if (!getValues('medio_pago_id')) setValue('medio_pago_id', defaultMedioPagoId(medios))
+  }, [medios, open, getValues, setValue])
 
   const close = () => {
     if (createGarantia.isPending) return
@@ -74,17 +99,39 @@ export default function RegistrarGarantiaDialog({
         ? fromDateTimeInputValue(values.fecha_inicio_garantia)
         : null,
     }
-    await createGarantia.mutateAsync(payload)
+    if (values.registrar_cobro) {
+      const comprobante = values.comprobante.trim()
+      payload.cobro = {
+        medio_pago_id: Number(values.medio_pago_id),
+        ...(comprobante ? { comprobante_cobro_garantia: comprobante } : {}),
+      }
+    }
+    const garantia = await createGarantia.mutateAsync(payload)
     reset(emptyValues)
     createGarantia.reset()
     showSuccess('Garantía registrada.')
     onClose()
+    if (payload.cobro) {
+      // El alta devuelve la garantía sin el recibo: se toma el emitido para el cobro inicial.
+      try {
+        const cobros = await instalacionesService.listCobrosGarantia(garantia.garantia_id)
+        if (cobros.length > 0) {
+          const ultimo = cobros.reduce((a, b) =>
+            b.cobro_garantia_id > a.cobro_garantia_id ? b : a,
+          )
+          setRecibo(ultimo.recibo)
+        }
+      } catch {
+        // El cobro ya quedó registrado; el recibo sigue disponible desde la lista de cobros.
+      }
+    }
   }
 
   const errorMsg = resolveErrorMessage(createGarantia.error)
   const sinElegibles = allowedProductoIds.length === 0
 
   return (
+    <>
     <Dialog open={open} onClose={close} maxWidth="sm" fullWidth>
       <DialogTitle>Registrar garantía</DialogTitle>
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -161,6 +208,64 @@ export default function RegistrarGarantiaDialog({
               )}
             />
 
+            <Controller
+              name="registrar_cobro"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                  }
+                  label="Registrar cobro ahora"
+                />
+              )}
+            />
+
+            {registrarCobro && (
+              <>
+                <Controller
+                  name="medio_pago_id"
+                  control={control}
+                  rules={{ required: 'Elegí el medio de pago.' }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      select
+                      label="Medio de pago"
+                      required
+                      error={!!errors.medio_pago_id}
+                      helperText={
+                        errors.medio_pago_id?.message ??
+                        'Se cobra el monto total con fecha de inicio de la garantía.'
+                      }
+                    >
+                      {(medios ?? []).map((m) => (
+                        <MenuItem key={m.id} value={String(m.id)}>
+                          {m.descripcion}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+                <Controller
+                  name="comprobante"
+                  control={control}
+                  rules={{ maxLength: { value: 200, message: 'Máximo 200 caracteres.' } }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Comprobante (opcional)"
+                      error={!!errors.comprobante}
+                      helperText={errors.comprobante?.message}
+                    />
+                  )}
+                />
+              </>
+            )}
+
             <Typography variant="caption" color="text.secondary">
               La garantía nace ACTIVA. El contrato se toma de la instalación.
             </Typography>
@@ -180,6 +285,8 @@ export default function RegistrarGarantiaDialog({
         </DialogActions>
       </form>
     </Dialog>
+    <ReciboGarantiaDialog recibo={recibo} onClose={() => setRecibo(null)} />
+    </>
   )
 }
 

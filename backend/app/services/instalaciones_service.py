@@ -571,6 +571,12 @@ class InstalacionesService:
     GARANTIA_RESOLUCION_REQUERIDA = "La resolución es obligatoria al anular la garantía."
     GARANTIA_RESOLUCION_RETENCION_REQUERIDA = "La resolución es obligatoria al retener el depósito."
     GARANTIA_FECHAS_INVALIDAS = "La fecha de fin no puede ser anterior a la de inicio."
+    RECIBO_GARANTIA_NO_ENCONTRADO = "Recibo de garantía no encontrado."
+    COBRO_GARANTIA_ANULADA = "No se puede registrar un cobro sobre una garantía anulada."
+    COBRO_GARANTIA_SIN_MONTO = "La garantía no tiene monto definido."
+    COBRO_GARANTIA_EXCEDE_SALDO = "El cobro supera el saldo pendiente de la garantía."
+    COBRO_GARANTIA_FECHA_FUTURA = "La fecha de cobro no puede ser futura."
+    COBRO_GARANTIA_MEDIO_INVALIDO = "Datos inválidos: el medio de pago no existe."
 
     def _estado_garantia_id(self, descripcion: str) -> int:
         estado_id = self.instalaciones_repo.get_estado_garantia_id(descripcion)
@@ -584,6 +590,7 @@ class InstalacionesService:
         producto_id: int,
         fecha_inicio_garantia: Optional[datetime] = None,
         monto_garantia: Optional[float] = None,
+        cobro: Optional[dict] = None,
     ) -> dict:
         instalacion = self._get_instalacion(instalacion_id)
         contrato_id = int(instalacion["contrato_id"])
@@ -622,7 +629,95 @@ class InstalacionesService:
         except psycopg.errors.UniqueViolation:
             raise ValueError(self.GARANTIA_ACTIVA_DUPLICADA)
 
+        if cobro:
+            self.registrar_cobro_garantia(
+                int(created["garantia_id"]),
+                {
+                    **cobro,
+                    "fecha_cobro_garantia": cobro.get("fecha_cobro_garantia") or fecha_inicio,
+                    "monto_cobro_garantia": (
+                        cobro.get("monto_cobro_garantia")
+                        if cobro.get("monto_cobro_garantia") is not None
+                        else monto_garantia
+                    ),
+                },
+            )
+
         return self.instalaciones_repo.get_garantia_by_id(int(created["garantia_id"]))
+
+    def registrar_cobro_garantia(self, garantia_id: int, data: dict) -> dict:
+        garantia = self.get_garantia(garantia_id)
+
+        if garantia["descripcion_egarantia"] == "ANULADA":
+            raise ValueError(self.COBRO_GARANTIA_ANULADA)
+        if garantia["monto_garantia"] is None:
+            raise ValueError(self.COBRO_GARANTIA_SIN_MONTO)
+
+        monto = data.get("monto_cobro_garantia")
+        if monto is None:
+            raise ValueError(self.COBRO_GARANTIA_SIN_MONTO)
+
+        fecha = data.get("fecha_cobro_garantia") or datetime.now(timezone.utc)
+        if fecha.tzinfo is None:
+            fecha = fecha.replace(tzinfo=timezone.utc)
+        if fecha > datetime.now(timezone.utc):
+            raise ValueError(self.COBRO_GARANTIA_FECHA_FUTURA)
+
+        # Se compara en centavos: evita que el redondeo de floats rechace el último pago.
+        cobrado = self.instalaciones_repo.sum_cobros_garantia(garantia_id)
+        if round((cobrado + monto) * 100) > round(float(garantia["monto_garantia"]) * 100):
+            raise ValueError(self.COBRO_GARANTIA_EXCEDE_SALDO)
+
+        if not self.instalaciones_repo.exists_medio_pago(data["medio_pago_id"]):
+            raise ValueError(self.COBRO_GARANTIA_MEDIO_INVALIDO)
+
+        cobro = self.instalaciones_repo.create_cobro_garantia(
+            garantia_id=garantia_id,
+            fecha_cobro_garantia=fecha,
+            monto_cobro_garantia=monto,
+            medio_pago_id=data["medio_pago_id"],
+            comprobante_cobro_garantia=data.get("comprobante_cobro_garantia"),
+        )
+
+        # Todo cobro emite su recibo en la misma transacción, con snapshot de los
+        # datos: el saldo cambia con cobros posteriores.
+        total_al_emitir = cobrado + monto
+        monto_total = float(garantia["monto_garantia"])
+        producto = " ".join(
+            filter(
+                None,
+                [garantia["nombre_producto"], garantia["marca_producto"], garantia["modelo_producto"]],
+            )
+        )
+        cobro["recibo"] = self.instalaciones_repo.create_recibo_garantia(
+            cobro_garantia_id=cobro["cobro_garantia_id"],
+            importe_recibo_garantia=monto,
+            cliente_nombre=garantia["cliente_nombre"],
+            cliente_apellido=garantia["cliente_apellido"],
+            producto_descripcion=producto[:200],
+            monto_garantia=monto_total,
+            total_cobrado_al_emitir=total_al_emitir,
+            saldo_pendiente_al_emitir=round(monto_total - total_al_emitir, 2),
+            medio_pago_descripcion=cobro["descripcion_medio_pago"],
+            comprobante_cobro_garantia=cobro["comprobante_cobro_garantia"],
+            fecha_cobro_garantia=fecha,
+        )
+        return cobro
+
+    def list_cobros_garantia(self, garantia_id: int) -> list[dict]:
+        self.get_garantia(garantia_id)
+        cobros = self.instalaciones_repo.list_cobros_garantia(garantia_id)
+        for cobro in cobros:
+            cobro["recibo"] = self.instalaciones_repo.get_recibo_garantia_by_cobro(
+                cobro["cobro_garantia_id"]
+            )
+        return cobros
+
+    def get_recibo_garantia(self, recibo_garantia_id: int) -> dict:
+        recibo = self.instalaciones_repo.get_recibo_garantia_by_id(recibo_garantia_id)
+        if not recibo:
+            raise ValueError(self.RECIBO_GARANTIA_NO_ENCONTRADO)
+        return recibo
 
     def get_garantia(self, garantia_id: int) -> dict:
         garantia = self.instalaciones_repo.get_garantia_by_id(garantia_id)

@@ -186,3 +186,73 @@ async def test_generar_periodo_promo_no_vigente_422(admin_client, db_conn):
     r = await admin_client.post(f"/contratos/{contrato_id}/pagos/generar", json=body)
     assert r.status_code == 422, r.text
     assert r.json()["detail"] == "Promoción no vigente"
+
+
+@pytest.mark.anyio
+async def test_generar_periodo_con_cargo_adicional_suma_al_importe(admin_client, db_conn):
+    contrato_id, cliente_id, _ = _get_contrato_activo_y_cliente(db_conn)
+    today = date.today()
+    base = {
+        "fecha_emision": str(today),
+        "fecha_vencimiento": None,
+        "bonificacion_previa": 0,
+    }
+
+    # Mismo contrato, dos períodos lejanos: uno sin cargo (referencia) y otro con cargo.
+    r_ref = await admin_client.post(
+        f"/contratos/{contrato_id}/pagos/generar",
+        json={**base, "periodo_anio_pago": 2099, "periodo_mes_pago": 11},
+    )
+    assert r_ref.status_code == 200, r_ref.text
+    total_sin_cargo = Decimal(str(r_ref.json()["pago"]["total_factura"]))
+
+    r0 = await admin_client.get(f"/clientes/{cliente_id}/cuenta")
+    saldo_inicial = Decimal(str(r0.json()["saldo_cuenta"]))
+
+    r = await admin_client.post(
+        f"/contratos/{contrato_id}/pagos/generar",
+        json={
+            **base,
+            "periodo_anio_pago": 2099,
+            "periodo_mes_pago": 12,
+            "cargo_adicional": {"concepto": "Instalación", "importe": 50000},
+        },
+    )
+    assert r.status_code == 200, r.text
+    pago = r.json()["pago"]
+    total = Decimal(str(pago["total_factura"]))
+    assert total == total_sin_cargo + Decimal("50000")
+    assert Decimal(str(pago["saldo_pendiente"])) == total
+
+    r2 = await admin_client.get(f"/clientes/{cliente_id}/cuenta")
+    assert Decimal(str(r2.json()["saldo_cuenta"])) == saldo_inicial + total
+
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT concepto_fventas, importe_fventas, importe_total_fventas "
+            "FROM facturas_ventas WHERE factura_venta_id = %s",
+            (pago["factura_venta_id"],),
+        )
+        concepto, importe, importe_total = cur.fetchone()
+    assert concepto == "Servicio Internet 12/2099 + Instalación"
+    assert Decimal(str(importe)) == Decimal(str(importe_total)) == total
+
+    # El recálculo de bonificación (total = importe - bonif) conserva el cargo.
+    rb = await admin_client.patch(
+        f"/facturas-ventas/{pago['factura_venta_id']}",
+        json={"bonificacion_fventas": 10000},
+    )
+    assert rb.status_code == 200, rb.text
+    assert Decimal(str(rb.json()["total_new"])) == total - Decimal("10000")
+
+
+@pytest.mark.anyio
+async def test_generar_periodo_cargo_adicional_invalido_422(admin_client, db_conn):
+    contrato_id, _, _ = _get_contrato_activo_y_cliente(db_conn)
+    body = {
+        "periodo_anio_pago": 2099,
+        "periodo_mes_pago": 10,
+        "cargo_adicional": {"concepto": "Instalación", "importe": 0},
+    }
+    r = await admin_client.post(f"/contratos/{contrato_id}/pagos/generar", json=body)
+    assert r.status_code == 422, r.text

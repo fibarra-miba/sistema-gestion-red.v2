@@ -83,7 +83,7 @@ const NAV_ITEMS: NavItem[] = [
     to: '/garantias',
     label: 'Garantías',
     icon: <SavingsIcon />,
-    anyOf: ['can_manage_instalaciones'],
+    anyOf: ['can_view_garantias'],
   },
   {
     to: '/productos',

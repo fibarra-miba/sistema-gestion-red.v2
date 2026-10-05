@@ -575,10 +575,19 @@ class InstalacionesRepository:
             g.motivo_garantia,
             g.resolucion_garantia,
             g.fecha_creacion_garantia,
+            COALESCE((
+                SELECT SUM(cg.monto_cobro_garantia) FROM cobros_garantia cg
+                WHERE cg.garantia_id = g.garantia_id
+            ), 0)::float8 AS total_cobrado,
+            (g.monto_garantia - COALESCE((
+                SELECT SUM(cg.monto_cobro_garantia) FROM cobros_garantia cg
+                WHERE cg.garantia_id = g.garantia_id
+            ), 0))::float8 AS saldo_pendiente_cobro,
             p.nombre_producto,
             p.marca_producto,
             p.modelo_producto,
             eg.descripcion_egarantia,
+            cl.cliente_id,
             cl.nombre_cliente AS cliente_nombre,
             cl.apellido_cliente AS cliente_apellido
         FROM garantia g
@@ -587,6 +596,173 @@ class InstalacionesRepository:
         JOIN contratos c ON c.contrato_id = g.contrato_id
         JOIN clientes cl ON cl.cliente_id = c.cliente_id
     """
+
+    def exists_medio_pago(self, medio_pago_id: int) -> bool:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM medios_pagos WHERE medio_pago_id = %s", (medio_pago_id,)
+            )
+            return cur.fetchone() is not None
+
+    def sum_cobros_garantia(self, garantia_id: int) -> float:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(SUM(monto_cobro_garantia), 0) FROM cobros_garantia WHERE garantia_id = %s",
+                (garantia_id,),
+            )
+            return float(cur.fetchone()[0])
+
+    _SELECT_COBRO_GARANTIA = """
+        SELECT
+            cg.cobro_garantia_id,
+            cg.garantia_id,
+            cg.fecha_cobro_garantia,
+            cg.monto_cobro_garantia::float8 AS monto_cobro_garantia,
+            cg.medio_pago_id,
+            mp.descripcion_mpagos AS descripcion_medio_pago,
+            cg.comprobante_cobro_garantia,
+            cg.fecha_creacion_cobro_garantia
+        FROM cobros_garantia cg
+        JOIN medios_pagos mp ON mp.medio_pago_id = cg.medio_pago_id
+    """
+
+    def create_cobro_garantia(
+        self,
+        garantia_id: int,
+        fecha_cobro_garantia: datetime,
+        monto_cobro_garantia: float,
+        medio_pago_id: int,
+        comprobante_cobro_garantia: str | None,
+    ) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                INSERT INTO cobros_garantia (
+                    garantia_id,
+                    fecha_cobro_garantia,
+                    monto_cobro_garantia,
+                    medio_pago_id,
+                    comprobante_cobro_garantia
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING cobro_garantia_id
+                """,
+                (
+                    garantia_id,
+                    fecha_cobro_garantia,
+                    monto_cobro_garantia,
+                    medio_pago_id,
+                    comprobante_cobro_garantia,
+                ),
+            )
+            cobro_id = cur.fetchone()["cobro_garantia_id"]
+            cur.execute(
+                self._SELECT_COBRO_GARANTIA + " WHERE cg.cobro_garantia_id = %s", (cobro_id,)
+            )
+            return cur.fetchone()
+
+    _SELECT_RECIBO_GARANTIA = """
+        SELECT
+            rg.recibo_garantia_id,
+            rg.cobro_garantia_id,
+            cg.garantia_id,
+            rg.numero_recibo_garantia,
+            rg.fecha_emision_recibo_garantia,
+            rg.importe_recibo_garantia::float8 AS importe_recibo_garantia,
+            rg.cliente_nombre,
+            rg.cliente_apellido,
+            rg.producto_descripcion,
+            rg.monto_garantia::float8 AS monto_garantia,
+            rg.total_cobrado_al_emitir::float8 AS total_cobrado_al_emitir,
+            rg.saldo_pendiente_al_emitir::float8 AS saldo_pendiente_al_emitir,
+            rg.medio_pago_descripcion,
+            rg.comprobante_cobro_garantia,
+            rg.fecha_cobro_garantia
+        FROM recibos_garantia rg
+        JOIN cobros_garantia cg ON cg.cobro_garantia_id = rg.cobro_garantia_id
+    """
+
+    # El id se reserva con nextval para armar el número 'DG-000001' en un solo INSERT.
+    def create_recibo_garantia(
+        self,
+        cobro_garantia_id: int,
+        importe_recibo_garantia: float,
+        cliente_nombre: str,
+        cliente_apellido: str,
+        producto_descripcion: str,
+        monto_garantia: float,
+        total_cobrado_al_emitir: float,
+        saldo_pendiente_al_emitir: float,
+        medio_pago_descripcion: str,
+        comprobante_cobro_garantia: str | None,
+        fecha_cobro_garantia: datetime,
+    ) -> dict:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                WITH n AS (
+                    SELECT nextval(pg_get_serial_sequence('recibos_garantia', 'recibo_garantia_id')) AS id
+                )
+                INSERT INTO recibos_garantia (
+                    recibo_garantia_id,
+                    cobro_garantia_id,
+                    numero_recibo_garantia,
+                    importe_recibo_garantia,
+                    cliente_nombre,
+                    cliente_apellido,
+                    producto_descripcion,
+                    monto_garantia,
+                    total_cobrado_al_emitir,
+                    saldo_pendiente_al_emitir,
+                    medio_pago_descripcion,
+                    comprobante_cobro_garantia,
+                    fecha_cobro_garantia
+                )
+                SELECT n.id, %s, 'DG-' || lpad(n.id::text, 6, '0'), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                FROM n
+                RETURNING recibo_garantia_id
+                """,
+                (
+                    cobro_garantia_id,
+                    importe_recibo_garantia,
+                    cliente_nombre,
+                    cliente_apellido,
+                    producto_descripcion,
+                    monto_garantia,
+                    total_cobrado_al_emitir,
+                    saldo_pendiente_al_emitir,
+                    medio_pago_descripcion,
+                    comprobante_cobro_garantia,
+                    fecha_cobro_garantia,
+                ),
+            )
+            recibo_id = cur.fetchone()["recibo_garantia_id"]
+        return self.get_recibo_garantia_by_id(recibo_id)
+
+    def get_recibo_garantia_by_id(self, recibo_garantia_id: int) -> Optional[dict]:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                self._SELECT_RECIBO_GARANTIA + " WHERE rg.recibo_garantia_id = %s",
+                (recibo_garantia_id,),
+            )
+            return cur.fetchone()
+
+    def get_recibo_garantia_by_cobro(self, cobro_garantia_id: int) -> Optional[dict]:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                self._SELECT_RECIBO_GARANTIA + " WHERE rg.cobro_garantia_id = %s",
+                (cobro_garantia_id,),
+            )
+            return cur.fetchone()
+
+    def list_cobros_garantia(self, garantia_id: int) -> list[dict]:
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                self._SELECT_COBRO_GARANTIA
+                + " WHERE cg.garantia_id = %s ORDER BY cg.fecha_cobro_garantia, cg.cobro_garantia_id",
+                (garantia_id,),
+            )
+            return cur.fetchall()
 
     def get_garantia_by_id(self, garantia_id: int) -> Optional[dict]:
         with self.conn.cursor(row_factory=dict_row) as cur:
@@ -727,16 +903,31 @@ class InstalacionesRepository:
                     ), 0) AS devuelto,
                     COALESCE(SUM(g.monto_garantia) FILTER (
                         WHERE eg.descripcion_egarantia = 'RETENIDA'
-                    ), 0) AS retenido
+                    ), 0) AS retenido,
+                    COALESCE(SUM(g.monto_garantia - COALESCE(cb.total, 0)) FILTER (
+                        WHERE eg.descripcion_egarantia = 'ACTIVA'
+                          AND g.monto_garantia IS NOT NULL
+                    ), 0) AS pendiente_cobro
                 FROM garantia g
                 JOIN estado_garantia eg ON eg.estado_garantia_id = g.estado_garantia_id
+                LEFT JOIN (
+                    SELECT garantia_id, SUM(monto_cobro_garantia) AS total
+                    FROM cobros_garantia
+                    GROUP BY garantia_id
+                ) cb ON cb.garantia_id = g.garantia_id
                 """
             )
             row = cur.fetchone()
+            cur.execute(
+                "SELECT COALESCE(SUM(monto_cobro_garantia), 0) AS cobrado FROM cobros_garantia"
+            )
+            cobrado = cur.fetchone()["cobrado"]
 
         return {
             "comprometido": float(row["comprometido"]),
             "cantidad_activas": int(row["cantidad_activas"]),
             "devuelto": float(row["devuelto"]),
             "retenido": float(row["retenido"]),
+            "cobrado": float(cobrado),
+            "pendiente_cobro": float(row["pendiente_cobro"]),
         }

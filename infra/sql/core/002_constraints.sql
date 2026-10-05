@@ -427,6 +427,24 @@ ALTER TABLE garantia
   CHECK (monto_garantia IS NULL OR monto_garantia >= 0);
 
 -- ============================
+-- COBROS_GARANTIA
+-- ============================
+ALTER TABLE cobros_garantia
+  ADD CONSTRAINT fk_cobros_garantia_garantia
+  FOREIGN KEY (garantia_id)
+  REFERENCES garantia(garantia_id);
+
+ALTER TABLE cobros_garantia
+  ADD CONSTRAINT fk_cobros_garantia_medio_pago
+  FOREIGN KEY (medio_pago_id)
+  REFERENCES medios_pagos(medio_pago_id);
+
+ALTER TABLE recibos_garantia
+  ADD CONSTRAINT fk_recibos_garantia_cobro
+  FOREIGN KEY (cobro_garantia_id)
+  REFERENCES cobros_garantia(cobro_garantia_id);
+
+-- ============================
 -- PRODUCTOS
 -- ============================
 -- Sin unicidad por código, recargar el catálogo duplica en silencio y las

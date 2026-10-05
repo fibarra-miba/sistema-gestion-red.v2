@@ -32,6 +32,7 @@ import {
   type DomicilioCreate,
   type DomicilioOut,
 } from '@/features/clientes'
+import { GarantiasClienteSection } from '@/features/instalaciones'
 import ClienteForm, { type ClienteFormValues } from '@/features/clientes/components/ClienteForm'
 import DomicilioVigenteCard from '@/features/clientes/components/domicilios/DomicilioVigenteCard'
 import DomicilioHistorialList from '@/features/clientes/components/domicilios/DomicilioHistorialList'
@@ -49,6 +50,8 @@ export default function ClienteDetailPage() {
   const { hasCapability } = useAuth()
   const { showSuccess } = useSnackbar()
   const canManageEstado = hasCapability('can_manage_clientes')
+  const canVerGarantias = hasCapability('can_view_garantias')
+  const canCobrarGarantias = hasCapability('can_cobrar_garantias')
 
   const clienteQuery = useCliente(clienteId)
   const vigenteQuery = useDomicilioVigente(clienteId)
@@ -289,6 +292,10 @@ export default function ClienteDetailPage() {
           </Box>
         </Stack>
       </Box>
+
+      {canVerGarantias && (
+        <GarantiasClienteSection clienteId={clienteId} canCobrar={canCobrarGarantias} />
+      )}
 
       <Dialog open={editOpen} onClose={handleCloseEdit} maxWidth="sm" fullWidth>
         <DialogTitle>Editar cliente</DialogTitle>

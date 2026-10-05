@@ -52,4 +52,6 @@ export interface DepositosResumen {
   cantidad_activas: number
   devuelto: number
   retenido: number
+  cobrado: number
+  pendiente_cobro: number
 }

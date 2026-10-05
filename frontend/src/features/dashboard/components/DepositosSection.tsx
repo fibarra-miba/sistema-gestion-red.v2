@@ -1,4 +1,5 @@
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined'
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import AssignmentReturnedOutlinedIcon from '@mui/icons-material/AssignmentReturnedOutlined'
 
@@ -14,7 +15,7 @@ export default function DepositosSection() {
 
   return (
     <SectionShell title="Depósitos" to="/garantias" toLabel="Ver garantías">
-      <KpiGridState isLoading={isLoading} isError={isError} skeletonCount={3}>
+      <KpiGridState isLoading={isLoading} isError={isError} skeletonCount={5}>
         <KpiCard
           label="Comprometido"
           value={formatCurrencyARS(data?.comprometido ?? 0)}
@@ -36,6 +37,20 @@ export default function DepositosSection() {
           color="warning"
           to="/garantias"
           icon={<LockOutlinedIcon fontSize="small" />}
+        />
+        <KpiCard
+          label="Cobrado"
+          value={formatCurrencyARS(data?.cobrado ?? 0)}
+          color="success"
+          to="/garantias"
+          icon={<PaymentsOutlinedIcon fontSize="small" />}
+        />
+        <KpiCard
+          label="Pendiente de cobro"
+          value={formatCurrencyARS(data?.pendiente_cobro ?? 0)}
+          color="warning"
+          to="/garantias"
+          icon={<PaymentsOutlinedIcon fontSize="small" />}
         />
       </KpiGridState>
     </SectionShell>

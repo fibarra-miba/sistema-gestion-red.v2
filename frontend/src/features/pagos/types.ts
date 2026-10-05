@@ -48,6 +48,13 @@ export interface GenerarPeriodoIn {
   fecha_emision?: string | null
   fecha_vencimiento?: string | null
   bonificacion_previa?: number
+  // Se suma al importe de la factura (ej. instalación junto al primer mes).
+  cargo_adicional?: CargoAdicionalIn
+}
+
+export interface CargoAdicionalIn {
+  concepto: string
+  importe: number
 }
 
 export interface GenerarLoteIn {

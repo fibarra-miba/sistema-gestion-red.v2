@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import {
   Alert,
   Box,
@@ -8,8 +8,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Stack,
+  Switch,
   TextField,
 } from '@mui/material'
 import { isApiError } from '@/types/api'
@@ -25,6 +27,9 @@ interface FormValues {
   fecha_emision: string
   fecha_vencimiento: string
   bonificacion_previa: string
+  con_cargo: boolean
+  cargo_concepto: string
+  cargo_importe: string
 }
 
 function todayIso(): string {
@@ -39,6 +44,9 @@ function defaults(): FormValues {
     fecha_emision: todayIso(),
     fecha_vencimiento: '',
     bonificacion_previa: '0',
+    con_cargo: false,
+    cargo_concepto: 'Instalación',
+    cargo_importe: '',
   }
 }
 
@@ -61,10 +69,14 @@ export default function GenerarPeriodoDialog({
 }: Props) {
   const {
     register,
+    control,
+    watch,
     handleSubmit,
     reset,
     formState: { errors },
   } = useForm<FormValues>({ defaultValues: defaults() })
+
+  const conCargo = watch('con_cargo')
 
   useEffect(() => {
     if (open) reset(defaults())
@@ -82,6 +94,12 @@ export default function GenerarPeriodoDialog({
       fecha_emision: values.fecha_emision || todayIso(),
       fecha_vencimiento: values.fecha_vencimiento || null,
       bonificacion_previa: bonif,
+    }
+    if (values.con_cargo) {
+      payload.cargo_adicional = {
+        concepto: values.cargo_concepto.trim(),
+        importe: Number(values.cargo_importe),
+      }
     }
     await onConfirm(payload)
   }
@@ -184,6 +202,60 @@ export default function GenerarPeriodoDialog({
                 },
               })}
             />
+
+            <Controller
+              name="con_cargo"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                  }
+                  label="Agregar cargo adicional"
+                />
+              )}
+            />
+
+            {conCargo && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  label="Concepto"
+                  required
+                  fullWidth
+                  slotProps={{ htmlInput: { maxLength: 60 } }}
+                  error={!!errors.cargo_concepto}
+                  helperText={errors.cargo_concepto?.message}
+                  {...register('cargo_concepto', {
+                    validate: (v) => {
+                      const t = v.trim()
+                      if (t.length < 1) return 'Requerido'
+                      if (t.length > 60) return 'Máximo 60 caracteres'
+                      return true
+                    },
+                  })}
+                />
+                <TextField
+                  type="number"
+                  label="Importe"
+                  required
+                  fullWidth
+                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                  error={!!errors.cargo_importe}
+                  helperText={errors.cargo_importe?.message}
+                  {...register('cargo_importe', {
+                    validate: (v) => {
+                      const n = Number(v)
+                      if (!v || Number.isNaN(n)) return 'Requerido'
+                      if (n <= 0) return 'Debe ser mayor a 0'
+                      return true
+                    },
+                  })}
+                />
+              </Stack>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

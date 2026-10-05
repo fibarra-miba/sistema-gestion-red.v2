@@ -29,6 +29,7 @@ export function useUpdateGarantia() {
       })
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasLists() })
       qc.invalidateQueries({ queryKey: instalacionesKeys.garantiasResumen() })
+      qc.invalidateQueries({ queryKey: instalacionesKeys.garantiaDetail(garantia.garantia_id) })
     },
   })
 }

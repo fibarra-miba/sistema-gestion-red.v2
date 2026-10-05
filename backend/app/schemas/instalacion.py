@@ -190,11 +190,64 @@ class DetalleInstalacionListResponse(BaseModel):
 
 # El contrato se deriva de la instalación; el estado nace ACTIVA en el backend.
 # fecha_inicio es opcional (default now()): editable para carga masiva histórica.
+# Cobro inline del alta: fecha default = inicio de la garantía, monto default = total.
+class CobroGarantiaAltaCreate(BaseModel):
+    fecha_cobro_garantia: Optional[datetime] = None
+    monto_cobro_garantia: Optional[float] = Field(default=None, gt=0)
+    medio_pago_id: int = Field(..., ge=1)
+    comprobante_cobro_garantia: Optional[str] = Field(default=None, max_length=200)
+
+
 class GarantiaCreate(BaseModel):
     instalacion_id: int = Field(..., ge=1)
     producto_id: int = Field(..., ge=1)
     fecha_inicio_garantia: Optional[datetime] = None
     monto_garantia: Optional[float] = Field(default=None, ge=0)
+    cobro: Optional[CobroGarantiaAltaCreate] = None
+
+
+# Cobro del depósito (no es factura ni toca cuenta corriente).
+class CobroGarantiaCreate(BaseModel):
+    fecha_cobro_garantia: Optional[datetime] = None
+    monto_cobro_garantia: float = Field(..., gt=0)
+    medio_pago_id: int = Field(..., ge=1)
+    comprobante_cobro_garantia: Optional[str] = Field(default=None, max_length=200)
+
+
+class ReciboGarantiaOut(BaseModel):
+    recibo_garantia_id: int
+    cobro_garantia_id: int
+    garantia_id: int
+    numero_recibo_garantia: str
+    fecha_emision_recibo_garantia: datetime
+    importe_recibo_garantia: float
+    cliente_nombre: str
+    cliente_apellido: str
+    producto_descripcion: str
+    monto_garantia: float
+    total_cobrado_al_emitir: float
+    saldo_pendiente_al_emitir: float
+    medio_pago_descripcion: str
+    comprobante_cobro_garantia: Optional[str] = None
+    fecha_cobro_garantia: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CobroGarantiaOut(BaseModel):
+    cobro_garantia_id: int
+    garantia_id: int
+    fecha_cobro_garantia: datetime
+    monto_cobro_garantia: float
+    medio_pago_id: int
+    descripcion_medio_pago: str
+    comprobante_cobro_garantia: Optional[str] = None
+    fecha_creacion_cobro_garantia: datetime
+    recibo: ReciboGarantiaOut
+
+    class Config:
+        from_attributes = True
 
 
 # Update acotado al ciclo de vida: anular (estado ANULADA + resolución) y
@@ -220,11 +273,14 @@ class GarantiaOut(BaseModel):
     motivo_garantia: Optional[str] = None
     resolucion_garantia: Optional[str] = None
     fecha_creacion_garantia: datetime
+    total_cobrado: float = 0
+    saldo_pendiente_cobro: Optional[float] = None
     # Enriquecido vía join (evita N+1 en el frontend).
     nombre_producto: Optional[str] = None
     marca_producto: Optional[str] = None
     modelo_producto: Optional[str] = None
     descripcion_egarantia: Optional[str] = None
+    cliente_id: int
     cliente_nombre: Optional[str] = None
     cliente_apellido: Optional[str] = None
 
@@ -243,3 +299,5 @@ class GarantiasResumenOut(BaseModel):
     cantidad_activas: int
     devuelto: float
     retenido: float
+    cobrado: float
+    pendiente_cobro: float

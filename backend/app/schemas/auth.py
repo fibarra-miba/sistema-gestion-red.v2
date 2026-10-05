@@ -29,6 +29,8 @@ class CapabilitiesOut(BaseModel):
     can_manage_compras: bool = False
     can_manage_stock: bool = False
     can_view_stock: bool = False
+    can_view_garantias: bool = False
+    can_cobrar_garantias: bool = False
 
 
 class AuthMeResponse(BaseModel):

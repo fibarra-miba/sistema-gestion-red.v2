@@ -23,6 +23,8 @@ export interface Capabilities {
   can_manage_compras: boolean
   can_manage_stock: boolean
   can_view_stock: boolean
+  can_view_garantias: boolean
+  can_cobrar_garantias: boolean
 }
 
 export type CapabilityKey = keyof Capabilities
