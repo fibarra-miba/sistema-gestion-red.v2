@@ -86,6 +86,12 @@ Las operaciones de carga normales van **siempre por la API** (validan reglas y q
 ## Pendientes conocidos
 
 - **Contraseña de `admin` en PRD** sigue siendo la de fábrica: cambiarla antes de exponer PRD.
+- **Credenciales por defecto en el código** (auditoría del 2026-10-05; ningún secreto real de PRD
+  estuvo nunca en git): admin de fábrica en `005_catalogos_base.sql`, contraseña de reseteo fija
+  (`RESET_PASSWORD_DEFAULT`), menciones en el README y plantillas `.example` de DEV/n8n con valores
+  reales locales. Plan aprobado: admin inicial por comando interactivo, reseteo con contraseña
+  temporal aleatoria, plantillas en `CHANGE_ME`, permisos 600 y `docs/secretos.md`. Se resuelve
+  antes del bloque C, junto con la separación en dos repos (personal y PRD).
 - **Retención → ingreso**: una garantía `RETENIDA` todavía no genera el ingreso en facturación.
 - **Plazo de reclamo de garantía**: se controla a mano; podría automatizarse (aviso o paso a `RETENIDA`).
 - **Ficha del cliente para COBRANZAS**: hoy no la ve (la ruta exige gestionar clientes); se evaluó
