@@ -1,50 +1,43 @@
-# React + TypeScript + Vite
+# Sistema RED — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 18 + Vite + TypeScript (strict) + MUI · TanStack Query · Axios · React Hook Form · React Router.
+Gestor: **pnpm** (no npm).
 
-Currently, two official plugins are available:
+## Correr
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Normalmente vía launcher desde la raíz del repo: `./red up` (DEV, Vite con hot reload en
+http://localhost:5173) o `./red prd build && ./red prd up` (bundle estático detrás de Traefik
+en https://red.localhost).
 
-## Expanding the ESLint configuration
+En DEV `node_modules` lo instala el contenedor: verificá **dentro** de él.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+docker exec red_dev_frontend sh -c "cd /app && pnpm exec tsc -b && pnpm lint"
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+`tsc --noEmit` da falso verde con este tsconfig (solution-style): usar `tsc -b`.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+## API
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+Instancia Axios única en `src/services/http.ts` (`withCredentials`, sesión por cookie httpOnly,
+interceptor que normaliza errores a `ApiError`). Base URL desde `VITE_API_BASE_URL`:
+`http://localhost:8000` en DEV, `/api` en PRD (mismo origen; se hornea en el build).
+
+## Estructura
+
 ```
+src/
+├── features/<módulo>/   # components · hooks · services · types.ts · index.ts (barrel)
+├── components/ui/       # primitivos compartidos (DataTable, ConfirmDialog, ...)
+├── pages/               # ensamblado de features por ruta
+├── routes/              # router + RequireCapability (gating por capabilities de /auth/me)
+├── layouts/  lib/  services/  theme/  types/
+```
+
+Reglas (capas, tipos espejo del backend, naming) en el `CLAUDE.md` de la raíz; reglas de
+negocio en [`../docs/operacion.md`](../docs/operacion.md).
+
+## Impresión
+
+Los recibos (pagos y depósitos de garantía) usan la clase `.recibo-print`; el `@media print`
+de `src/index.css` oculta el resto de la página.
