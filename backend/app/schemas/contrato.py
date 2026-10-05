@@ -40,6 +40,8 @@ class ContractCreate(BaseModel):
     # Promo opcional en el alta. Si se informa, el contrato nace con
     # aplica_promocion=TRUE (consistencia garantizada por chk_contrato_promocion).
     promocion_id: Optional[int] = Field(default=None, ge=1)
+    # Alta retroactiva: si no se informa, se usa now() (comportamiento actual).
+    fecha_inicio_contrato: Optional[datetime] = None
 
 
 # ==========================================================
@@ -109,6 +111,11 @@ class ContractSuspend(BaseModel):
 
 class ContractTerminate(BaseModel):
     motivo: Optional[str] = Field(None, max_length=200)
+    fecha_fin_contrato: Optional[datetime] = None
+
+
+# Cancel comparte el mismo contrato de baja (motivo + fecha opcional).
+ContractCancel = ContractTerminate
 
 
 class ContractChangePlan(BaseModel):

@@ -50,3 +50,34 @@ export function toDateInputValue(iso: string | null | undefined): string {
 export function fromDateInputValue(value: string): string {
   return new Date(`${value}T00:00:00Z`).toISOString()
 }
+
+// YYYY-MM-DD de HOY en horario LOCAL (no UTC). Usar como default/tope de
+// campos "no puede ser futura" — comparar contra la fecha local del
+// usuario, no contra el corrimiento de toDateInputValue() (que usa UTC).
+export function todayDateInputValue(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// Convierte un YYYY-MM-DD del input a ISO al MEDIODÍA LOCAL, con el offset
+// horario local explícito en el string (no se normaliza a UTC). Evita que
+// una fecha "de hoy" se corra al día anterior/siguiente cuando el backend
+// interpreta el datetime en su propia zona horaria — mediodía tiene margen
+// de sobra para cualquier offset real. Usar para fechas de negocio nuevas
+// (inicio/fin de contrato, fecha de instalación), no para las históricas
+// que ya usan fromDateInputValue (medianoche UTC).
+// Si la fecha es HOY se manda el instante actual: el mediodía de hoy, antes
+// de las 12, es futuro y el backend rechaza fechas futuras.
+export function fromDateInputValueLocalNoon(value: string): string {
+  if (value === todayDateInputValue()) return new Date().toISOString()
+  const [y, m, d] = value.split('-').map(Number)
+  const noonLocal = new Date(y, m - 1, d, 12, 0, 0)
+  const offsetMin = -noonLocal.getTimezoneOffset()
+  const sign = offsetMin >= 0 ? '+' : '-'
+  const abs = Math.abs(offsetMin)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offsetH = pad(Math.floor(abs / 60))
+  const offsetM = pad(abs % 60)
+  return `${y}-${pad(m)}-${pad(d)}T12:00:00${sign}${offsetH}:${offsetM}`
+}

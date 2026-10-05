@@ -80,3 +80,16 @@ export interface DomicilioCreate {
   fecha_hasta_dom?: string | null
   estado_domicilio_id: number
 }
+
+// Corrección de datos de carga (PATCH parcial) — no es una mudanza, no
+// toca fechas de vigencia. 404 si no pertenece al cliente, 400 si el
+// body queda vacío, 422 datos inválidos.
+export interface DomicilioUpdate {
+  complejo?: string | null
+  torre?: string | null
+  piso?: number | null
+  depto?: string | null
+  calle?: string | null
+  numero?: number | null
+  referencias?: string | null
+}

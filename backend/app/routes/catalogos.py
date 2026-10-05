@@ -49,6 +49,12 @@ def tipos_producto(conn: Connection = Depends(get_db)):
     return service.list_tipos_producto()
 
 
+@router.get("/estados-cliente", response_model=list[CatalogoItemOut])
+def estados_cliente(conn: Connection = Depends(get_db)):
+    service = CatalogosService(conn)
+    return service.list_estados_cliente()
+
+
 @router.get("/estados-garantia", response_model=list[CatalogoItemOut])
 def estados_garantia(conn: Connection = Depends(get_db)):
     service = CatalogosService(conn)

@@ -7,9 +7,13 @@ from app.repositories import (
     domicilios_repo,
     cuentas_repo,  # se mantiene import, aunque no use create_cuenta
 )
+from app.repositories.contratos_repo import ContractRepository
 
 
 class ClienteService:
+
+    # IDs del catálogo estado_contrato (mismos que ContractService).
+    CONTRATOS_VIVOS = (3, 4)  # ACTIVO, SUSPENDIDO
 
     @staticmethod
     def listar(
@@ -135,3 +139,44 @@ class ClienteService:
         ClienteService._create_cuenta_minimal(conn, cliente_id, self_check)
 
         return cliente
+
+    @staticmethod
+    def _resolver_estado_cliente(conn: psycopg.Connection, descripcion: str) -> int:
+        estado_id = clientes_repo.get_estado_cliente_id(conn, descripcion)
+        if estado_id is None:
+            raise ValueError(f"No existe estado de cliente '{descripcion}'.")
+        return estado_id
+
+    @staticmethod
+    def activar_cliente(conn: psycopg.Connection, cliente_id: int) -> Dict[str, Any]:
+        cliente = clientes_repo.get_cliente_by_id(conn, cliente_id)
+        if not cliente:
+            raise ValueError("CLIENTE_NOT_FOUND")
+
+        estado_activo = ClienteService._resolver_estado_cliente(conn, "ACTIVO")
+        if int(cliente["estado_cliente_id"]) == estado_activo:
+            raise ValueError("El cliente ya está ACTIVO.")
+
+        return clientes_repo.update_estado_cliente(conn, cliente_id, estado_activo)
+
+    @staticmethod
+    def desactivar_cliente(conn: psycopg.Connection, cliente_id: int) -> Dict[str, Any]:
+        cliente = clientes_repo.get_cliente_by_id(conn, cliente_id)
+        if not cliente:
+            raise ValueError("CLIENTE_NOT_FOUND")
+
+        estado_inactivo = ClienteService._resolver_estado_cliente(conn, "INACTIVO")
+        if int(cliente["estado_cliente_id"]) == estado_inactivo:
+            raise ValueError("El cliente ya está INACTIVO.")
+
+        contratos = ContractRepository(conn).get_by_cliente(cliente_id)
+        tiene_contrato_vivo = any(
+            int(c["estado_contrato_id"]) in ClienteService.CONTRATOS_VIVOS
+            for c in contratos
+        )
+        if tiene_contrato_vivo:
+            raise ValueError(
+                "El cliente tiene contratos activos o suspendidos. Dalos de baja primero."
+            )
+
+        return clientes_repo.update_estado_cliente(conn, cliente_id, estado_inactivo)

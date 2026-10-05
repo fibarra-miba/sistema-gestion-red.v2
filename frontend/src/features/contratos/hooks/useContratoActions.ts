@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { contratosService } from '../services/contratosService'
 import { contratosKeys } from '../keys'
-import type { ContractActionResponse, ContractOut } from '../types'
+import type { ContractActionResponse, ContractBajaIn, ContractOut } from '../types'
 import type { ApiError } from '@/types/api'
 
 // Transiciones de estado sin payload. Todas devuelven { message }.
@@ -30,14 +30,26 @@ export function useContratoActions() {
     onSuccess: (_data, id) => invalidate(id),
   })
 
-  const cancel = useMutation<ContractActionResponse, ApiError, number>({
-    mutationFn: (id) => contratosService.cancel(id),
-    onSuccess: (_data, id) => invalidate(id),
+  // cancel/terminate ahora aceptan fecha_fin_contrato/motivo opcionales
+  // (BajaContratoDialog) — variables con forma { contratoId, payload }.
+  const cancel = useMutation<
+    ContractActionResponse,
+    ApiError,
+    { contratoId: number; payload?: ContractBajaIn }
+  >({
+    mutationFn: ({ contratoId, payload }) =>
+      contratosService.cancel(contratoId, payload),
+    onSuccess: (_data, { contratoId }) => invalidate(contratoId),
   })
 
-  const terminate = useMutation<ContractActionResponse, ApiError, number>({
-    mutationFn: (id) => contratosService.terminate(id),
-    onSuccess: (_data, id) => invalidate(id),
+  const terminate = useMutation<
+    ContractActionResponse,
+    ApiError,
+    { contratoId: number; payload?: ContractBajaIn }
+  >({
+    mutationFn: ({ contratoId, payload }) =>
+      contratosService.terminate(contratoId, payload),
+    onSuccess: (_data, { contratoId }) => invalidate(contratoId),
   })
 
   const asignarPromo = useMutation<

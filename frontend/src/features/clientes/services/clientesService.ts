@@ -26,4 +26,14 @@ export const clientesService = {
     const { data } = await http.put<ClienteOut>(`/clientes/${clienteId}`, payload)
     return data
   },
+
+  async activar(clienteId: number): Promise<ClienteOut> {
+    const { data } = await http.post<ClienteOut>(`/clientes/${clienteId}/activar`)
+    return data
+  },
+
+  async desactivar(clienteId: number): Promise<ClienteOut> {
+    const { data } = await http.post<ClienteOut>(`/clientes/${clienteId}/desactivar`)
+    return data
+  },
 }

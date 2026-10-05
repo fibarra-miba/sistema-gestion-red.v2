@@ -2,14 +2,17 @@ import {
   Alert,
   Box,
   Chip,
+  IconButton,
   List,
   ListItem,
   ListItemText,
   Paper,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
 import { isApiError } from '@/types/api'
 import type { DomicilioOut } from '../../types'
 import { formatDomicilioLine, formatFechaCorta, isVigente } from './domicilioDisplay'
@@ -18,12 +21,14 @@ interface DomicilioHistorialListProps {
   items: DomicilioOut[] | undefined
   loading?: boolean
   error?: unknown
+  onEdit: (domicilio: DomicilioOut) => void
 }
 
 export default function DomicilioHistorialList({
   items,
   loading,
   error,
+  onEdit,
 }: DomicilioHistorialListProps) {
   if (loading) {
     return (
@@ -61,7 +66,19 @@ export default function DomicilioHistorialList({
           <ListItem
             key={d.domicilio_id}
             divider={idx < ordered.length - 1}
-            sx={{ py: 1.25 }}
+            sx={{ py: 1.25, pr: 6 }}
+            secondaryAction={
+              <Tooltip title="Editar datos">
+                <IconButton
+                  edge="end"
+                  size="small"
+                  onClick={() => onEdit(d)}
+                  aria-label="editar domicilio"
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            }
           >
             <ListItemText
               primary={

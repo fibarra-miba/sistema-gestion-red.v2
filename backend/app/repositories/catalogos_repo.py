@@ -85,6 +85,14 @@ class CatalogosRepo:
                 for r in cur.fetchall()
             ]
 
+    def list_estados_cliente(self) -> list[dict]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT estado_cliente_id, descripcion_ecliente "
+                "FROM estado_cliente ORDER BY estado_cliente_id"
+            )
+            return [{"id": r[0], "descripcion": r[1]} for r in cur.fetchall()]
+
     def list_estados_garantia(self) -> list[dict]:
         with self.conn.cursor() as cur:
             cur.execute(

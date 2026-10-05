@@ -12,6 +12,8 @@ export interface ContractCreate {
   // Promo opcional en el alta. Si se informa, el contrato nace con
   // aplica_promocion=true.
   promocion_id?: number | null
+  // Si se omite, el backend usa la fecha de hoy. Futura → 400.
+  fecha_inicio_contrato?: string
 }
 
 // ============================================================
@@ -101,4 +103,11 @@ export interface ContractProgramarInstalacionResponse {
 // Todos los endpoints de transición de estado devuelven este envelope.
 export interface ContractActionResponse {
   message: string
+}
+
+// Body opcional de terminate/cancel. Futura o anterior al inicio del
+// contrato → 400 con detail.
+export interface ContractBajaIn {
+  fecha_fin_contrato?: string
+  motivo?: string
 }

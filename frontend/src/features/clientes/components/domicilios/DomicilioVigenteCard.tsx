@@ -10,6 +10,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
 import { isApiError } from '@/types/api'
 import type { DomicilioOut } from '../../types'
 import { formatDomicilioLine, formatFechaCorta } from './domicilioDisplay'
@@ -20,6 +21,7 @@ interface DomicilioVigenteCardProps {
   error?: unknown
   onCreate: () => void
   onChange: () => void
+  onEdit: () => void
 }
 
 export default function DomicilioVigenteCard({
@@ -28,6 +30,7 @@ export default function DomicilioVigenteCard({
   error,
   onCreate,
   onChange,
+  onEdit,
 }: DomicilioVigenteCardProps) {
   if (loading) {
     return (
@@ -89,6 +92,9 @@ export default function DomicilioVigenteCard({
       </CardContent>
       <CardActions>
         <Button onClick={onChange}>Cambiar domicilio</Button>
+        <Button startIcon={<EditIcon />} onClick={onEdit}>
+          Editar datos
+        </Button>
       </CardActions>
     </Card>
   )

@@ -147,6 +147,26 @@ def list_domicilios_by_cliente(
         return cur.fetchall()
 
 
+def update_domicilio(
+    conn: psycopg.Connection,
+    domicilio_id: int,
+    fields: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    if not fields:
+        return get_domicilio_by_id(conn, domicilio_id)
+
+    set_clause = ", ".join(f"{key} = %s" for key in fields.keys())
+    values = list(fields.values())
+    values.append(domicilio_id)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"UPDATE domicilios SET {set_clause} WHERE domicilio_id = %s",
+            values,
+        )
+    return get_domicilio_by_id(conn, domicilio_id)
+
+
 def get_domicilio_by_id(
     conn: psycopg.Connection,
     domicilio_id: int

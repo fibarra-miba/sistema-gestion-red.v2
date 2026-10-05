@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { contratosKeys } from '@/features/contratos'
 import { instalacionesService } from '../services/instalacionesService'
 import { instalacionesKeys } from '../keys'
-import type { InstalacionAccionOut } from '../types'
+import type { InstalacionAccionOut, InstalacionCompletarIn } from '../types'
 import type { ApiError } from '@/types/api'
 
 // Transiciones sin payload. Mutations separadas para exponer
@@ -20,9 +20,15 @@ export function useInstalacionActions() {
     qc.invalidateQueries({ queryKey: contratosKeys.all })
   }
 
-  const completar = useMutation<InstalacionAccionOut, ApiError, number>({
-    mutationFn: (id) => instalacionesService.completar(id),
-    onSuccess: (_d, id) => invalidate(id),
+  // completar ahora acepta fecha_instalacion opcional (CompletarInstalacionDialog).
+  const completar = useMutation<
+    InstalacionAccionOut,
+    ApiError,
+    { instalacionId: number; payload?: InstalacionCompletarIn }
+  >({
+    mutationFn: ({ instalacionId, payload }) =>
+      instalacionesService.completar(instalacionId, payload),
+    onSuccess: (_d, { instalacionId }) => invalidate(instalacionId),
   })
 
   const cancelar = useMutation<InstalacionAccionOut, ApiError, number>({

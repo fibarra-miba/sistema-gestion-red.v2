@@ -235,3 +235,107 @@ async def test_post_domicilio_estado_invalido_422_y_sin_basura(admin_client, db_
     r = await admin_client.post(f"/clientes/{cliente_id}/domicilios", json=payload)
     assert r.status_code == 422, r.text
     assert _count(db_conn, "domicilios") == before
+
+
+# ==========================================================
+# PATCH (corrección de datos, sin mudanza)
+# ==========================================================
+
+@pytest.mark.anyio
+async def test_patch_domicilio_ok(admin_client, db_conn):
+    cliente_id = _insert_cliente_minimo(db_conn, "39999118")
+
+    creado = await admin_client.post(
+        f"/clientes/{cliente_id}/domicilios",
+        json={
+            "complejo": "Torre Vieja",
+            "piso": 1,
+            "depto": "A",
+            "calle": "Alsina",
+            "numero": 100,
+            "referencias": "Dato con error de tipeo",
+            "estado_domicilio_id": 1,
+        },
+    )
+    assert creado.status_code == 201, creado.text
+    domicilio_id = creado.json()["domicilio_id"]
+
+    r = await admin_client.patch(
+        f"/clientes/{cliente_id}/domicilios/{domicilio_id}",
+        json={"calle": "Alsina Corregida", "numero": 101},
+    )
+
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["calle"] == "Alsina Corregida"
+    assert data["numero"] == 101
+    # No tocado: se mantiene.
+    assert data["complejo"] == "Torre Vieja"
+    assert data["depto"] == "A"
+
+
+@pytest.mark.anyio
+async def test_patch_domicilio_ajeno_404(admin_client, db_conn):
+    cliente_id = _insert_cliente_minimo(db_conn, "39999119")
+    otro_cliente_id = _insert_cliente_minimo(db_conn, "39999120")
+
+    creado = await admin_client.post(
+        f"/clientes/{cliente_id}/domicilios",
+        json={
+            "complejo": "Torre A",
+            "piso": 1,
+            "depto": "A",
+            "calle": "Mitre",
+            "numero": 100,
+            "referencias": None,
+            "estado_domicilio_id": 1,
+        },
+    )
+    assert creado.status_code == 201, creado.text
+    domicilio_id = creado.json()["domicilio_id"]
+
+    r = await admin_client.patch(
+        f"/clientes/{otro_cliente_id}/domicilios/{domicilio_id}",
+        json={"calle": "Otra"},
+    )
+    assert r.status_code == 404, r.text
+    assert r.json()["detail"] == "Domicilio not found"
+
+
+@pytest.mark.anyio
+async def test_patch_domicilio_vacio_400(admin_client, db_conn):
+    cliente_id = _insert_cliente_minimo(db_conn, "39999121")
+
+    creado = await admin_client.post(
+        f"/clientes/{cliente_id}/domicilios",
+        json={
+            "complejo": "Torre A",
+            "piso": 1,
+            "depto": "A",
+            "calle": "Mitre",
+            "numero": 100,
+            "referencias": None,
+            "estado_domicilio_id": 1,
+        },
+    )
+    assert creado.status_code == 201, creado.text
+    domicilio_id = creado.json()["domicilio_id"]
+
+    r = await admin_client.patch(
+        f"/clientes/{cliente_id}/domicilios/{domicilio_id}",
+        json={},
+    )
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"] == "No hay cambios para aplicar."
+
+
+@pytest.mark.anyio
+async def test_patch_domicilio_inexistente_404(admin_client, db_conn):
+    cliente_id = _insert_cliente_minimo(db_conn, "39999122")
+
+    r = await admin_client.patch(
+        f"/clientes/{cliente_id}/domicilios/999999",
+        json={"calle": "Otra"},
+    )
+    assert r.status_code == 404, r.text
+    assert r.json()["detail"] == "Domicilio not found"

@@ -22,6 +22,7 @@ import {
   useProgramarInstalacion,
   ContratoDetailDialog,
   contratoDisplayName,
+  type ContractBajaIn,
   type ContractCommercialOut,
   type ContractCreate,
   type ContractProgramarInstalacion,
@@ -34,6 +35,9 @@ import ContratosTable, {
 import ContratoFilterBar from '@/features/contratos/components/ContratoFilterBar'
 import ChangePlanDialog from '@/features/contratos/components/ChangePlanDialog'
 import ProgramarInstalacionDialog from '@/features/contratos/components/ProgramarInstalacionDialog'
+import BajaContratoDialog, {
+  type BajaContratoKind,
+} from '@/features/contratos/components/BajaContratoDialog'
 
 export default function ContratosPage() {
   const { showSuccess } = useSnackbar()
@@ -60,7 +64,11 @@ export default function ContratosPage() {
   const [programarTarget, setProgramarTarget] =
     useState<ContractCommercialOut | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<{
-    kind: 'cancel' | 'terminate' | 'suspend' | 'resume' | 'activate'
+    kind: 'suspend' | 'resume' | 'activate'
+    contrato: ContractCommercialOut
+  } | null>(null)
+  const [bajaTarget, setBajaTarget] = useState<{
+    kind: BajaContratoKind
     contrato: ContractCommercialOut
   } | null>(null)
 
@@ -101,7 +109,7 @@ export default function ContratosPage() {
         return
       case 'cancel':
       case 'terminate':
-        setConfirmTarget({ kind: action, contrato })
+        setBajaTarget({ kind: action, contrato })
         return
     }
   }
@@ -109,9 +117,7 @@ export default function ContratosPage() {
   const runConfirmed = async () => {
     if (!confirmTarget) return
     const { kind, contrato } = confirmTarget
-    const mutation = actions[
-      kind === 'terminate' ? 'terminate' : kind
-    ] as typeof actions.activate
+    const mutation = actions[kind]
     try {
       await mutation.mutateAsync(contrato.contrato_id)
       setConfirmTarget(null)
@@ -124,13 +130,32 @@ export default function ContratosPage() {
 
   const closeConfirm = () => {
     if (confirmTarget) {
-      const m = actions[
-        confirmTarget.kind === 'terminate' ? 'terminate' : confirmTarget.kind
-      ]
+      const m = actions[confirmTarget.kind]
       if (m.isPending) return
       m.reset()
     }
     setConfirmTarget(null)
+  }
+
+  const handleBaja = async (payload: ContractBajaIn) => {
+    if (!bajaTarget) return
+    const { kind, contrato } = bajaTarget
+    const mutation = actions[kind]
+    await mutation.mutateAsync({ contratoId: contrato.contrato_id, payload })
+    setBajaTarget(null)
+    mutation.reset()
+    showSuccess(
+      kind === 'cancel' ? 'Contrato cancelado.' : 'Contrato dado de baja.',
+    )
+  }
+
+  const closeBaja = () => {
+    if (bajaTarget) {
+      const m = actions[bajaTarget.kind]
+      if (m.isPending) return
+      m.reset()
+    }
+    setBajaTarget(null)
   }
 
   const handleChangePlan = async (newPlanId: number) => {
@@ -171,11 +196,8 @@ export default function ContratosPage() {
   const confirmProps = confirmTarget
     ? confirmDialogProps(confirmTarget.kind, confirmTarget.contrato)
     : null
-  const confirmMutation = confirmTarget
-    ? actions[
-        confirmTarget.kind === 'terminate' ? 'terminate' : confirmTarget.kind
-      ]
-    : null
+  const confirmMutation = confirmTarget ? actions[confirmTarget.kind] : null
+  const bajaMutation = bajaTarget ? actions[bajaTarget.kind] : null
 
   return (
     <Stack spacing={{ xs: 2, md: 2.5 }} sx={{ minWidth: 0 }}>
@@ -264,7 +286,7 @@ export default function ContratosPage() {
         onCancel={closeProgramar}
       />
 
-      {/* Confirmación genérica (activate/suspend/resume/cancel/terminate) */}
+      {/* Confirmación genérica (activate/suspend/resume) */}
       <ConfirmDialog
         open={confirmTarget != null}
         title={confirmProps?.title ?? ''}
@@ -276,13 +298,24 @@ export default function ContratosPage() {
         onConfirm={runConfirmed}
         onCancel={closeConfirm}
       />
+
+      {/* Baja (cancel/terminate): pide fecha de baja + motivo opcional */}
+      <BajaContratoDialog
+        open={bajaTarget != null}
+        kind={bajaTarget?.kind ?? null}
+        contrato={bajaTarget?.contrato ?? null}
+        loading={bajaMutation?.isPending}
+        error={bajaMutation?.error}
+        onConfirm={handleBaja}
+        onCancel={closeBaja}
+      />
     </Stack>
   )
 }
 
 // ----------------------------------------------------------
 
-function successMessageFor(kind: string): string {
+function successMessageFor(kind: 'activate' | 'suspend' | 'resume'): string {
   switch (kind) {
     case 'activate':
       return 'Contrato activado.'
@@ -290,17 +323,13 @@ function successMessageFor(kind: string): string {
       return 'Contrato suspendido.'
     case 'resume':
       return 'Contrato reanudado.'
-    case 'cancel':
-      return 'Contrato cancelado.'
-    case 'terminate':
-      return 'Contrato dado de baja.'
     default:
       return 'Acción aplicada.'
   }
 }
 
 function confirmDialogProps(
-  kind: 'cancel' | 'terminate' | 'suspend' | 'resume' | 'activate',
+  kind: 'suspend' | 'resume' | 'activate',
   c: ContractCommercialOut,
 ): {
   title: string
@@ -311,20 +340,6 @@ function confirmDialogProps(
   const nombre = contratoDisplayName(c)
   const titlePrefix = `"${nombre}" (#${c.contrato_id})`
   switch (kind) {
-    case 'cancel':
-      return {
-        title: `Cancelar contrato ${titlePrefix}`,
-        description: `Se cancelará el contrato ${nombre}. Esta acción deja el contrato en estado CANCELADO — revisar que sea lo correcto.`,
-        confirmLabel: 'Cancelar contrato',
-        confirmColor: 'error',
-      }
-    case 'terminate':
-      return {
-        title: `Dar de baja ${titlePrefix}`,
-        description: `El contrato ${nombre} pasará a estado BAJA y dejará de estar operativo.`,
-        confirmLabel: 'Dar de baja',
-        confirmColor: 'error',
-      }
     case 'suspend':
       return {
         title: `Suspender ${titlePrefix}`,

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 
@@ -555,3 +557,186 @@ async def test_asignar_promocion_a_contrato_cancelado_400(admin_client, db_conn)
         json={"promocion_id": promo_id},
     )
     assert response.status_code == 400, response.text
+
+
+# ==========================================================
+# FECHAS REALES (alta retroactiva, baja/cancelación con fecha)
+# ==========================================================
+
+@pytest.mark.anyio
+async def test_create_contract_con_fecha_inicio_pasada(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    fecha_inicio = "2025-01-15T10:00:00Z"
+
+    response = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": fecha_inicio,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["fecha_inicio_contrato"].startswith("2025-01-15")
+    # El precio es el vigente HOY, no el de la fecha de inicio retroactiva.
+    assert float(data["precio_base_contrato"]) == 10000.0
+
+
+@pytest.mark.anyio
+async def test_activate_contrato_con_fecha_inicio_pasada_usa_esa_fecha(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    fecha_inicio = "2025-01-15T10:00:00Z"
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": fecha_inicio,
+        },
+    )
+    assert creado.status_code == 200, creado.text
+    contrato_id = creado.json()["contrato_id"]
+
+    activado = await admin_client.post(f"/contratos/{contrato_id}/activate")
+    assert activado.status_code == 200, activado.text
+
+    items = (
+        await admin_client.get(f"/instalaciones?contrato_id={contrato_id}")
+    ).json()["items"]
+    assert len(items) == 1
+    assert items[0]["fecha_instalacion"].startswith("2025-01-15")
+
+
+@pytest.mark.anyio
+async def test_create_contract_fecha_inicio_futura_400(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+    futura = (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()
+
+    response = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": futura,
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "La fecha de inicio no puede ser futura."
+
+
+@pytest.mark.anyio
+async def test_terminate_contract_sin_body_sigue_funcionando(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={"cliente_id": 1, "domicilio_id": domicilio_id, "plan_id": 1},
+    )
+    contrato_id = creado.json()["contrato_id"]
+    await admin_client.post(f"/contratos/{contrato_id}/activate")
+
+    response = await admin_client.post(f"/contratos/{contrato_id}/terminate")
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.anyio
+async def test_terminate_contract_con_fecha_y_motivo(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": "2025-01-01T00:00:00Z",
+        },
+    )
+    contrato_id = creado.json()["contrato_id"]
+    await admin_client.post(f"/contratos/{contrato_id}/activate")
+
+    # Posterior al inicio (2025-01-01) y anterior a "ahora": válida.
+    fecha_fin = "2025-06-01T00:00:00Z"
+    response = await admin_client.post(
+        f"/contratos/{contrato_id}/terminate",
+        json={"motivo": "Mudanza del cliente", "fecha_fin_contrato": fecha_fin},
+    )
+    assert response.status_code == 200, response.text
+
+    detalle = await admin_client.get(f"/contratos/{contrato_id}")
+    assert detalle.json()["fecha_fin_contrato"].startswith("2025-06-01")
+
+
+@pytest.mark.anyio
+async def test_terminate_contract_fecha_anterior_a_inicio_400(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": "2025-06-01T00:00:00Z",
+        },
+    )
+    contrato_id = creado.json()["contrato_id"]
+    await admin_client.post(f"/contratos/{contrato_id}/activate")
+
+    response = await admin_client.post(
+        f"/contratos/{contrato_id}/terminate",
+        json={"fecha_fin_contrato": "2025-01-01T00:00:00Z"},
+    )
+    assert response.status_code == 400, response.text
+    assert (
+        response.json()["detail"]
+        == "La fecha de baja no puede ser anterior al inicio del contrato."
+    )
+
+
+@pytest.mark.anyio
+async def test_cancel_contract_sin_body_sigue_funcionando(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={"cliente_id": 1, "domicilio_id": domicilio_id, "plan_id": 1},
+    )
+    contrato_id = creado.json()["contrato_id"]
+
+    response = await admin_client.post(f"/contratos/{contrato_id}/cancel")
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.anyio
+async def test_cancel_contract_con_fecha_y_motivo(admin_client, db_conn):
+    domicilio_id = _get_domicilio_id_seed(db_conn, 1)
+
+    creado = await admin_client.post(
+        "/contratos",
+        json={
+            "cliente_id": 1,
+            "domicilio_id": domicilio_id,
+            "plan_id": 1,
+            "fecha_inicio_contrato": "2025-01-01T00:00:00Z",
+        },
+    )
+    contrato_id = creado.json()["contrato_id"]
+
+    # Posterior al inicio (2025-01-01) y anterior a "ahora": válida.
+    fecha_fin = "2025-03-01T00:00:00Z"
+    response = await admin_client.post(
+        f"/contratos/{contrato_id}/cancel",
+        json={"motivo": "Cliente se arrepintió", "fecha_fin_contrato": fecha_fin},
+    )
+    assert response.status_code == 200, response.text
+
+    detalle = await admin_client.get(f"/contratos/{contrato_id}")
+    assert detalle.json()["fecha_fin_contrato"].startswith("2025-03-01")

@@ -140,6 +140,10 @@ class InstalacionListResponse(BaseModel):
     items: List[InstalacionResponse]
 
 
+class InstalacionCompletar(BaseModel):
+    fecha_instalacion: Optional[datetime] = None
+
+
 class InstalacionAccionOut(BaseModel):
     instalacion_id: int
     estado_instalacion_id: int

@@ -32,6 +32,11 @@ export const catalogosService = {
     return data
   },
 
+  async estadosCliente(): Promise<CatalogoItemOut[]> {
+    const { data } = await http.get<CatalogoItemOut[]>('/catalogos/estados-cliente')
+    return data
+  },
+
   async estadosProveedor(): Promise<CatalogoItemOut[]> {
     const { data } = await http.get<CatalogoItemOut[]>('/catalogos/estados-proveedor')
     return data

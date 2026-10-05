@@ -16,6 +16,7 @@ import {
   useReintentarInstalacion,
   useReprogramar,
   type EjecutarProgramacionIn,
+  type InstalacionCompletarIn,
   type InstalacionOut,
   type ListInstalacionesParams,
   type ProgramacionInstalacionOut,
@@ -32,8 +33,9 @@ import ProgramacionesDrawer, {
 import ReprogramarDialog from '@/features/instalaciones/components/ReprogramarDialog'
 import CrearInstalacionDialog from '@/features/instalaciones/components/CrearInstalacionDialog'
 import ReintentarDialog from '@/features/instalaciones/components/ReintentarDialog'
+import CompletarInstalacionDialog from '@/features/instalaciones/components/CompletarInstalacionDialog'
 
-type ConfirmKind = 'completar' | 'cancelar' | 'fallar' | 'darBaja'
+type ConfirmKind = 'cancelar' | 'fallar' | 'darBaja'
 
 export default function InstalacionesPage() {
   const { showSuccess } = useSnackbar()
@@ -65,6 +67,9 @@ export default function InstalacionesPage() {
     instalacion: InstalacionOut
   } | null>(null)
 
+  const [completarTarget, setCompletarTarget] =
+    useState<InstalacionOut | null>(null)
+
   const [reintentarTarget, setReintentarTarget] =
     useState<InstalacionOut | null>(null)
 
@@ -87,6 +92,8 @@ export default function InstalacionesPage() {
         setReintentarTarget(instalacion)
         return
       case 'completar':
+        setCompletarTarget(instalacion)
+        return
       case 'cancelar':
       case 'fallar':
       case 'darBaja':
@@ -116,6 +123,24 @@ export default function InstalacionesPage() {
       m.reset()
     }
     setConfirmTarget(null)
+  }
+
+  // ---- Handlers: completar (pide fecha real de instalación) ----
+  const handleCompletar = async (payload: InstalacionCompletarIn) => {
+    if (!completarTarget) return
+    await actions.completar.mutateAsync({
+      instalacionId: completarTarget.instalacion_id,
+      payload,
+    })
+    setCompletarTarget(null)
+    actions.completar.reset()
+    showSuccess('Instalación completada — contrato activado.')
+  }
+
+  const closeCompletar = () => {
+    if (actions.completar.isPending) return
+    setCompletarTarget(null)
+    actions.completar.reset()
   }
 
   // ---- Handlers: reintentar ----
@@ -277,7 +302,17 @@ export default function InstalacionesPage() {
         onCancel={closeEjecutar}
       />
 
-      {/* Confirmación: completar / cancelar / fallar / dar de baja */}
+      {/* Completar: pide la fecha real en la que se hizo el trabajo */}
+      <CompletarInstalacionDialog
+        open={completarTarget != null}
+        instalacion={completarTarget}
+        loading={actions.completar.isPending}
+        error={actions.completar.error}
+        onConfirm={handleCompletar}
+        onCancel={closeCompletar}
+      />
+
+      {/* Confirmación: cancelar / fallar / dar de baja */}
       <ConfirmDialog
         open={confirmTarget != null}
         title={confirmProps?.title ?? ''}
@@ -297,8 +332,6 @@ export default function InstalacionesPage() {
 
 function successMessageFor(kind: ConfirmKind): string {
   switch (kind) {
-    case 'completar':
-      return 'Instalación completada — contrato activado.'
     case 'cancelar':
       return 'Instalación cancelada.'
     case 'fallar':
@@ -319,13 +352,6 @@ function confirmDialogProps(
 } {
   const contrato = instalacionContratoLabel(i)
   switch (kind) {
-    case 'completar':
-      return {
-        title: `Completar instalación #${i.instalacion_id}`,
-        description: `La instalación de ${contrato} pasará a COMPLETADA y el contrato quedará ACTIVO. Asegurate de que la instalación fue realizada correctamente antes de confirmar.`,
-        confirmLabel: 'Completar',
-        confirmColor: 'primary',
-      }
     case 'cancelar':
       return {
         title: `Cancelar instalación #${i.instalacion_id}`,

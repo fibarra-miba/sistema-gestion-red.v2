@@ -6,6 +6,7 @@ export const catalogosKeys = {
   estadosPago: () => [...catalogosKeys.all, 'estados-pago'] as const,
   tiposProducto: () => [...catalogosKeys.all, 'tipos-producto'] as const,
   estadosGarantia: () => [...catalogosKeys.all, 'estados-garantia'] as const,
+  estadosCliente: () => [...catalogosKeys.all, 'estados-cliente'] as const,
   estadosProveedor: () => [...catalogosKeys.all, 'estados-proveedor'] as const,
   tiposMovimientoStock: () => [...catalogosKeys.all, 'tipos-movimiento-stock'] as const,
 }

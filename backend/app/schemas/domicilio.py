@@ -32,6 +32,20 @@ class DomicilioCreate(BaseModel):
         return self
 
 
+# Corrección de datos de carga (mudanza real => POST). No toca fechas ni
+# estado del domicilio ni crea historial.
+class DomicilioUpdate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    complejo: Optional[str] = None
+    torre: Optional[str] = None
+    piso: Optional[int] = None
+    depto: Optional[str] = None
+    calle: Optional[str] = None
+    numero: Optional[int] = None
+    referencias: Optional[str] = None
+
+
 class DomicilioOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 

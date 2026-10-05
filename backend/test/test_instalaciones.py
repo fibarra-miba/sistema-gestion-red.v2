@@ -242,6 +242,32 @@ async def test_completar_instalacion_activa_contrato(admin_client):
     assert res_prog.json()["estado_programacion_id"] == 2
 
 
+@pytest.mark.anyio
+async def test_completar_instalacion_con_fecha(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res = await admin_client.post(
+        f"/instalaciones/{instalacion_id}/completar",
+        json={"fecha_instalacion": "2025-02-10T09:00:00Z"},
+    )
+    assert res.status_code == 200, res.text
+
+    res_get = await admin_client.get(f"/instalaciones/{instalacion_id}")
+    assert res_get.status_code == 200, res_get.text
+    assert res_get.json()["fecha_instalacion"].startswith("2025-02-10")
+
+
+@pytest.mark.anyio
+async def test_completar_instalacion_fecha_futura_400(admin_client):
+    _, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res = await admin_client.post(
+        f"/instalaciones/{instalacion_id}/completar",
+        json={"fecha_instalacion": "2099-01-01T00:00:00Z"},
+    )
+    assert res.status_code == 400, res.text
+
+
 # ==========================================================
 # 5. CANCELAR
 # ==========================================================
@@ -356,6 +382,23 @@ async def test_no_dar_baja_instalacion_pendiente(admin_client):
     res = await admin_client.post(f"/instalaciones/{instalacion_id}/dar-baja")
 
     assert res.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_no_dar_baja_instalacion_de_contrato_baja(admin_client, db_conn):
+    """Dar de baja la instalación de un contrato ya BAJA/CANCELADO no debe
+    revivirlo a PENDIENTE_INSTALACION."""
+    contrato_id, instalacion_id, _ = await _crear_instalacion_pendiente(admin_client)
+
+    res_completar = await admin_client.post(f"/instalaciones/{instalacion_id}/completar")
+    assert res_completar.status_code == 200, res_completar.text
+
+    res_terminate = await admin_client.post(f"/contratos/{contrato_id}/terminate")
+    assert res_terminate.status_code == 200, res_terminate.text
+
+    res = await admin_client.post(f"/instalaciones/{instalacion_id}/dar-baja")
+
+    assert res.status_code == 400, res.text
 
 
 # ==========================================================

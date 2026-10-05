@@ -37,6 +37,9 @@ class AuditAccion:
     # Clientes
     ONBOARDING = "ONBOARDING"
 
+    # Clientes (transiciones de estado)
+    DEACTIVATE = "DEACTIVATE"
+
     # Contratos (transiciones)
     ACTIVATE = "ACTIVATE"
     SUSPEND = "SUSPEND"
@@ -96,6 +99,7 @@ ACCIONES = [
     AuditAccion.UPDATE,
     AuditAccion.DELETE,
     AuditAccion.ONBOARDING,
+    AuditAccion.DEACTIVATE,
     AuditAccion.ACTIVATE,
     AuditAccion.SUSPEND,
     AuditAccion.RESUME,

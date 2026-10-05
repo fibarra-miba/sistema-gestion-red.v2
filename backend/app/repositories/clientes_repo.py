@@ -135,6 +135,46 @@ def create_cliente(
         return cur.fetchone()
 
 
+def get_estado_cliente_id(
+    conn: psycopg.Connection,
+    descripcion: str
+) -> Optional[int]:
+    query = """
+        SELECT estado_cliente_id
+        FROM estado_cliente
+        WHERE descripcion_ecliente = %s
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, (descripcion,))
+        row = cur.fetchone()
+        return int(row[0]) if row else None
+
+
+def update_estado_cliente(
+    conn: psycopg.Connection,
+    cliente_id: int,
+    estado_cliente_id: int
+) -> Optional[Dict[str, Any]]:
+    query = """
+        UPDATE clientes
+        SET estado_cliente_id = %s
+        WHERE cliente_id = %s
+        RETURNING
+            cliente_id,
+            nombre_cliente,
+            apellido_cliente,
+            dni_cliente,
+            telefono_cliente,
+            email_cliente,
+            fecha_alta_cliente,
+            estado_cliente_id,
+            observacion_cliente;
+    """
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        cur.execute(query, (estado_cliente_id, cliente_id))
+        return cur.fetchone()
+
+
 def update_cliente(
     conn: psycopg.Connection,
     cliente_id: int,

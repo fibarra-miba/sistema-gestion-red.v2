@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Alert,
@@ -28,10 +29,17 @@ const DEFAULT_VALUES: DomicilioFormValues = {
   referencias: '',
 }
 
+type DomicilioFormMode = 'create' | 'edit'
+
 interface DomicilioFormProps {
   onSubmit: (values: DomicilioFormValues) => void | Promise<void>
   onCancel: () => void
-  reemplazaVigente: boolean
+  reemplazaVigente?: boolean
+  // Prellena el form (modo edición: corrección de datos de un domicilio
+  // existente, no una mudanza).
+  initialValues?: Partial<DomicilioFormValues>
+  mode?: DomicilioFormMode
+  submitLabel?: string
   loading?: boolean
   error?: unknown
 }
@@ -39,7 +47,10 @@ interface DomicilioFormProps {
 export default function DomicilioForm({
   onSubmit,
   onCancel,
-  reemplazaVigente,
+  reemplazaVigente = false,
+  initialValues,
+  mode = 'create',
+  submitLabel,
   loading,
   error,
 }: DomicilioFormProps) {
@@ -47,22 +58,40 @@ export default function DomicilioForm({
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors, isSubmitting },
-  } = useForm<DomicilioFormValues>({ defaultValues: DEFAULT_VALUES })
+  } = useForm<DomicilioFormValues>({
+    defaultValues: { ...DEFAULT_VALUES, ...initialValues },
+  })
+
+  useEffect(() => {
+    reset({ ...DEFAULT_VALUES, ...initialValues })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValues])
 
   const errorMsg = resolveErrorMessage(error)
   const calle = watch('calle')
   const complejo = watch('complejo')
   const necesitaUbicacion = !calle.trim() && !complejo.trim()
+  const resolvedSubmitLabel =
+    submitLabel ?? (mode === 'edit' ? 'Guardar cambios' : 'Guardar domicilio')
 
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Stack spacing={2}>
-        {reemplazaVigente && (
-          <Alert severity="warning">
-            Al guardar, el domicilio vigente actual se cerrará automáticamente y
-            pasará al historial.
+        {mode === 'edit' ? (
+          <Alert severity="info">
+            Esto corrige los datos ya cargados del domicilio — no es una
+            mudanza. Para registrar un cambio de domicilio usá "Nuevo
+            domicilio" / "Cambiar domicilio".
           </Alert>
+        ) : (
+          reemplazaVigente && (
+            <Alert severity="warning">
+              Al guardar, el domicilio vigente actual se cerrará automáticamente y
+              pasará al historial.
+            </Alert>
+          )
         )}
 
         {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
@@ -143,7 +172,7 @@ export default function DomicilioForm({
             variant="contained"
             disabled={loading || isSubmitting || necesitaUbicacion}
           >
-            Guardar domicilio
+            {resolvedSubmitLabel}
           </Button>
         </Stack>
       </Stack>

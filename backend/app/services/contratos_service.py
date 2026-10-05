@@ -117,12 +117,20 @@ class ContractService:
         if not self.promo_repo.get_full(promocion_id):
             raise ValueError("Promoción no encontrada.")
 
+    @staticmethod
+    def _aware(valor: Optional[datetime]) -> Optional[datetime]:
+        """Las columnas son TIMESTAMPTZ: un datetime naive se lee como UTC."""
+        if valor is not None and valor.tzinfo is None:
+            return valor.replace(tzinfo=timezone.utc)
+        return valor
+
     def create_contract(
         self,
         cliente_id: int,
         domicilio_id: int,
         plan_id: int,
         promocion_id: Optional[int] = None,
+        fecha_inicio_contrato: Optional[datetime] = None,
     ) -> dict:
         self._validar_cliente_existente(cliente_id)
         self._validar_domicilio(cliente_id, domicilio_id)
@@ -131,13 +139,21 @@ class ContractService:
             self._validar_promocion_existente(promocion_id)
 
         now = datetime.now(timezone.utc)
+        fecha_inicio = self._aware(fecha_inicio_contrato) if fecha_inicio_contrato is not None else now
+        if fecha_inicio > now:
+            raise ValueError("La fecha de inicio no puede ser futura.")
+
+        # El precio se toma siempre al vigente de HOY (now), no al de
+        # fecha_inicio: una alta retroactiva se factura con el precio actual
+        # del plan y no debe fallar porque el plan no tenía precio vigente en
+        # esa fecha pasada.
         precio_vigente = self._obtener_precio_vigente_plan(plan_id, now)
         return self.repo.create(
             cliente_id=cliente_id,
             domicilio_id=domicilio_id,
             plan_id=plan_id,
             precio_base_contrato=precio_vigente["precio"],
-            fecha_inicio=now,
+            fecha_inicio=fecha_inicio,
             estado_contrato_id=self.BORRADOR,
             promocion_id=promocion_id,
         )
@@ -241,8 +257,10 @@ class ContractService:
 
     def _crear_instalacion_directa(self, contrato: dict) -> dict:
         """Activación sin visita programada: crea una programación ya cumplida y
-        la instalación PENDIENTE asociada (la FK programacion_id es NOT NULL)."""
-        now = datetime.now(timezone.utc)
+        la instalación PENDIENTE asociada (la FK programacion_id es NOT NULL).
+        La fecha es la de inicio real del contrato (no now): coherente con una
+        alta retroactiva."""
+        fecha_inicio = contrato["fecha_inicio_contrato"]
 
         estado_prog_completada = self.instalaciones_repo.get_estado_programacion_id("COMPLETADA")
         if estado_prog_completada is None:
@@ -254,7 +272,7 @@ class ContractService:
         programacion = self.instalaciones_repo.create_programacion(
             contrato_id=int(contrato["contrato_id"]),
             domicilio_id=int(contrato["domicilio_id"]),
-            fecha_programacion_pinstalacion=now,
+            fecha_programacion_pinstalacion=fecha_inicio,
             estado_programacion_id=estado_prog_completada,
             tecnico_pinstalacion=None,
             notas_pinstalacion="Activación sin visita programada",
@@ -265,7 +283,7 @@ class ContractService:
             contrato_id=int(contrato["contrato_id"]),
             domicilio_id=int(contrato["domicilio_id"]),
             codigo_instalacion=None,
-            fecha_instalacion=now,
+            fecha_instalacion=fecha_inicio,
             estado_instalacion_id=estado_inst_pendiente,
             observacion_instalacion=None,
         )
@@ -292,17 +310,28 @@ class ContractService:
     # CANCEL / TERMINATE
     # ==========================================================
 
-    def cancel(self, contrato_id: int) -> None:
+    def _resolver_fecha_fin(self, contrato: dict, fecha_fin: Optional[datetime]) -> datetime:
+        now = datetime.now(timezone.utc)
+        fecha = self._aware(fecha_fin) if fecha_fin is not None else now
+        if fecha > now:
+            raise ValueError("La fecha de baja no puede ser futura.")
+        if fecha < contrato["fecha_inicio_contrato"]:
+            raise ValueError("La fecha de baja no puede ser anterior al inicio del contrato.")
+        return fecha
+
+    def cancel(self, contrato_id: int, fecha_fin: Optional[datetime] = None) -> None:
         contrato = self.get_contract(contrato_id)
         if contrato["estado_contrato_id"] in (self.BAJA, self.CANCELADO):
             raise ValueError("El contrato ya está finalizado.")
-        self.repo.update_estado(contrato_id, self.CANCELADO, fecha_fin=datetime.now(timezone.utc))
+        fecha_resuelta = self._resolver_fecha_fin(contrato, fecha_fin)
+        self.repo.update_estado(contrato_id, self.CANCELADO, fecha_fin=fecha_resuelta)
 
-    def terminate(self, contrato_id: int) -> None:
+    def terminate(self, contrato_id: int, fecha_fin: Optional[datetime] = None) -> None:
         contrato = self.get_contract(contrato_id)
         if contrato["estado_contrato_id"] not in (self.ACTIVO, self.SUSPENDIDO):
             raise ValueError("Solo contratos activos o suspendidos pueden darse de baja.")
-        self.repo.update_estado(contrato_id, self.BAJA, fecha_fin=datetime.now(timezone.utc))
+        fecha_resuelta = self._resolver_fecha_fin(contrato, fecha_fin)
+        self.repo.update_estado(contrato_id, self.BAJA, fecha_fin=fecha_resuelta)
 
     # ==========================================================
     # CHANGE PLAN

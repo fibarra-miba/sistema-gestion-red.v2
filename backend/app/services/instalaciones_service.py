@@ -16,6 +16,7 @@ class InstalacionesService:
     BORRADOR = 1
     PENDIENTE_INSTALACION = 2
     ACTIVO = 3
+    SUSPENDIDO = 4
 
     def __init__(
         self,
@@ -401,7 +402,11 @@ class InstalacionesService:
             self.instalaciones_repo.update_instalacion(instalacion_id, data)
         )
 
-    def completar_instalacion(self, instalacion_id: int) -> dict:
+    def completar_instalacion(
+        self,
+        instalacion_id: int,
+        fecha_instalacion: Optional[datetime] = None,
+    ) -> dict:
         instalacion = self._get_instalacion(instalacion_id)
         self._validar_instalacion_en_estado(instalacion, "PENDIENTE")
 
@@ -410,11 +415,14 @@ class InstalacionesService:
 
         estado_completada = self._estado_instalacion_id("COMPLETADA")
         now = datetime.now(timezone.utc)
+        fecha_final = self._aware(fecha_instalacion) if fecha_instalacion is not None else now
+        if fecha_final > now:
+            raise ValueError("La fecha de instalación no puede ser futura.")
 
         self.instalaciones_repo.update_instalacion_estado(
             instalacion_id=instalacion_id,
             estado_instalacion_id=estado_completada,
-            fecha_instalacion=now,
+            fecha_instalacion=fecha_final,
         )
 
         try:
@@ -483,8 +491,14 @@ class InstalacionesService:
         instalacion = self._get_instalacion(instalacion_id)
         self._validar_instalacion_en_estado(instalacion, "COMPLETADA")
 
-        estado_cancelada = self._estado_instalacion_id("CANCELADA")
         contrato_id = int(instalacion["contrato_id"])
+        contrato = self._get_contrato(contrato_id)
+        if int(contrato["estado_contrato_id"]) not in (self.ACTIVO, self.SUSPENDIDO):
+            raise ValueError(
+                "Solo se puede dar de baja la instalación de un contrato activo o suspendido."
+            )
+
+        estado_cancelada = self._estado_instalacion_id("CANCELADA")
 
         self.instalaciones_repo.update_instalacion_estado(
             instalacion_id=instalacion_id,

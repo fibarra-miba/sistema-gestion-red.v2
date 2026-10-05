@@ -127,6 +127,11 @@ export interface InstalacionAccionOut {
   estado_contrato_id: number | null
 }
 
+// Body opcional de completar. Futura → 400.
+export interface InstalacionCompletarIn {
+  fecha_instalacion?: string
+}
+
 // Reintentar NO es una transición: crea una NUEVA programación y
 // devuelve esa programación — la instalación original queda en su
 // estado terminal (CANCELADA/FALLIDA).

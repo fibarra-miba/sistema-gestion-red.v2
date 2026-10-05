@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from psycopg.errors import ForeignKeyViolation, NotNullViolation, CheckViolation
 
 from app.db import get_db
-from app.schemas.domicilio import DomicilioCreate, DomicilioOut, DomicilioVigenteOut
+from app.schemas.domicilio import (
+    DomicilioCreate,
+    DomicilioOut,
+    DomicilioUpdate,
+    DomicilioVigenteOut,
+)
 from app.services.domicilios_service import DomicilioService
 from app.dependencies.auth import require_roles
 from app.dependencies.audit import get_auditor
@@ -92,4 +97,43 @@ def create_domicilio_cliente(
         )
     except Exception:
         logger.exception("Error creating domicilio")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/{cliente_id}/domicilios/{domicilio_id}", response_model=DomicilioOut)
+def update_domicilio_cliente(
+    cliente_id: int = Path(..., ge=1),
+    domicilio_id: int = Path(..., ge=1),
+    domicilio: DomicilioUpdate = ...,
+    conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
+):
+    try:
+        result = DomicilioService.actualizar_domicilio(
+            conn,
+            cliente_id,
+            domicilio_id,
+            domicilio.model_dump(exclude_unset=True),
+        )
+        auditor.log(
+            modulo=AuditModulo.DOMICILIOS,
+            accion=AuditAccion.UPDATE,
+            entidad="domicilios",
+            entidad_id=domicilio_id,
+            detalle=f"cliente_id={cliente_id}",
+        )
+        return result
+    except ValueError as e:
+        if str(e) == "DOMICILIO_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Domicilio not found")
+        if str(e) == "DOMICILIO_NO_CHANGES":
+            raise HTTPException(status_code=400, detail="No hay cambios para aplicar.")
+        raise HTTPException(status_code=422, detail=str(e))
+    except (ForeignKeyViolation, NotNullViolation, CheckViolation) as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Datos inválidos: {e.diag.message_primary}",
+        )
+    except Exception:
+        logger.exception("Error updating domicilio")
         raise HTTPException(status_code=500, detail="Internal server error")

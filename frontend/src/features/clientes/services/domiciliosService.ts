@@ -1,6 +1,6 @@
 import { http } from '@/services/http'
 import { isApiError } from '@/types/api'
-import type { DomicilioCreate, DomicilioOut } from '../types'
+import type { DomicilioCreate, DomicilioOut, DomicilioUpdate } from '../types'
 
 export const domiciliosService = {
   async listHistorial(clienteId: number): Promise<DomicilioOut[]> {
@@ -27,6 +27,19 @@ export const domiciliosService = {
   async create(clienteId: number, payload: DomicilioCreate): Promise<DomicilioOut> {
     const { data } = await http.post<DomicilioOut>(
       `/clientes/${clienteId}/domicilios`,
+      payload,
+    )
+    return data
+  },
+
+  // Corrección de datos de carga (no mudanza) — PATCH parcial.
+  async update(
+    clienteId: number,
+    domicilioId: number,
+    payload: DomicilioUpdate,
+  ): Promise<DomicilioOut> {
+    const { data } = await http.patch<DomicilioOut>(
+      `/clientes/${clienteId}/domicilios/${domicilioId}`,
       payload,
     )
     return data

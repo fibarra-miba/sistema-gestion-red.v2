@@ -17,14 +17,20 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EditIcon from '@mui/icons-material/Edit'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import { isApiError } from '@/types/api'
+import { useAuth } from '@/features/auth'
+import { useEstadosCliente } from '@/features/catalogos'
+import { useSnackbar } from '@/components/ui/SnackbarProvider'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import {
   useCliente,
   useUpdateCliente,
+  useClienteEstadoActions,
   useDomicilioVigente,
   useDomiciliosHistorial,
   useCreateDomicilio,
   type ClienteUpdate,
   type DomicilioCreate,
+  type DomicilioOut,
 } from '@/features/clientes'
 import ClienteForm, { type ClienteFormValues } from '@/features/clientes/components/ClienteForm'
 import DomicilioVigenteCard from '@/features/clientes/components/domicilios/DomicilioVigenteCard'
@@ -32,6 +38,7 @@ import DomicilioHistorialList from '@/features/clientes/components/domicilios/Do
 import DomicilioForm, {
   type DomicilioFormValues,
 } from '@/features/clientes/components/domicilios/DomicilioForm'
+import EditarDomicilioDialog from '@/features/clientes/components/domicilios/EditarDomicilioDialog'
 
 const DEFAULT_ESTADO_DOMICILIO_ID = 1
 
@@ -39,14 +46,24 @@ export default function ClienteDetailPage() {
   const { id } = useParams<{ id: string }>()
   const clienteId = id && /^\d+$/.test(id) ? Number(id) : undefined
 
+  const { hasCapability } = useAuth()
+  const { showSuccess } = useSnackbar()
+  const canManageEstado = hasCapability('can_manage_clientes')
+
   const clienteQuery = useCliente(clienteId)
   const vigenteQuery = useDomicilioVigente(clienteId)
   const historialQuery = useDomiciliosHistorial(clienteId)
+  const estadosClienteQuery = useEstadosCliente()
   const updateMutation = useUpdateCliente()
   const createDomMutation = useCreateDomicilio()
+  const estadoActions = useClienteEstadoActions()
 
   const [editOpen, setEditOpen] = useState(false)
   const [domOpen, setDomOpen] = useState(false)
+  const [editDomTarget, setEditDomTarget] = useState<DomicilioOut | null>(null)
+  const [estadoConfirm, setEstadoConfirm] = useState<
+    'activar' | 'desactivar' | null
+  >(null)
 
   if (clienteId == null) {
     return <Alert severity="error">ID de cliente inválido.</Alert>
@@ -78,6 +95,40 @@ export default function ClienteDetailPage() {
 
   const cliente = clienteQuery.data
   if (!cliente) return null
+
+  const estadoDescripcion =
+    estadosClienteQuery.data?.find((e) => e.id === cliente.estado_cliente_id)
+      ?.descripcion ?? `Estado #${cliente.estado_cliente_id}`
+  const isActivo = estadoDescripcion.toUpperCase() === 'ACTIVO'
+
+  const estadoConfirmMutation =
+    estadoConfirm === 'activar'
+      ? estadoActions.activar
+      : estadoConfirm === 'desactivar'
+        ? estadoActions.desactivar
+        : null
+
+  const handleToggleEstado = async () => {
+    if (!estadoConfirm) return
+    const mutation =
+      estadoConfirm === 'activar' ? estadoActions.activar : estadoActions.desactivar
+    try {
+      await mutation.mutateAsync(clienteId)
+      setEstadoConfirm(null)
+      mutation.reset()
+      showSuccess(
+        estadoConfirm === 'activar' ? 'Cliente activado.' : 'Cliente desactivado.',
+      )
+    } catch {
+      // El error queda en mutation.error y se muestra en el ConfirmDialog.
+    }
+  }
+
+  const closeEstadoConfirm = () => {
+    if (estadoConfirmMutation?.isPending) return
+    estadoConfirmMutation?.reset()
+    setEstadoConfirm(null)
+  }
 
   const handleUpdate = async (values: ClienteFormValues) => {
     const payload: ClienteUpdate = {
@@ -164,20 +215,35 @@ export default function ClienteDetailPage() {
               variant="outlined"
             />
             <Chip
-              label={`Estado ${cliente.estado_cliente_id}`}
+              label={estadoDescripcion}
               size="small"
               variant="outlined"
+              color={isActivo ? 'success' : 'default'}
             />
           </Stack>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={() => setEditOpen(true)}
+        <Stack
+          direction="row"
+          spacing={1}
           sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, flexShrink: 0 }}
         >
-          Editar
-        </Button>
+          {canManageEstado && (
+            <Button
+              variant="outlined"
+              color={isActivo ? 'error' : 'primary'}
+              onClick={() => setEstadoConfirm(isActivo ? 'desactivar' : 'activar')}
+            >
+              {isActivo ? 'Desactivar' : 'Activar'}
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => setEditOpen(true)}
+          >
+            Editar
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -208,6 +274,7 @@ export default function ClienteDetailPage() {
             error={vigenteQuery.error}
             onCreate={() => setDomOpen(true)}
             onChange={() => setDomOpen(true)}
+            onEdit={() => vigenteQuery.data && setEditDomTarget(vigenteQuery.data)}
           />
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
@@ -217,6 +284,7 @@ export default function ClienteDetailPage() {
               items={historialQuery.data}
               loading={historialQuery.isLoading}
               error={historialQuery.error}
+              onEdit={(d) => setEditDomTarget(d)}
             />
           </Box>
         </Stack>
@@ -257,6 +325,29 @@ export default function ClienteDetailPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <EditarDomicilioDialog
+        open={editDomTarget != null}
+        clienteId={clienteId}
+        domicilio={editDomTarget}
+        onClose={() => setEditDomTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={estadoConfirm != null}
+        title={estadoConfirm === 'activar' ? 'Activar cliente' : 'Desactivar cliente'}
+        description={
+          estadoConfirm === 'activar'
+            ? `${cliente.apellido_cliente}, ${cliente.nombre_cliente} pasará a estado ACTIVO.`
+            : `${cliente.apellido_cliente}, ${cliente.nombre_cliente} pasará a estado INACTIVO. No se puede desactivar si tiene contratos activos o suspendidos.`
+        }
+        confirmLabel={estadoConfirm === 'activar' ? 'Activar' : 'Desactivar'}
+        confirmColor={estadoConfirm === 'activar' ? 'primary' : 'error'}
+        loading={estadoConfirmMutation?.isPending}
+        error={estadoConfirmMutation?.error}
+        onConfirm={handleToggleEstado}
+        onCancel={closeEstadoConfirm}
+      />
     </Stack>
   )
 }

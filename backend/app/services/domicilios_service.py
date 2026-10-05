@@ -70,6 +70,25 @@ class DomicilioService:
         return domicilio
 
     @staticmethod
+    def actualizar_domicilio(
+        conn: psycopg.Connection,
+        cliente_id: int,
+        domicilio_id: int,
+        data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Corrección de datos de carga (complejo, torre, piso, etc.). No toca
+        fechas ni estado del domicilio ni crea historial: para una mudanza
+        real, POST /domicilios."""
+        if not data:
+            raise ValueError("DOMICILIO_NO_CHANGES")
+
+        domicilio = domicilios_repo.get_domicilio_by_id(conn, domicilio_id)
+        if not domicilio or int(domicilio["cliente_id"]) != int(cliente_id):
+            raise ValueError("DOMICILIO_NOT_FOUND")
+
+        return domicilios_repo.update_domicilio(conn, domicilio_id, data)
+
+    @staticmethod
     def listar_historial(
         conn: psycopg.Connection,
         cliente_id: int

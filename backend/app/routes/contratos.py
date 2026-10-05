@@ -1,6 +1,6 @@
 # app/routes/contratos.py
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from psycopg import Connection
 
 from app.db import get_db
@@ -18,6 +18,8 @@ from app.schemas.contrato import (
     ContractChangePlan,
     ContractProgramarInstalacion,
     ContractAssignPromo,
+    ContractTerminate,
+    ContractCancel,
     ContratosResumenOut,
 )
 
@@ -58,6 +60,7 @@ def create_contract(
             domicilio_id=payload.domicilio_id,
             plan_id=payload.plan_id,
             promocion_id=payload.promocion_id,
+            fecha_inicio_contrato=payload.fecha_inicio_contrato,
         )
         auditor.log(
             modulo=AuditModulo.CONTRATOS,
@@ -184,22 +187,35 @@ def resume_contract(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def _detalle_baja(motivo: str | None, fecha_fin: object) -> str | None:
+    partes = []
+    if motivo:
+        partes.append(f"motivo={motivo}")
+    if fecha_fin:
+        partes.append(f"fecha_fin_contrato={fecha_fin.isoformat()}")
+    return " ".join(partes) if partes else None
+
+
 @router.post(
     "/{contract_id}/cancel",
     dependencies=[Depends(require_roles(*WRITE_ROLES))],
 )
 def cancel_contract(
     contract_id: int,
+    payload: ContractCancel | None = Body(None),
     service: ContractService = Depends(get_service),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        service.cancel(contract_id)
+        motivo = payload.motivo if payload else None
+        fecha_fin = payload.fecha_fin_contrato if payload else None
+        service.cancel(contract_id, fecha_fin=fecha_fin)
         auditor.log(
             modulo=AuditModulo.CONTRATOS,
             accion=AuditAccion.CANCEL,
             entidad="contratos",
             entidad_id=contract_id,
+            detalle=_detalle_baja(motivo, fecha_fin),
         )
         return {"message": "Contrato cancelado."}
     except ValueError as e:
@@ -212,16 +228,20 @@ def cancel_contract(
 )
 def terminate_contract(
     contract_id: int,
+    payload: ContractTerminate | None = Body(None),
     service: ContractService = Depends(get_service),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        service.terminate(contract_id)
+        motivo = payload.motivo if payload else None
+        fecha_fin = payload.fecha_fin_contrato if payload else None
+        service.terminate(contract_id, fecha_fin=fecha_fin)
         auditor.log(
             modulo=AuditModulo.CONTRATOS,
             accion=AuditAccion.TERMINATE,
             entidad="contratos",
             entidad_id=contract_id,
+            detalle=_detalle_baja(motivo, fecha_fin),
         )
         return {"message": "Contrato dado de baja."}
     except ValueError as e:

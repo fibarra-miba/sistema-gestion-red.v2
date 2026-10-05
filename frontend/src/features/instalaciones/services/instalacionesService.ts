@@ -10,6 +10,7 @@ import type {
   GarantiasResumen,
   GarantiaUpdate,
   InstalacionAccionOut,
+  InstalacionCompletarIn,
   InstalacionCreate,
   InstalacionListResponse,
   InstalacionOut,
@@ -61,9 +62,13 @@ export const instalacionesService = {
     return data
   },
 
-  async completar(instalacionId: number): Promise<InstalacionAccionOut> {
+  async completar(
+    instalacionId: number,
+    payload?: InstalacionCompletarIn,
+  ): Promise<InstalacionAccionOut> {
     const { data } = await http.post<InstalacionAccionOut>(
       `/instalaciones/${instalacionId}/completar`,
+      payload,
     )
     return data
   },

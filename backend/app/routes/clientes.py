@@ -155,6 +155,62 @@ def onboarding_cliente(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.post(
+    "/{cliente_id}/activar",
+    response_model=ClienteOut,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
+def activar_cliente(
+    cliente_id: int = Path(..., ge=1),
+    conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
+):
+    try:
+        result = ClienteService.activar_cliente(conn, cliente_id)
+        auditor.log(
+            modulo=AuditModulo.CLIENTES,
+            accion=AuditAccion.ACTIVATE,
+            entidad="clientes",
+            entidad_id=cliente_id,
+        )
+        return result
+    except ValueError as e:
+        if str(e) == "CLIENTE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Cliente not found")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Error activating cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post(
+    "/{cliente_id}/desactivar",
+    response_model=ClienteOut,
+    dependencies=[Depends(require_roles(*WRITE_ROLES))],
+)
+def desactivar_cliente(
+    cliente_id: int = Path(..., ge=1),
+    conn: psycopg.Connection = Depends(get_db),
+    auditor: Auditor = Depends(get_auditor),
+):
+    try:
+        result = ClienteService.desactivar_cliente(conn, cliente_id)
+        auditor.log(
+            modulo=AuditModulo.CLIENTES,
+            accion=AuditAccion.DEACTIVATE,
+            entidad="clientes",
+            entidad_id=cliente_id,
+        )
+        return result
+    except ValueError as e:
+        if str(e) == "CLIENTE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Cliente not found")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Error deactivating cliente")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.put(
     "/{cliente_id}",
     response_model=ClienteOut,

@@ -4,9 +4,11 @@ import {
   Box,
   Button,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material'
 import { isApiError } from '@/types/api'
+import { fromDateInputValueLocalNoon, todayDateInputValue } from '@/lib/format'
 import { PlanSelect } from '@/features/planes'
 import { PromocionSelect } from '@/features/promociones'
 import type { ClienteOut, DomicilioOut } from '@/features/clientes'
@@ -36,6 +38,7 @@ export default function ContratoForm({
   const [domicilioId, setDomicilioId] = useState<number | null>(null)
   const [planId, setPlanId] = useState<number | null>(null)
   const [promocionId, setPromocionId] = useState<number | null>(null)
+  const [fechaInicio, setFechaInicio] = useState(todayDateInputValue())
 
   // Guardamos los objetos seleccionados para poder mostrar un resumen
   // y para que los selects no pierdan la etiqueta al cambiar el search.
@@ -45,8 +48,15 @@ export default function ContratoForm({
 
   const [touched, setTouched] = useState(false)
 
+  const today = todayDateInputValue()
+  const fechaInicioInvalida = fechaInicio > today
+
   const canSubmit =
-    clienteId != null && domicilioId != null && planId != null && !loading
+    clienteId != null &&
+    domicilioId != null &&
+    planId != null &&
+    !fechaInicioInvalida &&
+    !loading
 
   const errorMsg = resolveErrorMessage(error)
 
@@ -67,6 +77,7 @@ export default function ContratoForm({
       domicilio_id: domicilioId!,
       plan_id: planId!,
       promocion_id: promocionId,
+      fecha_inicio_contrato: fromDateInputValueLocalNoon(fechaInicio),
     })
   }
 
@@ -120,6 +131,25 @@ export default function ContratoForm({
           onChange={(id) => setPromocionId(id)}
           label="Promoción (opcional)"
           helperText="Si se asigna, el descuento se aplicará al facturar."
+        />
+
+        <TextField
+          label="Fecha de inicio"
+          type="date"
+          value={fechaInicio}
+          onChange={(e) => setFechaInicio(e.target.value)}
+          required
+          fullWidth
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { max: today },
+          }}
+          error={touched && fechaInicioInvalida}
+          helperText={
+            touched && fechaInicioInvalida
+              ? 'No puede ser una fecha futura.'
+              : undefined
+          }
         />
 
         {selectedPlan && (

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app.db import get_db
 from app.repositories.contratos_repo import ContractRepository
@@ -22,6 +22,7 @@ from app.schemas.instalacion import (
     EjecutarProgramacionIn,
     InstalacionCreate,
     InstalacionUpdate,
+    InstalacionCompletar,
     InstalacionResponse,
     InstalacionListResponse,
     InstalacionAccionOut,
@@ -295,11 +296,15 @@ def _instalacion_status(detail: str) -> int:
 @router.post("/{instalacion_id}/completar", response_model=InstalacionAccionOut)
 def completar_instalacion(
     instalacion_id: int,
+    payload: InstalacionCompletar | None = Body(None),
     service: InstalacionesService = Depends(get_service),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
-        result = service.completar_instalacion(instalacion_id)
+        fecha_instalacion = payload.fecha_instalacion if payload else None
+        result = service.completar_instalacion(
+            instalacion_id, fecha_instalacion=fecha_instalacion
+        )
         auditor.log(
             modulo=AuditModulo.INSTALACIONES,
             accion=AuditAccion.COMPLETE,

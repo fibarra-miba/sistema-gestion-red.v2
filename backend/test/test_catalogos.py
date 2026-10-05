@@ -45,3 +45,14 @@ async def test_catalogos_estados_pago(admin_client):
     # sanity: debe incluir PENDIENTE / PARCIAL / PAGADO si el seed está completo
     descs = {str(x.get("descripcion_epago", "")).upper() for x in data}
     assert {"PENDIENTE", "PARCIAL", "PAGADO"}.issubset(descs)
+
+
+@pytest.mark.anyio
+async def test_catalogos_estados_cliente(admin_client):
+    r = await admin_client.get("/catalogos/estados-cliente")
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert isinstance(data, list)
+
+    descs = {str(x.get("descripcion", "")).upper() for x in data}
+    assert {"ACTIVO", "INACTIVO"}.issubset(descs)
