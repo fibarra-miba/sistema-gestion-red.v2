@@ -26,15 +26,43 @@ case "$1" in
 esac
 ENV_FILE="infra/.env.${ENV}"
 
+# Los env files tienen secretos: solo el dueño debería poder leerlos. Avisa
+# (no frena) para no romper un ambiente que ya funciona.
+check_env_perms() {
+  local mode
+  mode=$(stat -c '%a' "$1" 2>/dev/null) || return 0
+  if [ $(( 8#$mode & 8#077 )) -ne 0 ]; then
+    echo "AVISO: $1 tiene permisos $mode (legible por otros usuarios). Corregí con:"
+    echo "  chmod 600 $1"
+    echo ""
+  fi
+}
+
+# Frena si quedó algún valor de plantilla sin reemplazar. POSTGRES_PASSWORD solo
+# se aplica al crear la base: arrancar con CHANGE_ME lo dejaría fijo.
+check_change_me() {
+  local pendientes
+  pendientes=$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=.*CHANGE_ME' "$1" | cut -d= -f1 || true)
+  if [ -n "$pendientes" ]; then
+    echo "$1 todavía tiene valores de plantilla (CHANGE_ME) en:"
+    echo "$pendientes" | sed 's/^/  /'
+    echo ""
+    echo "Reemplazalos antes de levantar (ver comentarios del archivo y docs/secretos.md)."
+    exit 1
+  fi
+}
+
 ensure_env() {
   if [ ! -f "$ENV_FILE" ]; then
     echo "No existe $ENV_FILE"
     echo ""
     echo "Crealo a partir de la plantilla:"
-    echo "  cp infra/.env.${ENV}.example $ENV_FILE"
-    [ "$ENV" = "prd" ] && echo "  # y reemplazá los secretos (passwords)"
+    echo "  cp infra/.env.${ENV}.example $ENV_FILE && chmod 600 $ENV_FILE"
+    echo "  # y reemplazá cada CHANGE_ME (ver docs/secretos.md)"
     exit 1
   fi
+  check_env_perms "$ENV_FILE"
+  check_change_me "$ENV_FILE"
 }
 
 ensure_n8n_env() {
@@ -42,12 +70,12 @@ ensure_n8n_env() {
     echo "No existe $ENV_N8N_FILE"
     echo ""
     echo "Crealo ejecutando:"
-    echo "  cp infra/.env.n8n.example infra/.env.n8n"
-    echo ""
-    echo "Luego revisá las variables, especialmente:"
-    echo "  N8N_ENCRYPTION_KEY"
+    echo "  cp infra/.env.n8n.example infra/.env.n8n && chmod 600 infra/.env.n8n"
+    echo "  # y reemplazá cada CHANGE_ME (ver docs/secretos.md)"
     exit 1
   fi
+  check_env_perms "$ENV_N8N_FILE"
+  check_change_me "$ENV_N8N_FILE"
 }
 
 # Archivos de compose según ambiente:
@@ -311,6 +339,8 @@ case "$1" in
     set -a; . "$ENV_FILE"; set +a
     TAG="${2:-manual}"
     DIR="infra/backups/${ENV}"
+    # El dump trae datos personales y hashes de contraseñas: solo el dueño lo lee.
+    umask 077
     mkdir -p "$DIR"
     TS=$(date +%Y%m%d_%H%M%S)
     FILE="${DIR}/red_${ENV}_${TS}_${TAG}.dump"
@@ -454,6 +484,53 @@ case "$1" in
     echo "[${ENV}] Listo. Pendientes ahora: $(mig_pending | sed '/^$/d' | wc -l)"
     ;;
 
+  create-admin)
+    ensure_env
+    # Alta de un ADMIN sin credenciales en archivos: la contraseña se tipea acá
+    # (no se muestra ni se guarda) y el usuario debe cambiarla al primer ingreso.
+    # Sin -T: el script necesita la terminal para getpass.
+    echo "[${ENV}] Alta de usuario ADMIN"
+    core_compose exec api python -m app.cli.create_admin
+    ;;
+
+  sync-plataforma)
+    # Repo de despliegue (red-plataforma): nació sin historial desde un commit base
+    # de main y recibe los commits nuevos por cherry-pick (-x deja la referencia
+    # al commit de origen). Ver README §Repositorios.
+    PLAT_BRANCH="plataforma-main"
+    git rev-parse --verify -q "$PLAT_BRANCH" >/dev/null \
+      || { echo "No existe la rama local $PLAT_BRANCH. Ver README §Repositorios."; exit 1; }
+    [ "$(git symbolic-ref --short HEAD)" = "main" ] || { echo "Corré esto parado en main."; exit 1; }
+    [ -z "$(git status --porcelain)" ] || { echo "Hay cambios sin commitear en main."; exit 1; }
+    # Último commit de main ya sincronizado: el de la base o el del último cherry-pick.
+    last=$(git log -1 --format=%B "$PLAT_BRANCH" \
+      | sed -nE 's/.*(Base: main@|cherry picked from commit )([0-9a-f]{40}).*/\2/p' | tail -1)
+    [ -n "$last" ] || { echo "No encuentro el último commit sincronizado en $PLAT_BRANCH."; exit 1; }
+    pendientes=$(git rev-list --reverse --no-merges "${last}..main")
+    if [ -z "$pendientes" ]; then
+      echo "red-plataforma ya está al día con main (${last:0:7})."
+    else
+      echo "Commits a llevar a red-plataforma:"
+      git log --oneline --reverse --no-merges "${last}..main" | sed 's/^/  /'
+      read -r -p "Confirmar? [s/N]: " confirm
+      case "$confirm" in s|S) ;; *) echo "Cancelado."; exit 0 ;; esac
+      git checkout -q "$PLAT_BRANCH"
+      if ! git cherry-pick -x $pendientes; then
+        echo "Conflicto en el cherry-pick: resolvelo en $PLAT_BRANCH (o git cherry-pick --abort) y volvé a main."
+        exit 1
+      fi
+      git checkout -q main
+    fi
+    if git diff --quiet main "$PLAT_BRANCH"; then
+      echo "OK: el código de $PLAT_BRANCH es idéntico al de main."
+      echo "Publicar:  git push plataforma ${PLAT_BRANCH}:main"
+    else
+      echo "ATENCIÓN: $PLAT_BRANCH difiere de main:"
+      git diff --stat main "$PLAT_BRANCH"
+      exit 1
+    fi
+    ;;
+
   open)      ensure_env; ( set -a; . "$ENV_FILE"; xdg-open "http://localhost:${FRONT_PORT}" >/dev/null 2>&1 || echo "Abrí: http://localhost:${FRONT_PORT}" ) ;;
   open-api)  ensure_env; ( set -a; . "$ENV_FILE"; xdg-open "http://localhost:${API_PORT}/docs" >/dev/null 2>&1 || echo "Abrí: http://localhost:${API_PORT}/docs" ) ;;
   open-n8n)  ensure_n8n_env; ( set -a; . "$ENV_N8N_FILE"; xdg-open "http://localhost:${N8N_PORT}" >/dev/null 2>&1 || echo "Abrí: http://localhost:${N8N_PORT}" ) ;;
@@ -490,6 +567,9 @@ case "$1" in
     echo "  migrations          Lista migraciones y cuáles están aplicadas"
     echo "  migrate             Aplica las migraciones pendientes"
     echo "  migrate --baseline  Marca todas como aplicadas SIN ejecutarlas (adopción inicial)"
+    echo ""
+    echo "  create-admin        Crea un usuario ADMIN (pide la contraseña; cambio obligatorio)"
+    echo "  sync-plataforma     Lleva los commits nuevos de main al repo de despliegue (red-plataforma)"
     echo ""
     echo "  open | open-api | open-n8n"
     echo ""

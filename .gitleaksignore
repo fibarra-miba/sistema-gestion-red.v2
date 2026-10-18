@@ -1,0 +1,10 @@
+# Hallazgos HISTÓRICOS aceptados: valores por defecto (admin de fábrica, passwords de plantilla)
+# que ya no sirven y no se reescriben del historial (decisión 2026-10-17, ver docs/secretos.md).
+# No agregar hallazgos nuevos acá: un secreto nuevo se saca del commit y se rota.
+738f28b5e11f7066d2f79071a3e7dc2e4c4fffd6:infra/.env.dev.example:red-env-secret-assignment:7
+738f28b5e11f7066d2f79071a3e7dc2e4c4fffd6:infra/.env.dev.example:red-env-secret-assignment:17
+738f28b5e11f7066d2f79071a3e7dc2e4c4fffd6:infra/.env.n8n.example:red-env-secret-assignment:36
+738f28b5e11f7066d2f79071a3e7dc2e4c4fffd6:infra/.env.n8n.example:red-env-secret-assignment:49
+1415237b20603123b96c1783d0bda4047b791ce3:backend/test/sql/005_catalogos_base.sql:red-scrypt-password-hash:101
+1415237b20603123b96c1783d0bda4047b791ce3:infra/sql/005_catalogos_base.sql:red-scrypt-password-hash:101
+c951c8daa6812fb06aa7fbf949c46f3fdb447366:infra/sql/010_seed.sql:red-scrypt-password-hash:564

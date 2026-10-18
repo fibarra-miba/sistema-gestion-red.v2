@@ -14,12 +14,14 @@ Reglas de negocio y convenciones de carga de datos: **[docs/operacion.md](docs/o
 git clone <repo>
 cd sistema-red-cloude
 chmod +x red
-cp infra/.env.dev.example infra/.env.dev      # primera vez
+cp infra/.env.dev.example infra/.env.dev      # primera vez: reemplazar cada CHANGE_ME
+chmod 600 infra/.env.dev
 ./red up                                       # = ./red dev up
 ```
 
 Acceso DEV: Frontend http://localhost:5173 · Swagger http://localhost:8000/docs
-Login demo: `admin` / `admin`.
+El seed demo de DEV trae un usuario `admin` de prueba (ver `infra/sql/core/010_seed.sql`).
+Secretos (qué hay, dónde viven, cómo se generan y rotan): [docs/secretos.md](docs/secretos.md).
 
 ---
 
@@ -62,8 +64,8 @@ Como usan puertos, volúmenes y cookie de sesión distintos, **DEV y PRD pueden 
 Las migraciones van **antes** del `up` cuando el código nuevo depende de tablas nuevas.
 **Nunca** `reset`/`down -v` en PRD: tiene datos reales; `build + up` conserva el volumen.
 
-> **PRD nace con el usuario `admin` / `admin`** (viene en `005_catalogos_base.sql`).
-> **Cambiá ese password antes de exponer PRD fuera de la máquina** — es una credencial por defecto.
+> **PRD nace sin usuarios.** El primer ADMIN se crea con `./red prd create-admin`: pide la
+> contraseña en la terminal (no queda en ningún archivo) y obliga a cambiarla en el primer ingreso.
 
 ---
 
@@ -87,6 +89,7 @@ Las migraciones van **antes** del `up` cuando el código nuevo depende de tablas
 | `migrations` | Lista migraciones aplicadas / pendientes (ledger `schema_migrations`) |
 | `migrate [--baseline]` | Aplica las pendientes; `--baseline` marca todas como aplicadas sin correrlas |
 | `reset` / `nuke` | Borra volúmenes (y en `nuke`, imágenes) del ambiente — destructivo |
+| `create-admin` | Crea un usuario ADMIN (contraseña interactiva, cambio obligatorio al ingresar) |
 | `open` / `open-api` | Abre frontend / Swagger |
 | `*-n8n` | Variantes para el addon n8n (`up-n8n`, `logs-n8n`, …) |
 
@@ -113,6 +116,8 @@ Ejemplos:
   (semanales → ~26 conservados).
 - **Restaurar:** `./red prd restore infra/backups/prd/<archivo>.dump` (pide doble confirmación en PRD).
 
+- **Permisos:** los dumps se crean `600` (carpeta `700`): traen datos personales y hashes de contraseñas.
+
 > Los backups viven en el **mismo disco** que la base. Para protección real ante fallo de disco,
 > copialos periódicamente a otra ubicación/medio.
 
@@ -128,8 +133,8 @@ red_ai/001..006
 core/010_seed   <- SOLO si RED_SEED=1 (DEV). PRD lo omite.
 ```
 
-`005_catalogos_base` ya incluye catálogos + el usuario `admin`. El `010_seed` es **dataset demo**
-(planes/clientes/contratos de ejemplo) y por eso solo se carga en DEV.
+`005_catalogos_base` incluye catálogos y roles, **sin usuarios**. El `010_seed` es **dataset demo**
+(planes/clientes/contratos de ejemplo y el `admin` de prueba) y por eso solo se carga en DEV.
 
 ### Cambios de schema
 
@@ -138,6 +143,33 @@ y `backend/test/sql/` (la suite reconstruye la base de test desde ahí). Todo ca
 una **migración idempotente** en `infra/sql/migrations/` (con su propio `BEGIN/COMMIT`), que es lo
 que llega a las bases ya levantadas vía `./red [env] migrate`. Una migración ya aplicada **no se
 edita**: se agrega una nueva.
+
+---
+
+## Repositorios
+
+| Repo | Qué es | Historial |
+|---|---|---|
+| `sistema-gestion-red.v2` (`origin`) | Repo de trabajo: acá se desarrolla | Completo |
+| `red-plataforma` (`plataforma`, privado) | Repo de despliegue: de acá salen el CI, las imágenes de GHCR y el host | Arranca en un commit base sin historial (sin credenciales por defecto; ver [docs/secretos.md](docs/secretos.md)) |
+
+En el clon local, `red-plataforma` vive en la rama `plataforma-main`. Los commits nuevos de `main` se
+llevan con:
+
+```bash
+./red sync-plataforma            # cherry-pick -x de lo nuevo + verifica que el código quede idéntico
+git push plataforma plataforma-main:main
+```
+
+Se trabaja siempre en `main`; `plataforma-main` no se edita a mano.
+
+Clon nuevo (otra máquina): clonar `origin` y agregar el otro remoto:
+
+```bash
+git remote add plataforma git@github.com:fibarra-miba/red-plataforma.git
+git fetch plataforma && git branch plataforma-main plataforma/main
+git config core.hooksPath .githooks   # escaneo de secretos (gitleaks) antes de cada commit
+```
 
 ---
 

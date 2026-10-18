@@ -1,0 +1,29 @@
+# Escaneo de secretos (gitleaks). Corre en el pre-commit (.githooks/pre-commit) y en el CI.
+# Reglas por defecto de gitleaks + dos propias del proyecto. Ver docs/secretos.md.
+
+[extend]
+useDefault = true
+
+# Hash de contraseña de la app (formato de app/core/security.py). Nunca debería estar en git:
+# los usuarios reales viven en la base, no en el código.
+[[rules]]
+id = "red-scrypt-password-hash"
+description = "Hash scrypt de contraseña de usuario de Sistema RED"
+regex = '''scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]{16,}\$[A-Za-z0-9+/=]{40,}'''
+keywords = ["scrypt$"]
+
+  # Único permitido: el admin de prueba del seed demo de DEV (RED_SEED=1).
+  [[rules.allowlists]]
+  paths = ['''^(infra/sql/core|backend/test/sql)/010_seed\.sql$''']
+
+# Secreto con valor en un archivo tipo env (KEY=valor). Las plantillas usan CHANGE_ME y
+# compose referencia ${VAR}: esos no son secretos.
+[[rules]]
+id = "red-env-secret-assignment"
+description = "Asignación de secreto con valor real en archivo env"
+regex = '''(?m)^[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|ENCRYPTION_KEY|API_KEY|APP_KEY)=([^\s#]+)'''
+secretGroup = 1
+keywords = ["password=", "secret=", "token=", "encryption_key=", "api_key=", "app_key="]
+
+  [[rules.allowlists]]
+  regexes = ['''^CHANGE_ME''', '''^\$\{''']

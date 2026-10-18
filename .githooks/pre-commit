@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Escaneo de secretos de lo que está por commitearse (config: .gitleaks.toml).
+# Se activa una vez por clon con:  git config core.hooksPath .githooks
+# Emergencia (y avisá después): git commit --no-verify
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: falta gitleaks, el escaneo de secretos es obligatorio."
+  echo "  Instalación: ver docs/secretos.md (sección gitleaks)."
+  exit 1
+fi
+
+exec gitleaks git --pre-commit --staged --redact --no-banner --log-level warn .
