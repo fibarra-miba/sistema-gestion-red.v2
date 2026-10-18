@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.core.security import RESET_PASSWORD_DEFAULT, hash_password, validate_password_policy
+from app.core.security import (
+    generate_temporary_password,
+    hash_password,
+    validate_password_policy,
+)
 from app.repositories.usuarios_repo import UsuariosRepository
 
 
@@ -130,18 +134,20 @@ class UsuariosService:
         actor: dict[str, Any],
         ip_origen: str | None,
         user_agent: str | None,
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], str]:
         existing = self.repo.get_usuario_by_id(usuario_id)
         if not existing:
             raise ValueError("USUARIO_NOT_FOUND")
 
+        password_temporal = generate_temporary_password()
         self.repo.update_usuario(
             usuario_id,
             {
-                "password_hash_usuario": hash_password(RESET_PASSWORD_DEFAULT),
+                "password_hash_usuario": hash_password(password_temporal),
                 "requiere_cambio_password_usuario": True,
             },
         )
+        self.repo.revoke_all_user_sessions(usuario_id, "PASSWORD_RESET_ADMIN")
 
         updated = self.repo.get_usuario_by_id(usuario_id)
 
@@ -151,9 +157,9 @@ class UsuariosService:
             accion_auditoria="RESET_PASSWORD_ADMIN",
             entidad_auditoria="usuarios",
             entidad_id_auditoria=str(usuario_id),
-            detalle_auditoria="PASSWORD_RESET_TO_STANDARD",
+            detalle_auditoria="PASSWORD_RESET_TEMPORAL",
             ip_origen_auditoria=ip_origen,
             user_agent_auditoria=user_agent,
         )
 
-        return updated
+        return updated, password_temporal

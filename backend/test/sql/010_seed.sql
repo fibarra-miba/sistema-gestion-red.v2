@@ -6,6 +6,31 @@
 -- ======================================================
 
 -- ============================
+-- USUARIO ADMIN DEMO
+-- ============================
+-- Solo para el seed demo DEV (RED_SEED=1): user admin / pass admin.
+-- PRD no lo siembra: crea su admin con `./red prd create-admin`.
+INSERT INTO usuarios (
+  rol_id,
+  username_usuario,
+  email_usuario,
+  password_hash_usuario,
+  nombre_usuario,
+  apellido_usuario,
+  activo_usuario,
+  requiere_cambio_password_usuario
+) VALUES (
+  (SELECT rol_id FROM roles WHERE codigo_rol = 'ADMIN'),
+  'admin',
+  'admin@red.com',
+  'scrypt$16384$8$1$79ZwirXIvEtbAme6KLsCyg==$iiLnWWA7uYCQfj25sK0YUCm4TBJWNBhyQAg51bqIpyCF617iEw5Sf5KR1vS/VVtbnFkL/hYU2ELo0IrjjuENWw==',
+  'Admin',
+  'Sistema',
+  TRUE,
+  FALSE
+) ON CONFLICT (username_usuario) DO NOTHING;
+
+-- ============================
 -- PLANES
 -- ============================
 

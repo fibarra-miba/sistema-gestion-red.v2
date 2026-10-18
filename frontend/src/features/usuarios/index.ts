@@ -5,4 +5,10 @@ export { useRoles } from './hooks/useRoles'
 export { useCreateUsuario } from './hooks/useCreateUsuario'
 export { useUpdateUsuario } from './hooks/useUpdateUsuario'
 export { useResetPassword } from './hooks/useResetPassword'
-export type { RolOut, UsuarioCreate, UsuarioOut, UsuarioUpdate } from './types'
+export type {
+  ResetPasswordOut,
+  RolOut,
+  UsuarioCreate,
+  UsuarioOut,
+  UsuarioUpdate,
+} from './types'

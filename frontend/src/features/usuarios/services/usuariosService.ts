@@ -1,11 +1,11 @@
 import { http } from '@/services/http'
 import type {
+  ResetPasswordOut,
   RolOut,
   UsuarioCreate,
   UsuarioOut,
   UsuarioUpdate,
 } from '../types'
-import type { MessageResponse } from '@/features/auth'
 
 export const usuariosService = {
   async list(): Promise<UsuarioOut[]> {
@@ -33,8 +33,8 @@ export const usuariosService = {
     return data
   },
 
-  async resetPassword(usuarioId: number): Promise<MessageResponse> {
-    const { data } = await http.post<MessageResponse>(
+  async resetPassword(usuarioId: number): Promise<ResetPasswordOut> {
+    const { data } = await http.post<ResetPasswordOut>(
       `/usuarios/${usuarioId}/reset-password`,
     )
     return data

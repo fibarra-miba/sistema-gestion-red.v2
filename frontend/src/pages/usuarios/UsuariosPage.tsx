@@ -25,6 +25,7 @@ import {
   type UsuarioOut,
   type UsuarioUpdate,
 } from '@/features/usuarios'
+import PasswordTemporalDialog from '@/features/usuarios/components/PasswordTemporalDialog'
 import UsuarioForm, {
   type UsuarioFormValues,
 } from '@/features/usuarios/components/UsuarioForm'
@@ -39,6 +40,10 @@ export default function UsuariosPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<UsuarioOut | null>(null)
   const [resetting, setResetting] = useState<UsuarioOut | null>(null)
+  const [tempPassword, setTempPassword] = useState<{
+    username: string
+    password: string
+  } | null>(null)
 
   const columns: DataTableColumn<UsuarioOut>[] = [
     {
@@ -157,11 +162,16 @@ export default function UsuariosPage() {
 
   const handleReset = async () => {
     if (!resetting) return
-    await resetMutation.mutateAsync(resetting.usuario_id)
-    snackbar.showSuccess(
-      `Contraseña reseteada a "Inicio.01". Se pedirá cambio al próximo login.`,
-    )
+    const result = await resetMutation.mutateAsync(resetting.usuario_id)
+    setTempPassword({
+      username: resetting.username_usuario,
+      password: result.password_temporal,
+    })
     setResetting(null)
+  }
+
+  const handleCloseTempPassword = () => {
+    setTempPassword(null)
     resetMutation.reset()
   }
 
@@ -248,10 +258,10 @@ export default function UsuariosPage() {
         title="Resetear contraseña"
         description={
           resetting
-            ? `Se reseteará la contraseña de "${resetting.username_usuario}" a "Inicio.01". El usuario deberá cambiarla en el próximo ingreso.`
+            ? `Se generará una contraseña temporal para "${resetting.username_usuario}". Se mostrará una sola vez y el usuario deberá cambiarla en el próximo ingreso. Sus sesiones abiertas se cerrarán.`
             : ''
         }
-        confirmLabel="Resetear"
+        confirmLabel="Generar"
         confirmColor="warning"
         loading={resetMutation.isPending}
         error={resetMutation.error}
@@ -261,6 +271,13 @@ export default function UsuariosPage() {
           setResetting(null)
           resetMutation.reset()
         }}
+      />
+
+      <PasswordTemporalDialog
+        open={!!tempPassword}
+        username={tempPassword?.username ?? ''}
+        password={tempPassword?.password ?? ''}
+        onClose={handleCloseTempPassword}
       />
     </Stack>
   )

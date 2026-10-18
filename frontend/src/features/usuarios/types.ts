@@ -44,3 +44,8 @@ export interface UsuarioUpdate {
   activo_usuario?: boolean
   requiere_cambio_password_usuario?: boolean
 }
+
+export interface ResetPasswordOut {
+  message: string
+  password_temporal: string
+}

@@ -114,25 +114,3 @@ INSERT INTO roles (codigo_rol, nombre_rol, descripcion_rol) VALUES
   ('OPERADOR', 'Operador', 'Operación comercial y administrativa'),
   ('TECNICO', 'Técnico', 'Operación técnica de instalaciones'),
   ('COBRANZAS', 'Cobranzas', 'Gestión de pagos y cobranzas');
-
--- user: admin
--- pass: admin
-INSERT INTO usuarios (
-  rol_id,
-  username_usuario,
-  email_usuario,
-  password_hash_usuario,
-  nombre_usuario,
-  apellido_usuario,
-  activo_usuario,
-  requiere_cambio_password_usuario
-) VALUES (
-  (SELECT rol_id FROM roles WHERE codigo_rol = 'ADMIN'),
-  'admin',
-  'admin@red.com',
-  'scrypt$16384$8$1$79ZwirXIvEtbAme6KLsCyg==$iiLnWWA7uYCQfj25sK0YUCm4TBJWNBhyQAg51bqIpyCF617iEw5Sf5KR1vS/VVtbnFkL/hYU2ELo0IrjjuENWw==',
-  'Admin',
-  'Sistema',
-  TRUE,
-  FALSE
-);

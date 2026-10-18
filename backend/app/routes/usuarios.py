@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg import Connection
 from psycopg.errors import UniqueViolation
 
 from app.db import get_db
 from app.dependencies.auth import require_roles
 from app.repositories.usuarios_repo import UsuariosRepository
-from app.schemas.auth import MessageResponse
-from app.schemas.usuario import RolOut, UsuarioCreate, UsuarioOut, UsuarioUpdate
+from app.schemas.usuario import ResetPasswordOut, RolOut, UsuarioCreate, UsuarioOut, UsuarioUpdate
 from app.services.usuarios_service import UsuariosService
 
 router = APIRouter(
@@ -101,21 +100,26 @@ def update_usuario(
         raise HTTPException(status_code=409, detail="Username o email ya existente.")
 
 
-@router.post("/{usuario_id}/reset-password", response_model=MessageResponse)
+@router.post("/{usuario_id}/reset-password", response_model=ResetPasswordOut)
 def reset_password(
     usuario_id: int,
     request: Request,
+    response: Response,
     actor: dict = Depends(require_roles("ADMIN")),
     conn: Connection = Depends(get_db),
 ):
     try:
-        _service(conn).reset_password(
+        _, password_temporal = _service(conn).reset_password(
             usuario_id=usuario_id,
             actor=actor,
             ip_origen=_client_ip(request),
             user_agent=_user_agent(request),
         )
-        return {"message": "Contraseña reseteada a Inicio.01 y cambio obligatorio activado."}
+        response.headers["Cache-Control"] = "no-store"
+        return {
+            "message": "Contraseña temporal generada. El usuario deberá cambiarla en el próximo ingreso.",
+            "password_temporal": password_temporal,
+        }
     except ValueError as e:
         if str(e) == "USUARIO_NOT_FOUND":
             raise HTTPException(status_code=404, detail="Usuario no encontrado.")

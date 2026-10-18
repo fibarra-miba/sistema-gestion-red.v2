@@ -46,3 +46,8 @@ class UsuarioUpdate(BaseModel):
     apellido_usuario: str | None = Field(default=None, min_length=1, max_length=100)
     activo_usuario: bool | None = None
     requiere_cambio_password_usuario: bool | None = None
+
+
+class ResetPasswordOut(BaseModel):
+    message: str
+    password_temporal: str

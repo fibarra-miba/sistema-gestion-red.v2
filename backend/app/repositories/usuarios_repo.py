@@ -142,6 +142,43 @@ class UsuariosRepository:
 
         return self.get_usuario_by_id(usuario_id)
 
+    def revoke_all_user_sessions(self, usuario_id: int, motivo: str) -> None:
+        query = """
+            UPDATE sesiones_usuarios
+            SET
+                fecha_revocacion_sesion = NOW(),
+                motivo_revocacion_sesion = %s,
+                updated_at = NOW()
+            WHERE usuario_id = %s
+              AND fecha_revocacion_sesion IS NULL
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(query, (motivo, usuario_id))
+
+    def username_o_email_existe(self, username: str, email: str) -> dict[str, bool]:
+        query = """
+            SELECT
+                EXISTS (SELECT 1 FROM usuarios WHERE LOWER(username_usuario) = LOWER(%s)) AS username,
+                EXISTS (SELECT 1 FROM usuarios WHERE LOWER(email_usuario) = LOWER(%s)) AS email
+        """
+        with self.conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query, (username, email))
+            return cur.fetchone()
+
+    def existe_admin_activo(self) -> bool:
+        query = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM usuarios u
+                INNER JOIN roles r ON r.rol_id = u.rol_id
+                WHERE r.codigo_rol = 'ADMIN'
+                  AND u.activo_usuario = TRUE
+            )
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(query)
+            return bool(cur.fetchone()[0])
+
     def get_rol_by_codigo(self, codigo_rol: str) -> Optional[dict[str, Any]]:
         query = """
             SELECT rol_id, codigo_rol, nombre_rol, descripcion_rol
