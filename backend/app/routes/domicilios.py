@@ -29,7 +29,7 @@ router = APIRouter(
 @router.get("/{cliente_id}/domicilios", response_model=List[DomicilioOut])
 def list_domicilios_cliente(
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
 ):
     try:
         return DomicilioService.listar_historial(conn, cliente_id)
@@ -45,7 +45,7 @@ def list_domicilios_cliente(
 @router.get("/{cliente_id}/domicilio-vigente", response_model=DomicilioVigenteOut)
 def get_domicilio_vigente(
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
 ):
     try:
         return DomicilioService.obtener_domicilio_vigente(conn, cliente_id)
@@ -64,7 +64,7 @@ def get_domicilio_vigente(
 def create_domicilio_cliente(
     domicilio: DomicilioCreate,
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
@@ -105,7 +105,7 @@ def update_domicilio_cliente(
     cliente_id: int = Path(..., ge=1),
     domicilio_id: int = Path(..., ge=1),
     domicilio: DomicilioUpdate = ...,
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:

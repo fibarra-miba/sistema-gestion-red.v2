@@ -20,54 +20,54 @@ router = APIRouter(
 
 
 @router.get("/medios-pagos", response_model=list[CatalogoItemOut])
-def medios_pagos(conn: Connection = Depends(get_db)):
+def medios_pagos(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_medios_pagos()
 
 
 @router.get("/tipos-promo", response_model=list[CatalogoItemOut])
-def tipos_promo(conn: Connection = Depends(get_db)):
+def tipos_promo(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_tipos_promo()
 
 
 @router.get("/tipos-pago", response_model=list[CatalogoItemOut])
-def tipos_pago(conn: Connection = Depends(get_db)):
+def tipos_pago(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_tipos_pago()
 
 
 @router.get("/estados-pago", response_model=list[CatalogoItemOut])
-def estados_pago(conn: Connection = Depends(get_db)):
+def estados_pago(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_estados_pago()
 
 
 @router.get("/tipos-producto", response_model=list[CatalogoItemOut])
-def tipos_producto(conn: Connection = Depends(get_db)):
+def tipos_producto(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_tipos_producto()
 
 
 @router.get("/estados-cliente", response_model=list[CatalogoItemOut])
-def estados_cliente(conn: Connection = Depends(get_db)):
+def estados_cliente(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_estados_cliente()
 
 
 @router.get("/estados-garantia", response_model=list[CatalogoItemOut])
-def estados_garantia(conn: Connection = Depends(get_db)):
+def estados_garantia(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_estados_garantia()
 
 
 @router.get("/estados-proveedor", response_model=list[CatalogoItemOut])
-def estados_proveedor(conn: Connection = Depends(get_db)):
+def estados_proveedor(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_estados_proveedor()
 
 
 @router.get("/tipos-movimiento-stock", response_model=list[CatalogoItemOut])
-def tipos_movimiento_stock(conn: Connection = Depends(get_db)):
+def tipos_movimiento_stock(conn: Connection = Depends(get_db, scope="function")):
     service = CatalogosService(conn)
     return service.list_tipos_movimiento_stock()

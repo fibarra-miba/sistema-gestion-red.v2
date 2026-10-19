@@ -38,7 +38,7 @@ def list_auditoria(
     hasta: datetime | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     repo = AuditRepository(conn)
     filtros = dict(

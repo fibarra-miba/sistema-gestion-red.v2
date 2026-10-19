@@ -22,7 +22,7 @@ def user_agent(request: Request) -> str | None:
 def get_auditor(
     request: Request,
     session: dict = Depends(get_current_session),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ) -> Auditor:
     """Auditor por request, ligado al actor (sesión + Request) y a la conexión.
 

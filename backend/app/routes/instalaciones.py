@@ -63,7 +63,7 @@ garantias_router = APIRouter(
 )
 
 
-def get_service(conn=Depends(get_db)) -> InstalacionesService:
+def get_service(conn=Depends(get_db, scope="function")) -> InstalacionesService:
     contratos_repo = ContractRepository(conn)
     instalaciones_repo = InstalacionesRepository(conn)
     stock_service = StockService(StockRepository(conn))

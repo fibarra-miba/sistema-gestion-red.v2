@@ -42,7 +42,7 @@ def get_clientes(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     search: Optional[str] = Query(default=None),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
 ):
     try:
         return ClienteService.listar(conn, limit, offset, search)
@@ -57,7 +57,7 @@ def get_clientes(
     dependencies=[Depends(require_roles(*READ_ROLES))],
 )
 def get_clientes_resumen(
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
 ):
     try:
         return ClienteService.resumen(conn)
@@ -73,7 +73,7 @@ def get_clientes_resumen(
 )
 def get_cliente(
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
 ):
     try:
         return ClienteService.obtener(conn, cliente_id)
@@ -94,7 +94,7 @@ def get_cliente(
 )
 def create_cliente(
     cliente: ClienteCreate,
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
@@ -128,7 +128,7 @@ def create_cliente(
 )
 def onboarding_cliente(
     data: ClienteOnboardingCreate,
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
@@ -162,7 +162,7 @@ def onboarding_cliente(
 )
 def activar_cliente(
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
@@ -190,7 +190,7 @@ def activar_cliente(
 )
 def desactivar_cliente(
     cliente_id: int = Path(..., ge=1),
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:
@@ -219,7 +219,7 @@ def desactivar_cliente(
 def update_cliente(
     cliente_id: int = Path(..., ge=1),
     cliente: ClienteUpdate = ...,
-    conn: psycopg.Connection = Depends(get_db),
+    conn: psycopg.Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     try:

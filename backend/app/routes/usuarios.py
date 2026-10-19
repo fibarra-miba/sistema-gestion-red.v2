@@ -32,17 +32,17 @@ def _service(conn: Connection) -> UsuariosService:
 
 
 @router.get("", response_model=list[UsuarioOut])
-def list_usuarios(conn: Connection = Depends(get_db)):
+def list_usuarios(conn: Connection = Depends(get_db, scope="function")):
     return _service(conn).list_usuarios()
 
 
 @router.get("/roles", response_model=list[RolOut])
-def list_roles(conn: Connection = Depends(get_db)):
+def list_roles(conn: Connection = Depends(get_db, scope="function")):
     return _service(conn).list_roles()
 
 
 @router.get("/{usuario_id}", response_model=UsuarioOut)
-def get_usuario(usuario_id: int, conn: Connection = Depends(get_db)):
+def get_usuario(usuario_id: int, conn: Connection = Depends(get_db, scope="function")):
     try:
         return _service(conn).get_usuario(usuario_id)
     except ValueError as e:
@@ -56,7 +56,7 @@ def create_usuario(
     payload: UsuarioCreate,
     request: Request,
     actor: dict = Depends(require_roles("ADMIN")),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     try:
         return _service(conn).create_usuario(
@@ -79,7 +79,7 @@ def update_usuario(
     payload: UsuarioUpdate,
     request: Request,
     actor: dict = Depends(require_roles("ADMIN")),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     try:
         return _service(conn).update_usuario(
@@ -106,7 +106,7 @@ def reset_password(
     request: Request,
     response: Response,
     actor: dict = Depends(require_roles("ADMIN")),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     try:
         _, password_temporal = _service(conn).reset_password(

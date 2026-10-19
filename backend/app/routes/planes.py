@@ -30,12 +30,12 @@ router = APIRouter(
 )
 
 
-def get_planes_service(conn: Connection = Depends(get_db)) -> PlanesService:
+def get_planes_service(conn: Connection = Depends(get_db, scope="function")) -> PlanesService:
     repo = PlanesRepository(conn)
     return PlanesService(repo)
 
 
-def get_precios_service(conn: Connection = Depends(get_db)) -> PreciosPlanesService:
+def get_precios_service(conn: Connection = Depends(get_db, scope="function")) -> PreciosPlanesService:
     planes_repo = PlanesRepository(conn)
     precios_repo = PreciosRepo(conn)
     return PreciosPlanesService(precios_repo, planes_repo)

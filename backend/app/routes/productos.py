@@ -33,7 +33,7 @@ router = APIRouter(
 )
 
 
-def get_service(conn: Connection = Depends(get_db)) -> ProductosService:
+def get_service(conn: Connection = Depends(get_db, scope="function")) -> ProductosService:
     return ProductosService(ProductosRepository(conn))
 
 

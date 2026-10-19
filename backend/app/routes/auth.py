@@ -39,7 +39,7 @@ def login(
     payload: LoginRequest,
     request: Request,
     response: Response,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     service = AuthService(AuthRepository(conn))
     session_token = generate_session_token()
@@ -81,7 +81,7 @@ def logout(
     request: Request,
     response: Response,
     session: dict = Depends(get_current_session),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     service = AuthService(AuthRepository(conn))
     service.logout(
@@ -105,7 +105,7 @@ def logout_all(
     request: Request,
     response: Response,
     session: dict = Depends(get_current_session),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     service = AuthService(AuthRepository(conn))
     service.logout_all(
@@ -130,7 +130,7 @@ def change_password(
     request: Request,
     response: Response,
     session: dict = Depends(get_current_session),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     service = AuthService(AuthRepository(conn))
 

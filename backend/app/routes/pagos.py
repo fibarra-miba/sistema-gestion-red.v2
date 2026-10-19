@@ -49,7 +49,7 @@ def _svc(conn: Connection) -> PagosService:
 
 
 @router.get("/pagos/resumen", response_model=PagosResumenOut)
-def get_pagos_resumen(conn: Connection = Depends(get_db)):
+def get_pagos_resumen(conn: Connection = Depends(get_db, scope="function")):
     return _svc(conn).resumen()
 
 
@@ -57,7 +57,7 @@ def get_pagos_resumen(conn: Connection = Depends(get_db)):
 def generar_periodo_contrato(
     contrato_id: int,
     body: GenerarPeriodoIn,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     fecha_emision = body.fecha_emision or date.today()
@@ -104,7 +104,7 @@ def generar_periodo_contrato(
 @router.post("/pagos/generar-lote", response_model=GenerarLoteOut)
 def generar_lote(
     body: GenerarLoteIn,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     fecha_emision = body.fecha_emision or date.today()
@@ -131,7 +131,7 @@ def generar_lote(
 def crear_movimiento_pago(
     pago_id: int,
     body: PagoMovimientoIn,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     with conn.transaction():
@@ -160,12 +160,12 @@ def crear_movimiento_pago(
 
 
 @router.get("/pagos/{pago_id}", response_model=PagoDetalleOut)
-def get_pago(pago_id: int, conn: Connection = Depends(get_db)):
+def get_pago(pago_id: int, conn: Connection = Depends(get_db, scope="function")):
     return _svc(conn).get_pago_detalle(pago_id)
 
 
 @router.get("/pagos/{pago_id}/movimientos")
-def get_pago_movimientos(pago_id: int, conn: Connection = Depends(get_db)):
+def get_pago_movimientos(pago_id: int, conn: Connection = Depends(get_db, scope="function")):
     det = _svc(conn).get_pago_detalle(pago_id)
     return det["movimientos"]
 
@@ -174,7 +174,7 @@ def get_pago_movimientos(pago_id: int, conn: Connection = Depends(get_db)):
 def get_pago_movimiento(
     pago_id: int,
     pago_mov_id: int,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     det = _svc(conn).get_pago_detalle(pago_id)
 
@@ -189,7 +189,7 @@ def get_pago_movimiento(
 def patch_factura(
     factura_venta_id: int,
     body: PatchFacturaBonificacionIn,
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
     auditor: Auditor = Depends(get_auditor),
 ):
     result = _svc(conn).patch_factura_bonificacion(factura_venta_id, body.bonificacion_fventas)
@@ -211,13 +211,13 @@ def list_pagos_contrato(
     estado: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     return _svc(conn).list_pagos_contrato(contrato_id, anio, mes, estado, limit, offset)
 
 
 @router.get("/clientes/{cliente_id}/cuenta")
-def get_cuenta_cliente(cliente_id: int, conn: Connection = Depends(get_db)):
+def get_cuenta_cliente(cliente_id: int, conn: Connection = Depends(get_db, scope="function")):
     return _svc(conn).get_cuenta_cliente(cliente_id)
 
 
@@ -229,7 +229,7 @@ def list_movs_cuenta_cliente(
     tipo: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ):
     repo = CuentaRepo(conn)
     return repo.get_cuenta_movimientos(cliente_id, desde, hasta, tipo, limit, offset)

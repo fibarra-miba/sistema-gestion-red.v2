@@ -38,7 +38,7 @@ router = APIRouter(
 )
 
 
-def get_service(conn: Connection = Depends(get_db)) -> ContractService:
+def get_service(conn: Connection = Depends(get_db, scope="function")) -> ContractService:
     repo = ContractRepository(conn)
     instalaciones_repo = InstalacionesRepository(conn)
     return ContractService(repo, instalaciones_repo)

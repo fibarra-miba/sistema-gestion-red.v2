@@ -12,7 +12,7 @@ from app.repositories.auth_repo import AuthRepository
 
 def get_current_session(
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
-    conn: Connection = Depends(get_db),
+    conn: Connection = Depends(get_db, scope="function"),
 ) -> dict:
     if not session_token:
         raise HTTPException(status_code=401, detail="No autenticado.")

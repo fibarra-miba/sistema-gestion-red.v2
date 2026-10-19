@@ -29,7 +29,7 @@ router = APIRouter(
 )
 
 
-def get_service(conn: Connection = Depends(get_db)) -> PromocionesService:
+def get_service(conn: Connection = Depends(get_db, scope="function")) -> PromocionesService:
     return PromocionesService(PromocionesRepo(conn))
 
 
