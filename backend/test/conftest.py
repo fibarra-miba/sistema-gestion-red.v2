@@ -19,41 +19,25 @@ from app.core.security import hash_password  # noqa: E402
 # =========================
 # SQL paths
 # =========================
-def _resolve_sql_dir(base_dir: pathlib.Path) -> pathlib.Path:
-    """
-    Prioridad:
-    1) backend/test/sql            (canónico para la suite)
-    2) <repo>/infra/sql/core       (fallback para runs locales fuera de docker)
-    """
-    candidate_1 = base_dir / "test" / "sql"
-    if candidate_1.exists():
-        return candidate_1
-
-    candidate_2 = base_dir.parent / "infra" / "sql" / "core"
-    if candidate_2.exists():
-        return candidate_2
-
-    raise FileNotFoundError(
-        "No se encontró el directorio de SQL. "
-        "Creá backend/test/sql y copiá ahí 001_schema.sql, 002_constraints.sql, "
-        "003_indexes.sql, 005_catalogos_base.sql, 006_post_seed.sql y 010_seed.sql."
-    )
-
-
-SQL_DIR = _resolve_sql_dir(BASE_DIR)
+# 001–006 son el esquema: copia idéntica de infra/sql/core (el contenedor api solo
+# monta backend/; `./red test` frena si difieren). 010_fixtures es PROPIO de la suite:
+# datos con ids fijos que los tests asumen, distinto a propósito del seed demo de DEV.
+SQL_DIR = BASE_DIR / "test" / "sql"
+if not SQL_DIR.exists():
+    raise FileNotFoundError(f"No se encontró {SQL_DIR} (esquema + fixtures de la suite).")
 
 SCHEMA_FILES = [
     SQL_DIR / "001_schema.sql",
     SQL_DIR / "002_constraints.sql",
     SQL_DIR / "003_indexes.sql",
-    # Catálogos/estados base: el seed (010) los referencia por descripción,
+    # Catálogos/estados base: los fixtures (010) los referencian por descripción,
     # así que deben sembrarse antes.
     SQL_DIR / "005_catalogos_base.sql",
     # Constraints que dependen de catálogos ya sembrados (índice único parcial
     # de garantía ACTIVA). Debe correr después de 005 para alinear la DB de test
     # con la real (bootstrap docker corre 006 antes de 010).
     SQL_DIR / "006_post_seed.sql",
-    SQL_DIR / "010_seed.sql",
+    SQL_DIR / "010_fixtures.sql",
 ]
 
 

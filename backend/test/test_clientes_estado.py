@@ -79,7 +79,7 @@ async def test_desactivar_cliente_ya_inactivo_400(admin_client, db_conn):
 
 @pytest.mark.anyio
 async def test_desactivar_cliente_con_contrato_activo_400(admin_client):
-    # Cliente 2 del seed tiene un contrato ACTIVO (ver 010_seed.sql).
+    # Cliente 2 del seed tiene un contrato ACTIVO (ver test/sql/010_fixtures.sql).
     r = await admin_client.post("/clientes/2/desactivar")
     assert r.status_code == 400, r.text
     assert "contratos activos o suspendidos" in r.json()["detail"]

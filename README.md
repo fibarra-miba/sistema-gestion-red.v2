@@ -82,7 +82,8 @@ Las migraciones van **antes** del `up` cuando el código nuevo depende de tablas
 | `rebuild` | Reconstruye sin cache |
 | `logs` / `logs-api` / `logs-front` | Logs en vivo |
 | `ps` | Estado de contenedores |
-| `test` | Pytest contra `<POSTGRES_DB>_test` (base de test dedicada) |
+| `test` | Pytest contra `<POSTGRES_DB>_test` (base de test dedicada; antes chequea el esquema) |
+| `check-schema` | Verifica que el esquema de la suite sea idéntico al de `infra/sql/core` |
 | `backup [tag]` | Snapshot de la base → `infra/backups/<env>/` (tag def: `manual`) |
 | `backups` | Lista los backups del ambiente |
 | `restore <archivo>` | Restaura la base desde un `.dump` (**sobreescribe**) |
@@ -139,7 +140,10 @@ core/010_seed   <- SOLO si RED_SEED=1 (DEV). PRD lo omite.
 ### Cambios de schema
 
 El schema vive en **dos lugares que deben quedar idénticos**: `infra/sql/core/` (bases nuevas)
-y `backend/test/sql/` (la suite reconstruye la base de test desde ahí). Todo cambio lleva además
+y `backend/test/sql/` (la suite reconstruye la base de test desde ahí). Son los archivos `001` a
+`006`; `./red check-schema` lo verifica (también lo corre `./red test` y el CI). Los **datos** no se
+sincronizan: `infra/sql/core/010_seed.sql` es la demo de DEV y `backend/test/sql/010_fixtures.sql`
+son los fixtures de la suite (ids fijos y casos a medida). Todo cambio lleva además
 una **migración idempotente** en `infra/sql/migrations/` (con su propio `BEGIN/COMMIT`), que es lo
 que llega a las bases ya levantadas vía `./red [env] migrate`. Una migración ya aplicada **no se
 edita**: se agrega una nueva.

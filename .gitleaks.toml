@@ -14,7 +14,7 @@ keywords = ["scrypt$"]
 
   # Único permitido: el admin de prueba del seed demo de DEV (RED_SEED=1).
   [[rules.allowlists]]
-  paths = ['''^(infra/sql/core|backend/test/sql)/010_seed\.sql$''']
+  paths = ['''^infra/sql/core/010_seed\.sql$''']
 
 # Secreto con valor en un archivo tipo env (KEY=valor). Las plantillas usan CHANGE_ME y
 # compose referencia ${VAR}: esos no son secretos.

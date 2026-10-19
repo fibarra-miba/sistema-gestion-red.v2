@@ -1,0 +1,17 @@
+name: esquema
+
+# El esquema de la suite (backend/test/sql) debe ser idéntico al de infra/sql/core.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  esquema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar esquema sincronizado
+        run: ./red check-schema

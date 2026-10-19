@@ -52,6 +52,22 @@ check_change_me() {
   fi
 }
 
+# El esquema vive en dos lugares: infra/sql/core (bases nuevas) y backend/test/sql
+# (la suite lo recrea desde ahí; el contenedor api solo monta backend/). Deben ser
+# idénticos. Los datos NO: 010_seed (demo DEV) y 010_fixtures (tests) difieren a propósito.
+SCHEMA_SQL_FILES="001_schema 002_constraints 003_indexes 005_catalogos_base 006_post_seed"
+check_schema_sync() {
+  local f distintos=""
+  for f in $SCHEMA_SQL_FILES; do
+    cmp -s "infra/sql/core/$f.sql" "backend/test/sql/$f.sql" || distintos="$distintos $f.sql"
+  done
+  if [ -n "$distintos" ]; then
+    echo "El esquema de la suite (backend/test/sql) difiere de infra/sql/core en:$distintos"
+    echo "Copiá los de infra (fuente de verdad) y agregá la migración correspondiente."
+    exit 1
+  fi
+}
+
 ensure_env() {
   if [ ! -f "$ENV_FILE" ]; then
     echo "No existe $ENV_FILE"
@@ -317,8 +333,14 @@ case "$1" in
     fi
     ;;
 
+  check-schema)
+    check_schema_sync
+    echo "Esquema sincronizado: infra/sql/core == backend/test/sql (001–006)."
+    ;;
+
   test)
     ensure_env
+    check_schema_sync
     # La suite recrea el schema (destructivo): corre SIEMPRE contra una base de
     # test dedicada (<POSTGRES_DB>_test), nunca contra la base real del ambiente.
     set -a; . "$ENV_FILE"; set +a
@@ -558,7 +580,8 @@ case "$1" in
     echo "  rebuild             Reconstruye sin cache"
     echo "  nuke                Borra contenedores, volúmenes e imágenes del ambiente"
     echo ""
-    echo "  test                Ejecuta pytest contra <POSTGRES_DB>_test"
+    echo "  test                Ejecuta pytest contra <POSTGRES_DB>_test (antes chequea el esquema)"
+    echo "  check-schema        Verifica que el esquema de la suite sea idéntico al de infra"
     echo ""
     echo "  backup [tag]        Snapshot de la base -> infra/backups/<env>/ (tag def: manual)"
     echo "  backups             Lista los backups del ambiente"
