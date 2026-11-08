@@ -148,7 +148,6 @@ artifacts/
 *.db
 coverage/
 htmlcov/
-CLAUDE.md
 
 # n8n local environment
 infra/.env.n8n

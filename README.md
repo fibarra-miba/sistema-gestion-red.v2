@@ -22,6 +22,7 @@ chmod 600 infra/.env.dev
 Acceso DEV: Frontend http://localhost:5173 · Swagger http://localhost:8000/docs
 El seed demo de DEV trae un usuario `admin` de prueba (ver `infra/sql/core/010_seed.sql`).
 Secretos (qué hay, dónde viven, cómo se generan y rotan): [docs/secretos.md](docs/secretos.md).
+Estado del proyecto, decisiones y próximos pasos: [docs/estado.md](docs/estado.md).
 
 ---
 
