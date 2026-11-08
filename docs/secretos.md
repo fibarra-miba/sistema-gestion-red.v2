@@ -62,12 +62,20 @@ cp infra/.env.prd.example infra/.env.prd && chmod 600 infra/.env.prd
 | Secreto | Para qué | Alcance mínimo |
 |---|---|---|
 | Token de API de Cloudflare | Certificado real por DNS-01 (Traefik) | `Zone:DNS:Edit` solo sobre la zona del dominio |
-| `B2_ACCOUNT_ID` / `B2_ACCOUNT_KEY` | restic → Backblaze B2 | Application key limitada a **un** bucket |
+| Credencial de rclone (`rclone.conf`) | restic → Google Drive (copia fuera del host) | Cuenta de Google **dedicada** (no personal) y permiso `drive.file`: solo los archivos que crea rclone, no el Drive entero |
 | `RESTIC_PASSWORD` | Cifra el repositorio de backups | Si se pierde, **los backups no se pueden restaurar** |
 | Token de GHCR | El host descarga las imágenes (si GHCR es privado) | PAT con solo `read:packages` |
 
 En el CI de GitHub las imágenes se publican con el `GITHUB_TOKEN` del workflow (no hace falta
-crear un secreto para eso).
+crear un secreto para eso). Las imágenes de GHCR son **privadas**; el host solo tiene el token de lectura.
+
+### Cuentas de servicio
+
+| Cuenta | Para qué | Cuidados |
+|---|---|---|
+| NIC Argentina (clave fiscal del titular) | Titularidad de `fiba-soluciones.com.ar` y delegación DNS | Renovación anual: si vence, el sistema deja de resolver |
+| Cloudflare (plan Free) | DNS de `fiba-soluciones.com.ar` | 2FA; mail de recuperación que **no** sea del propio dominio (si el DNS falla, no llegaría) |
+| Google dedicada a backups | Destino de restic vía rclone | 2FA; no es una cuenta personal: el servidor guarda una credencial de acceso |
 
 ---
 
@@ -102,6 +110,9 @@ después limpiar donde quedó. Reescribir el historial de git no sirve si el sec
 - **`.gitleaksignore`:** solo los hallazgos **históricos** aceptados (valores por defecto que ya no
   sirven: el admin de fábrica y las contraseñas de plantilla viejas). No se agregan hallazgos nuevos
   ahí: un secreto nuevo se saca del commit y se rota.
+  Las huellas incluyen el **hash del commit**: si se reescribe el historial, hay que regenerarlas
+  (escanear con un ignore vacío, conservar las huellas de commits que no cambiaron y reemplazar el resto)
+  o el CI marca los mismos valores por defecto como hallazgos nuevos.
 - **Instalación local** (binario único, sin dependencias; versión fijada igual que en el CI):
 
   ```bash
@@ -124,6 +135,10 @@ bootstrap, la contraseña de reseteo fija y las contraseñas de las plantillas d
 **no reescribir el historial**: esos valores dejaron de servir (el admin ya no viene en el bootstrap,
 el reseteo es aleatorio y las plantillas usan `CHANGE_ME`). El repo de despliegue (`red-plataforma`)
 arranca sin historial, así que tampoco los contiene.
+
+El 2026-10-19 se reescribieron los **mensajes** de commit de ambos repos (sin cambios de código ni de
+secretos) y se regeneró `.gitleaksignore` por el cambio de hashes. Cualquier clon anterior a esa fecha
+hay que volver a clonarlo.
 
 ---
 
