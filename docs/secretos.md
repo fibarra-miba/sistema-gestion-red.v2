@@ -57,6 +57,16 @@ cp infra/.env.prd.example infra/.env.prd && chmod 600 infra/.env.prd
 | Backups de la base | `infra/backups/<env>/*.dump` | permisos `600` / carpeta `700`; contienen datos personales y hashes |
 | Auditoría | tabla `auditoria_eventos` | nunca registra contraseñas (ni temporales) |
 
+### Acceso al servidor de PRD (existen desde el 2026-11-10)
+
+| Secreto | Dónde vive | Notas |
+|---|---|---|
+| Clave SSH `red_prd` (ed25519) | Privada solo en la PC Windows del titular (`%USERPROFILE%\.ssh\red_prd`); la pública en `authorized_keys` de `fiba` | Con passphrase, guardada en el gestor de contraseñas. Si se pierde la PC o la passphrase: generar otra clave y cargarla por la consola del panel de Hostinger |
+| Contraseña de `fiba` | Gestor de contraseñas | Solo sirve para `sudo`: SSH no acepta contraseñas |
+| Contraseña de root del VPS | Gestor de contraseñas | Root no entra por SSH; queda para la consola de emergencia del panel |
+
+Detalle del acceso en [servidor.md](servidor.md).
+
 ### Secretos que suma el bloque C (todavía no existen)
 
 | Secreto | Para qué | Alcance mínimo |
@@ -73,9 +83,12 @@ crear un secreto para eso). Las imágenes de GHCR son **privadas**; el host solo
 
 | Cuenta | Para qué | Cuidados |
 |---|---|---|
-| NIC Argentina (clave fiscal del titular) | Titularidad de `fiba-soluciones.com.ar` y delegación DNS | Renovación anual: si vence, el sistema deja de resolver |
-| Cloudflare (plan Free) | DNS de `fiba-soluciones.com.ar` | 2FA; mail de recuperación que **no** sea del propio dominio (si el DNS falla, no llegaría) |
-| Google dedicada a backups | Destino de restic vía rclone | 2FA; no es una cuenta personal: el servidor guarda una credencial de acceso |
+| NIC Argentina (clave fiscal del titular) | Titularidad de `fiba-soluciones.com.ar` y delegación DNS | Renovación anual (**vence el 2027-11-10**): si vence, el sistema deja de resolver |
+| Cloudflare (plan Free) | DNS de `fiba-soluciones.com.ar` | **2FA por app activo** (2026-11-10), códigos de recuperación guardados; contraseña propia (la cuenta se creó con Google). Mail de recuperación que **no** sea del propio dominio (si el DNS falla, no llegaría) |
+| Gmail del titular | Llave de recuperación de Cloudflare, GitHub y Hostinger | Verificación en 2 pasos activa: quien controla este mail puede resetear las demás cuentas |
+| Hostinger | VPS de PRD (contrato a 24 meses desde 2026-11-10) | **Pendiente: activar 2FA.** Desde el panel se puede reinstalar o restaurar el servidor y abrir su consola |
+| GitHub (`fibarra-miba`) | Repos, CI y GHCR | 2FA recomendado si no está activo |
+| Google dedicada a backups | Destino de restic vía rclone | 2FA; no es una cuenta personal: el servidor guarda una credencial de acceso. Todavía no creada |
 
 ---
 
