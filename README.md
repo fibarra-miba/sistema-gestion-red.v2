@@ -168,6 +168,12 @@ git push plataforma plataforma-main:main
 
 Se trabaja siempre en `main`; `plataforma-main` no se edita a mano.
 
+El sync hace `fetch` de `plataforma` y adelanta `plataforma-main` si alguien commiteó directo en
+`red-plataforma` (p. ej. docs desde otra máquina). Esos commits hay que traerlos primero a `main`: el
+script los lista con el `git cherry-pick -x` a correr y frena. Lo que ya está de los dos lados se
+reconoce por patch-id o por la marca `-x`, así que no se duplica. Si `plataforma-main` y el remoto
+divergieron, frena: **nunca** `push --force`.
+
 Clon nuevo (otra máquina): clonar `origin` y agregar el otro remoto:
 
 ```bash

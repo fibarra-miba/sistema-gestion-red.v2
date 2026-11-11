@@ -518,22 +518,82 @@ case "$1" in
   sync-plataforma)
     # Repo de despliegue (red-plataforma): nació sin historial desde un commit base
     # de main y recibe los commits nuevos por cherry-pick (-x deja la referencia
-    # al commit de origen). Ver README §Repositorios.
+    # al commit de origen). Tolera commits hechos directo en red-plataforma: los detecta y pide
+    # traerlos a main antes; lo ya aplicado se reconoce por patch-id o por la marca -x. Nunca fuerza
+    # ni reescribe. Ver README §Repositorios.
     PLAT_BRANCH="plataforma-main"
     git rev-parse --verify -q "$PLAT_BRANCH" >/dev/null \
       || { echo "No existe la rama local $PLAT_BRANCH. Ver README §Repositorios."; exit 1; }
     [ "$(git symbolic-ref --short HEAD)" = "main" ] || { echo "Corré esto parado en main."; exit 1; }
     [ -z "$(git status --porcelain)" ] || { echo "Hay cambios sin commitear en main."; exit 1; }
-    # Último commit de main ya sincronizado: el de la base o el del último cherry-pick.
-    last=$(git log -1 --format=%B "$PLAT_BRANCH" \
-      | sed -nE 's/.*(Base: main@|cherry picked from commit )([0-9a-f]{40}).*/\2/p' | tail -1)
+    # Marca de origen de un commit: el hash de su última línea "cherry picked from" o "Base: main@".
+    marca_origen() {
+      git log -1 --format=%B "$1" \
+        | sed -nE 's/.*(Base: main@|cherry picked from commit )([0-9a-f]{40}).*/\2/p' | tail -1
+    }
+    es_ancestro() { git merge-base --is-ancestor "$1" "$2" 2>/dev/null; }
+
+    # 1) Alinear con el remoto: también se commitea directo en red-plataforma (desde otra máquina).
+    git fetch -q plataforma || { echo "No pude hacer fetch de 'plataforma' (¿sin red?). No sigo a ciegas."; exit 1; }
+    PLAT_REMOTE="plataforma/main"
+    if [ "$(git rev-parse "$PLAT_BRANCH")" != "$(git rev-parse "$PLAT_REMOTE")" ]; then
+      if es_ancestro "$PLAT_BRANCH" "$PLAT_REMOTE"; then
+        echo "Trayendo de red-plataforma (fast-forward):"
+        git log --oneline "${PLAT_BRANCH}..${PLAT_REMOTE}" | sed 's/^/  /'
+        git fetch -q plataforma "main:${PLAT_BRANCH}"
+      elif ! es_ancestro "$PLAT_REMOTE" "$PLAT_BRANCH"; then
+        echo "ATENCIÓN: $PLAT_BRANCH y $PLAT_REMOTE divergieron (hay commits de los dos lados)."
+        echo "  Solo locales:  $(git rev-list --count "${PLAT_REMOTE}..${PLAT_BRANCH}")"
+        echo "  Solo remotos:  $(git rev-list --count "${PLAT_BRANCH}..${PLAT_REMOTE}")"
+        echo "Nunca forzar el push. Revisar a mano (git log --graph $PLAT_BRANCH $PLAT_REMOTE)."
+        exit 1
+      fi
+    fi
+
+    # 2) Commits hechos directo en red-plataforma que main no tiene: se traen a main primero.
+    # Cuenta como presente si el parche ya está en main (patch-id), si su marca apunta a un commit de
+    # main, o si un commit de main lo trajo con -x (aunque se haya adaptado y el patch-id difiera).
+    raiz=$(git rev-list --max-parents=0 "$PLAT_BRANCH" | tail -1)
+    traidos_a_main=$(git log --format=%B main | sed -nE 's/.*cherry picked from commit ([0-9a-f]{40}).*/\1/p')
+    faltan_en_main=""
+    while read -r signo h; do
+      [ "$signo" = "+" ] || continue
+      origen=$(marca_origen "$h")
+      [ -n "$origen" ] && es_ancestro "$origen" main && continue
+      grep -qx "$h" <<< "$traidos_a_main" && continue
+      faltan_en_main+="$h "
+    done < <(git cherry main "$PLAT_BRANCH" "$raiz")
+    if [ -n "$faltan_en_main" ]; then
+      echo "ATENCIÓN: hay commits hechos directo en red-plataforma que main no tiene:"
+      for h in $faltan_en_main; do echo "  $(git log -1 --oneline "$h")"; done
+      echo "Traerlos primero a main (parado en main):  git cherry-pick -x $faltan_en_main"
+      echo "Después volvé a correr ./red sync-plataforma."
+      exit 1
+    fi
+
+    # 3) Último commit de main ya sincronizado: la marca más reciente hacia atrás que sea de main
+    # (los commits directos en red-plataforma no tienen marca y se saltean).
+    last=""
+    for h in $(git rev-list "$PLAT_BRANCH"); do
+      origen=$(marca_origen "$h")
+      if [ -n "$origen" ] && es_ancestro "$origen" main; then last="$origen"; break; fi
+    done
     [ -n "$last" ] || { echo "No encuentro el último commit sincronizado en $PLAT_BRANCH."; exit 1; }
-    pendientes=$(git rev-list --reverse --no-merges "${last}..main")
+
+    # 4) Pendientes: lo nuevo de main desde $last, menos lo que ya está en red-plataforma por patch-id.
+    # Un commit traído de red-plataforma con -x y adaptado (patch-id distinto) SÍ se lleva: los árboles
+    # deben quedar idénticos, y el cherry-pick aplica solo la diferencia (o frena en conflicto).
+    pendientes=""
+    while read -r signo h; do
+      [ "$signo" = "+" ] || continue
+      [ -z "$(git rev-list --no-walk --min-parents=2 "$h")" ] || continue   # sin merges
+      pendientes+="$h "
+    done < <(git cherry "$PLAT_BRANCH" main "$last")
     if [ -z "$pendientes" ]; then
-      echo "red-plataforma ya está al día con main (${last:0:7})."
+      echo "red-plataforma ya está al día con main (último sincronizado: ${last:0:7})."
     else
       echo "Commits a llevar a red-plataforma:"
-      git log --oneline --reverse --no-merges "${last}..main" | sed 's/^/  /'
+      for h in $pendientes; do echo "  $(git log -1 --oneline "$h")"; done
       read -r -p "Confirmar? [s/N]: " confirm
       case "$confirm" in s|S) ;; *) echo "Cancelado."; exit 0 ;; esac
       git checkout -q "$PLAT_BRANCH"
@@ -545,7 +605,14 @@ case "$1" in
     fi
     if git diff --quiet main "$PLAT_BRANCH"; then
       echo "OK: el código de $PLAT_BRANCH es idéntico al de main."
-      echo "Publicar:  git push plataforma ${PLAT_BRANCH}:main"
+      sin_publicar=$(git rev-list --count "${PLAT_REMOTE}..${PLAT_BRANCH}")
+      if [ "$sin_publicar" = "0" ]; then
+        echo "red-plataforma ya está publicado ($(git rev-parse --short "$PLAT_BRANCH"))."
+      else
+        echo "Falta publicar ${sin_publicar} commit(s):  git push plataforma ${PLAT_BRANCH}:main"
+      fi
+      sin_push_main=$(git rev-list --count origin/main..main 2>/dev/null || echo "?")
+      [ "$sin_push_main" = "0" ] || echo "main tiene ${sin_push_main} commit(s) sin pushear:  git push origin main"
     else
       echo "ATENCIÓN: $PLAT_BRANCH difiere de main:"
       git diff --stat main "$PLAT_BRANCH"
