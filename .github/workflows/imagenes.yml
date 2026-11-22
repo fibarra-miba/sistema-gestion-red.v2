@@ -9,10 +9,17 @@ name: imagenes
 #
 # Corre SOLO en red-plataforma: el archivo existe también en el repo de trabajo
 # (el sync exige árboles idénticos), pero ahí no debe publicar nada.
+#
+# Un commit que solo toca documentación no construye imágenes (no cambian): el
+# servidor sigue en el último sha-<commit> que sí las tiene. Los filtros de path
+# no se aplican a los tags, así que un vX.Y.Z siempre construye.
 on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
 
 permissions:

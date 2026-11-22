@@ -17,6 +17,8 @@ COMPOSE_FILE="infra/docker-compose.yml"
 COMPOSE_DEV_FILE="infra/docker-compose.dev.yml"
 COMPOSE_PROXY_FILE="infra/docker-compose.proxy.yml"
 COMPOSE_N8N_FILE="infra/docker-compose.n8n.yml"
+COMPOSE_SERVIDOR_FILE="infra/docker-compose.servidor.yml"
+COMPOSE_N8N_SERVIDOR_FILE="infra/docker-compose.n8n.servidor.yml"
 ENV_N8N_FILE="infra/.env.n8n"
 
 # --- Selección de ambiente (primer argumento opcional) ---
@@ -94,17 +96,45 @@ ensure_n8n_env() {
   check_change_me "$ENV_N8N_FILE"
 }
 
+# PRD en el servidor real: el env file lo declara con RED_MODO=servidor (ver
+# infra/.env.prd.servidor.example). Ahí las imágenes vienen de GHCR y no se
+# construye nada.
+es_servidor() {
+  [ "$ENV" = "prd" ] && grep -qE '^RED_MODO=servidor[[:space:]]*$' "$ENV_FILE" 2>/dev/null
+}
+
+no_en_servidor() {
+  if es_servidor; then
+    echo "[${ENV}] En el servidor no se construyen imágenes: salen de GHCR (RED_TAG en $ENV_FILE)."
+    echo "Para desplegar otra versión: cambiá RED_TAG y corré  ./red prd up"
+    exit 1
+  fi
+}
+
 # Archivos de compose según ambiente:
-#   DEV -> base + override de hot reload (publica puertos, suma pgAdmin)
-#   PRD -> base + proxy (Traefik; único que publica puertos: 80/443)
+#   DEV           -> base + override de hot reload (publica puertos, suma pgAdmin)
+#   PRD local     -> base + proxy (Traefik; único que publica puertos: 80/443)
+#   PRD servidor  -> base + servidor (GHCR, Let's Encrypt, socket-proxy)
 env_files() {
   local files=(-f "$COMPOSE_FILE")
   if [ "$ENV" = "dev" ]; then
     files+=(-f "$COMPOSE_DEV_FILE")
+  elif es_servidor; then
+    files+=(-f "$COMPOSE_SERVIDOR_FILE")
   else
     files+=(-f "$COMPOSE_PROXY_FILE")
   fi
   printf '%s\n' "${files[@]}"
+}
+
+# `up` según el modo: en el servidor no hay build; --pull missing baja la imagen
+# solo si ese tag todavía no está (los tags sha-<commit> no cambian de contenido).
+compose_up() {
+  if es_servidor; then
+    "$@" up -d --pull missing
+  else
+    "$@" up -d --build
+  fi
 }
 
 # Stack core del ambiente seleccionado.
@@ -117,6 +147,7 @@ core_compose() {
 n8n_compose() {
   local files=(); mapfile -t files < <(env_files)
   files+=(-f "$COMPOSE_N8N_FILE")
+  es_servidor && files+=(-f "$COMPOSE_N8N_SERVIDOR_FILE")
   docker compose --env-file "$ENV_FILE" --env-file "$ENV_N8N_FILE" "${files[@]}" "$@"
 }
 
@@ -201,7 +232,7 @@ case "$1" in
   up)
     ensure_env
     echo "[${ENV}] Levantando Sistema RED..."
-    core_compose up -d --build
+    compose_up core_compose
     echo "[${ENV}] Sistema RED levantado."
     print_urls
     ;;
@@ -210,14 +241,22 @@ case "$1" in
     ensure_env
     ensure_n8n_env
     echo "[${ENV}] Levantando Sistema RED + n8n..."
-    n8n_compose up -d --build
+    compose_up n8n_compose
     echo "[${ENV}] Sistema RED + n8n levantado."
     print_urls
-    ( set -a; . "$ENV_N8N_FILE"; echo "n8n:      http://localhost:${N8N_PORT}" )
+    if es_servidor; then
+      ( set -a; . "$ENV_FILE"; . "$ENV_N8N_FILE"
+        echo "Webhooks: https://${APP_HOST}/webhook/..."
+        echo "Editor:   no se publica. Desde la PC: ssh -L ${N8N_PORT}:127.0.0.1:${N8N_PORT} red-prd"
+        echo "          y abrí http://localhost:${N8N_PORT}" )
+    else
+      ( set -a; . "$ENV_N8N_FILE"; echo "n8n:      http://localhost:${N8N_PORT}" )
+    fi
     ;;
 
   build)
     ensure_env
+    no_en_servidor
     echo "[${ENV}] Construyendo imágenes (código congelado en el build)..."
     core_compose build
     echo "[${ENV}] Build completo. Promové con: ./red ${ENV} up"
@@ -307,6 +346,7 @@ case "$1" in
 
   rebuild)
     ensure_env
+    no_en_servidor
     echo "[${ENV}] Reconstruyendo sin cache..."
     core_compose down --remove-orphans
     core_compose build --no-cache
@@ -668,6 +708,8 @@ case "$1" in
     echo "  ./red dev up             # idem"
     echo "  ./red prd build          # construye PRD desde el código actual"
     echo "  ./red prd up             # levanta PRD (código congelado, base limpia)"
+    echo "  (servidor: con RED_MODO=servidor en infra/.env.prd, 'up' usa las imágenes de GHCR"
+    echo "   del tag RED_TAG y 'build' se niega; ver README §Servidor)"
     echo ""
     echo "Notas:"
     echo "  - DEV y PRD usan puertos, volúmenes y cookie de sesión distintos:"

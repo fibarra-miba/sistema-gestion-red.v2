@@ -1,0 +1,35 @@
+# ======================================================
+# Traefik — configuración DINÁMICA del SERVIDOR (se recarga sola).
+#
+# Misma idea que proxy/dynamic/comun.yml (el del PRD local), con dos diferencias:
+# - no hay certificado por defecto en archivo: lo emite Let's Encrypt (ver
+#   docker-compose.servidor.yml);
+# - HSTS encendido, porque acá el certificado es real.
+# Los middlewares se llaman igual que en el local porque los labels del base los
+# referencian por nombre: un cambio en uno de los dos archivos va en ambos.
+# ======================================================
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+
+http:
+  middlewares:
+    seguridad:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # Un año. Sin includeSubdomains ni preload: solo fija este host, y
+        # revertirlo no depende de listas de terceros.
+        stsSeconds: 31536000
+
+    # Freno de fuerza bruta en el login (ver el comentario en el comun.yml local).
+    # Con Cloudflare en modo "solo DNS" Traefik ve la IP real del cliente. Si algún
+    # día se enciende el proxy de Cloudflare, esto necesita trustedIPs y depth.
+    login-ratelimit:
+      rateLimit:
+        average: 5
+        period: 1m
+        burst: 10

@@ -1,0 +1,67 @@
+# ======================================================
+# Overlay de n8n para el SERVIDOR. Se suma a docker-compose.n8n.yml cuando
+# infra/.env.prd tiene RED_MODO=servidor (lo decide el launcher).
+#
+# - Webhooks públicos detrás de Traefik: https://APP_HOST/webhook/... Es lo único
+#   de n8n que sale a Internet.
+# - El editor NO se publica: escucha solo en 127.0.0.1 del host y se usa con un
+#   túnel SSH desde la PC:  ssh -L 5678:127.0.0.1:5678 red-prd  → http://localhost:5678
+# - n8n llama a la API por la red interna (http://red_prd_api:8000), sin salir a
+#   Internet ni pasar por Traefik.
+# - Versiones fijas. n8n va en la estable actual y no en la 2.19.4 de la VM: queda
+#   expuesto a Internet por los webhooks, así que importa tener los parches. Los
+#   workflows y la credencial se migran por export/import (docs/estado.md §3).
+# ======================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres_n8n:
+    image: postgres:16.16-bookworm
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_postgres_n8n
+    networks:
+      - n8n_data
+    mem_limit: 512m
+    logging: *default-logging
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.48.7
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_n8n
+    # 127.0.0.1: el editor no queda accesible desde Internet aunque Docker escriba
+    # sus reglas por debajo de UFW. Se llega solo por túnel SSH.
+    ports: !override
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    environment:
+      # Traefik es el único salto delante: n8n toma la IP real de X-Forwarded-For.
+      N8N_PROXY_HOPS: 1
+    networks:
+      - edge
+      - n8n_data
+    mem_limit: 1g
+    logging: *default-logging
+    # Sin healthcheck A PROPÓSITO: Traefik saca del ruteo a un contenedor que no
+    # está healthy, y entonces /webhook/... caería en el catch-all del front y
+    # respondería 200 con HTML. Telegram daría el mensaje por entregado y se
+    # perdería. Sin healthcheck, mientras n8n arranca responde 502/503 y el
+    # emisor reintenta.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-red}_edge"
+      # Gana sobre el catch-all del front porque la regla es más larga.
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-n8n-webhook.rule=Host(`${APP_HOST}`) && PathPrefix(`/webhook/`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-n8n-webhook.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-n8n-webhook.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-n8n-webhook.tls.certresolver=le"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-n8n-webhook.middlewares=seguridad@file"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME:-red}-n8n.loadbalancer.server.port=5678"
+
+networks:
+  # La base de n8n no necesita salida a Internet; n8n sí (Telegram, etc.) y la
+  # tiene por `edge`.
+  n8n_data:
+    name: ${COMPOSE_PROJECT_NAME:-red}_n8n_data
+    internal: true

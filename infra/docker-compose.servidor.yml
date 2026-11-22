@@ -1,0 +1,130 @@
+# ======================================================
+# Overlay de SERVIDOR — PRD en el host real (red.fiba-soluciones.com.ar).
+#
+# Se aplica sobre el base EN LUGAR de docker-compose.proxy.yml. El launcher lo
+# elige solo cuando infra/.env.prd tiene RED_MODO=servidor (ver
+# infra/.env.prd.servidor.example). Diferencias con el PRD local de la VM:
+#
+# - api y frontend NO se construyen: salen de GHCR con un tag inmutable
+#   (RED_TAG=sha-<commit>). Desplegar o volver atrás es cambiar RED_TAG.
+# - Traefik saca el certificado real de Let's Encrypt por DNS-01 (Cloudflare):
+#   no hace falta exponer nada para emitirlo.
+# - Traefik no toca el socket de Docker: habla con un docker-socket-proxy de
+#   solo lectura. Montar el socket equivale a dar root en el host.
+# - HSTS encendido (proxy/servidor/dynamic/comun.yml).
+#
+# Requiere Compose >= 2.24 (`!reset`).
+# ======================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # Los labels de abajo se SUMAN a los del base (Compose fusiona labels por
+  # clave). Cada router necesita su certresolver: si un router define su propia
+  # sección TLS (el base pone tls=true), Traefik ignora la del entrypoint entera,
+  # resolver incluido, y nunca pide el certificado.
+  api:
+    build: !reset null
+    image: ghcr.io/fibarra-miba/red-api:${RED_TAG:?Falta RED_TAG en infra/.env.prd (tag sha-<commit> publicado por el CI)}
+    labels:
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.tls.certresolver=le"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.tls.certresolver=le"
+
+  frontend:
+    build: !reset null
+    image: ghcr.io/fibarra-miba/red-frontend:${RED_TAG:?Falta RED_TAG en infra/.env.prd}
+    labels:
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-front.tls.certresolver=le"
+
+  # Proxy del socket de Docker: deja pasar solo las lecturas que Traefik necesita
+  # para descubrir contenedores (lista, inspección, eventos). Sin POST: no puede
+  # crear, borrar ni ejecutar nada. Fijado por digest: sus tags siguen la versión
+  # de haproxy y se mueven.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:3.4@sha256:027f9fa5ee70be5836eeaa10ce889d7a83f34a8db16a7f412818b92997e0beab
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_socket_proxy
+    restart: always
+    environment:
+      CONTAINERS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket
+    mem_limit: 64m
+    logging: *default-logging
+
+  proxy:
+    image: traefik:v3.7.13
+    container_name: ${COMPOSE_PROJECT_NAME:-red}_proxy
+    restart: always
+    # Configuración estática por línea de comandos (y no traefik.yml) para que
+    # Compose interpole APP_HOST y la CA de Let's Encrypt desde el env file.
+    # Traefik no permite mezclar archivo y flags: todo lo estático va acá.
+    command:
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+      - --log.level=INFO
+      - --accesslog=true
+      - --ping=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:443
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      # LETSENCRYPT_CA: acme-staging-v02 (por defecto: certificados de prueba,
+      # sin límites de emisión) o acme-v02 (producción). Cada CA guarda su cuenta y
+      # sus certificados en un archivo propio, así que pasar de una a otra no
+      # mezcla nada.
+      - --certificatesresolvers.le.acme.caserver=https://${LETSENCRYPT_CA:-acme-staging-v02}.api.letsencrypt.org/directory
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/${LETSENCRYPT_CA:-acme-staging-v02}.json
+      - --certificatesresolvers.le.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.le.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    # El token de Cloudflare (solo "editar DNS" de la zona) llega como secreto de
+    # archivo, no como variable: no aparece en `docker inspect` ni en el env file.
+    environment:
+      CF_DNS_API_TOKEN_FILE: /run/secrets/cf_dns_api_token
+    secrets:
+      - cf_dns_api_token
+    volumes:
+      - ./proxy/servidor/dynamic:/etc/traefik/dynamic:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - edge
+      - socket
+    depends_on:
+      - socket-proxy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 256m
+    logging: *default-logging
+
+networks:
+  # Solo Traefik y el socket-proxy: el socket no queda al alcance de la app.
+  socket:
+    name: ${COMPOSE_PROJECT_NAME:-red}_socket
+    internal: true
+
+volumes:
+  # Cuentas y certificados de Let's Encrypt. Perderlo no es grave (se reemiten),
+  # pero los límites de emisión de producción son semanales: no borrarlo a la ligera.
+  letsencrypt:
+
+secrets:
+  cf_dns_api_token:
+    # Ruta FUERA del repo, p. ej. /srv/red/secretos/cf_dns_api_token (chmod 600).
+    file: ${CF_DNS_API_TOKEN_FILE:?Falta CF_DNS_API_TOKEN_FILE en infra/.env.prd}

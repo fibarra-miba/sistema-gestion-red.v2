@@ -34,7 +34,12 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    # Versión fija (pgvector 0.8.7 sobre Postgres 16.16): `pg16` a secas es un tag
+    # flotante. pgvector es obligatorio: 00_init.sql crea el schema red_ai, que
+    # usa la extensión `vector`. Cambiar de versión menor de Postgres 16 es
+    # compatible con el volumen existente; cambiar de MAYOR (17) no: requiere
+    # dump y restore.
+    image: pgvector/pgvector:0.8.7-pg16-bookworm
     container_name: ${COMPOSE_PROJECT_NAME:-red}_postgres
     restart: always
     environment:

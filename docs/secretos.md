@@ -71,7 +71,7 @@ Detalle del acceso en [servidor.md](servidor.md).
 
 | Secreto | Para qué | Alcance mínimo |
 |---|---|---|
-| Token de API de Cloudflare | Certificado real por DNS-01 (Traefik) | `Zone:DNS:Edit` solo sobre la zona del dominio |
+| Token de API de Cloudflare | Certificado real por DNS-01 (Traefik) | `Zone:DNS:Edit` solo sobre la zona del dominio. Vive en un archivo fuera del repo (`/srv/red/secretos/cf_dns_api_token`, `600`) que Traefik recibe como secreto de Compose, no como variable: no aparece en `docker inspect` |
 | Credencial de rclone (`rclone.conf`) | restic → Google Drive (copia fuera del host) | Cuenta de Google **dedicada** (no personal) y permiso `drive.file`: solo los archivos que crea rclone, no el Drive entero |
 | `RESTIC_PASSWORD` | Cifra el repositorio de backups | Si se pierde, **los backups no se pueden restaurar** |
 | Token de GHCR | El host descarga las imágenes privadas de GHCR | PAT **clásico** con solo `read:packages` (GHCR no acepta tokens de grano fino); se carga con `docker login ghcr.io` en el host |
@@ -100,8 +100,8 @@ Antes de rotar algo en PRD: `./red prd backup pre-rotacion`.
 |---|---|---|
 | `POSTGRES_PASSWORD` | 1) `docker exec -it red_prd_postgres psql -U <POSTGRES_USER> -d <POSTGRES_DB>` → `\password <POSTGRES_USER>` 2) actualizar `infra/.env.prd` 3) `./red prd up` (recrea la API con la URL nueva) | Editar solo el env **no cambia nada**: Postgres aplica `POSTGRES_PASSWORD` únicamente al crear la base. `\password` la pide sin eco y no la deja en el historial de psql |
 | `PGADMIN_PASSWORD` | Cambiarla desde pgAdmin (o recrear su volumen en DEV) | Igual que Postgres: el env solo aplica al primer arranque |
-| `N8N_ENCRYPTION_KEY` | **No rotar** salvo compromiso. Si hay que hacerlo: exportar credenciales de n8n, cambiar la clave, reimportar | Cambiarla deja inutilizables las credenciales guardadas |
-| `N8N_DB_PASSWORD` | Igual que `POSTGRES_PASSWORD`, en el contenedor `postgres_n8n_local` | — |
+| `N8N_ENCRYPTION_KEY` | **No rotar** salvo compromiso. Si hay que hacerlo: exportar credenciales de n8n, cambiar la clave, reimportar | Cambiarla deja inutilizables las credenciales guardadas. n8n además la copia a su volumen (`/home/node/.n8n/config`): si el env no coincide con la guardada, **n8n no arranca** ("Mismatching encryption keys") |
+| `N8N_DB_PASSWORD` | Igual que `POSTGRES_PASSWORD`, en el contenedor `postgres_n8n_local` (en el servidor, `red_prd_postgres_n8n`) | — |
 | Contraseña de un usuario | El usuario: "Cambiar contraseña". Un ADMIN: reseteo desde Usuarios | — |
 | Todas las sesiones de un usuario | Reseteo de su contraseña, o que el usuario cambie la suya (el cambio cierra todas sus sesiones) | — |
 | Clave TLS local | `infra/proxy/make-local-cert.sh` + `./red prd up` | Con el certificado real (bloque C) esto lo hace Traefik solo |

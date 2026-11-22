@@ -128,18 +128,26 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    pydantic_core 2.46.5→2.50.5, psycopg 3.3.6→3.3.9; uvicorn 0.54.0 y httpx 0.27.2 sin cambio; otras
    14 transitivas suben de versión menor. Mismo conjunto de paquetes. Cubierto por la suite; se
    vuelve a validar con el dump de prueba del paso 4.
-3. Compose de servidor: imágenes de GHCR en vez de `build:`, red `edge` externa, Traefik con
-   certificado real por DNS-01 (token de Cloudflare cargado directo en el env del servidor, nunca por
-   chat ni git), `docker-socket-proxy`. Probar con el staging de Let's Encrypt primero. Postgres con
-   imagen **pgvector** (el init aplica `red_ai`, ver §5) y **todas las imágenes con versión fija**:
-   hoy `pgvector/pgvector:pg16`, `postgres:16` y n8n `:stable` son tags flotantes (Traefik ya está
-   fijo en `v3.7.13`).
+3. ~~Compose de servidor~~ (hecho 2026-11-22, README §Servidor). `RED_MODO=servidor` en
+   `infra/.env.prd` hace que el launcher use `docker-compose.servidor.yml`: imágenes de GHCR por
+   `RED_TAG`, Traefik con Let's Encrypt por DNS-01 (token de Cloudflare como secreto de archivo,
+   `LETSENCRYPT_CA` staging/producción), `docker-socket-proxy` sin POST y HSTS. n8n en el servidor:
+   webhooks públicos en `/webhook/`, editor solo en loopback por túnel SSH (más simple que Cloudflare
+   Tunnel + Access, que queda como opción), n8n → API por la red interna. Todas las imágenes con
+   versión fija: pgvector `0.8.7-pg16-bookworm` (también en el base), Postgres de n8n
+   `16.16-bookworm`, socket-proxy por digest y **n8n 2.48.7** (la estable; no la 2.19.4 de la VM,
+   porque queda expuesto a Internet por los webhooks: los 2 workflows y la credencial se migran por
+   export/import en el paso 6). La red `edge` queda dentro del proyecto (hay un solo producto en el
+   host). Probado de punta a punta en WSL (ver README). Aprendizajes: un router con `tls=true` propio
+   ignora el certresolver del entrypoint (va por label en cada router); n8n sin healthcheck a
+   propósito, y mientras arranca responde 200 a los webhooks.
 4. Despliegue en el servidor: clon con deploy key de solo lectura, env file `600`, PAT clásico
    `read:packages` cargado con `docker login ghcr.io`, sistema levantado **con un dump de prueba**,
    no con los datos reales.
 5. Backups: restic + rclone a la cuenta de Google dedicada, retención, timer diario, **prueba de
    restauración real** y custodia de `RESTIC_PASSWORD`.
-6. n8n en el servidor: editor detrás de Cloudflare Tunnel + Access, solo `/webhook/*` público.
+6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7
+   (probarlo antes del corte), y volver a registrar el webhook de Telegram con la URL del servidor.
 7. **Revisión de los datos de PRD con el usuario** (pedido explícito; backup etiquetado antes).
 8. Corte: escritura congelada en la VM, dump final que viaja **directo de la VM al servidor** (nunca
    por la PC Windows ni por chat), restore, verificación y monitoreo externo. La VM queda apagada un

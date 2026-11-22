@@ -105,11 +105,17 @@ seguridad para cambios grandes, no un backup. Hay una `base-endurecida` del 2026
 
 ## 5. Lo que falta en el host
 
-Se arma con la adaptación del proyecto (ver [estado.md](estado.md) §3):
+Se arma con la adaptación del proyecto (ver [estado.md](estado.md) §3). **El stack del servidor ya
+está escrito y probado en WSL** (`infra/docker-compose.servidor.yml`, README §Servidor); falta
+instalarlo:
 
-- Estructura de directorios (`/srv/...`) y clon del repo con una **deploy key de solo lectura**.
-- Env file de PRD (`600`), token de lectura de GHCR, token de Cloudflare para el certificado.
-- Traefik con certificado real de Let's Encrypt por DNS-01; `docker-socket-proxy` delante.
+- Estructura `/srv/red` (repo) y `/srv/red/secretos` (`700`), clon de `red-plataforma` con una
+  **deploy key de solo lectura**.
+- `infra/.env.prd` (desde `.env.prd.servidor.example`) e `infra/.env.n8n` (desde
+  `.env.n8n.servidor.example`), los dos `600`; `docker login ghcr.io` con el PAT `read:packages`;
+  token de Cloudflare en `/srv/red/secretos/cf_dns_api_token` (`600`).
+- Certificado: primero `LETSENCRYPT_CA=acme-staging-v02`, y con eso verificado, `acme-v02`.
 - Backups: restic + rclone a Google Drive, timer diario y prueba de restauración.
-- n8n: editor sin exponer (Cloudflare Tunnel + Access), solo `/webhook/*` público.
+- n8n: editor sin exponer, por **túnel SSH** (`ssh -L 5678:127.0.0.1:5678 red-prd`); solo
+  `/webhook/*` público. Cloudflare Tunnel + Access queda como opción si el editor se usa seguido.
 - Monitoreo externo de uptime.

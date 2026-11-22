@@ -189,6 +189,8 @@ publica en GHCR (privado). Corre **solo en `red-plataforma`** (en v2 el job se s
 
 - Cada push a `main` publica el tag `sha-<commit corto>`; un tag `vX.Y.Z` publica además esa versión.
   El servidor fija un tag inmutable, nunca uno flotante: desplegar o volver atrás es cambiar el tag.
+- Un push que solo toca `docs/**` o archivos `.md` **no construye** (`paths-ignore`): esos commits no
+  tienen imagen propia y el servidor sigue en el último `sha-` que sí la tiene.
 - Después del build se borran las versiones viejas: quedan las **10 últimas** de cada imagen.
 - Imágenes base, acciones (por SHA) y dependencias de Python (`backend/requirements.txt`, directas
   y transitivas) con versión fija. Actualizar es un commit: cambiar la versión, reconstruir y correr
@@ -197,6 +199,30 @@ publica en GHCR (privado). Corre **solo en `red-plataforma`** (en v2 el job se s
 - El servidor descarga con un PAT clásico de solo `read:packages` (GHCR no acepta tokens de grano
   fino). Se crea en GitHub y se carga directo en el servidor con `docker login ghcr.io`; nunca por
   chat ni git (ver [docs/secretos.md](docs/secretos.md)).
+
+### Servidor (PRD real)
+
+En el host, `infra/.env.prd` sale de `infra/.env.prd.servidor.example` y declara `RED_MODO=servidor`.
+Con eso el mismo launcher (`./red prd up`, `up-n8n`, `backup`, `migrate`, ...) usa
+`infra/docker-compose.servidor.yml` en lugar del proxy local:
+
+| | PRD local (VM) | PRD servidor |
+|---|---|---|
+| api / frontend | se construyen (`./red prd build`) | imágenes de GHCR, tag `RED_TAG=sha-<commit>`; `build`/`rebuild` se niegan |
+| Certificado | self-signed (`make-local-cert.sh`) | Let's Encrypt por DNS-01 (Cloudflare). `LETSENCRYPT_CA=acme-staging-v02` para probar, `acme-v02` para producción |
+| Socket de Docker | montado en Traefik (solo lectura) | detrás de `docker-socket-proxy`: solo lecturas, sin POST |
+| HSTS | apagado | encendido (1 año, sin subdominios) |
+| n8n | `http://localhost:5678` | webhooks públicos en `https://<APP_HOST>/webhook/...`; editor solo en `127.0.0.1` del host, por túnel: `ssh -L 5678:127.0.0.1:5678 red-prd` → `http://localhost:5678` |
+
+- **Desplegar otra versión o volver atrás:** cambiar `RED_TAG` en `infra/.env.prd` y `./red prd up`.
+- n8n usa `infra/.env.n8n` creado desde `infra/.env.n8n.servidor.example`. Llama a la API por la red
+  interna (`http://red_prd_api:8000`). Mientras arranca (~30 s) responde **200** "n8n is starting
+  up" a los webhooks: un emisor que solo reintenta ante errores (Telegram) daría ese mensaje por
+  entregado. Reiniciar n8n en un momento tranquilo.
+- Probado de punta a punta en WSL el 2026-11-22 (imágenes locales con tag de GHCR, token falso):
+  redirección a HTTPS, front, API, HSTS, rate limit del login, webhook ruteado a n8n, editor solo en
+  loopback, n8n → API interna, socket-proxy rechazando POST, y Traefik pidiendo el certificado a
+  Let's Encrypt staging. El certificado real depende del token de Cloudflare del servidor.
 
 ---
 
