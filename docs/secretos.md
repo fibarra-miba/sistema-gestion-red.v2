@@ -74,7 +74,7 @@ Detalle del acceso en [servidor.md](servidor.md).
 | Token de API de Cloudflare | Certificado real por DNS-01 (Traefik) | `Zone:DNS:Edit` solo sobre la zona del dominio |
 | Credencial de rclone (`rclone.conf`) | restic → Google Drive (copia fuera del host) | Cuenta de Google **dedicada** (no personal) y permiso `drive.file`: solo los archivos que crea rclone, no el Drive entero |
 | `RESTIC_PASSWORD` | Cifra el repositorio de backups | Si se pierde, **los backups no se pueden restaurar** |
-| Token de GHCR | El host descarga las imágenes (si GHCR es privado) | PAT con solo `read:packages` |
+| Token de GHCR | El host descarga las imágenes privadas de GHCR | PAT **clásico** con solo `read:packages` (GHCR no acepta tokens de grano fino); se carga con `docker login ghcr.io` en el host |
 
 En el CI de GitHub las imágenes se publican con el `GITHUB_TOKEN` del workflow (no hace falta
 crear un secreto para eso). Las imágenes de GHCR son **privadas**; el host solo tiene el token de lectura.

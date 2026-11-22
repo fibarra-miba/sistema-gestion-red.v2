@@ -39,7 +39,7 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
 - Se trabaja en `main`; `./red sync-plataforma` lleva los commits nuevos a `plataforma-main`
   (cherry-pick `-x`) y verifica que el código quede idéntico. Detalle en README §Repositorios.
 - **Modelo acordado (2026-11-07):** el agente trabaja desde una máquina de desarrollo (Windows con
-  WSL2/Docker Desktop, la VM, o Claude Code web sobre el repo), **nunca dentro del servidor de PRD**.
+  WSL2 y Docker Engine, la VM, o Claude Code web sobre el repo), **nunca dentro del servidor de PRD**.
   El servidor solo corre el sistema y recibe imágenes del CI. **Por qué:** el servidor tiene los
   datos reales y todos los secretos; un error de comando de un agente ahí cae directo sobre PRD.
 - Git es la única fuente de verdad: una sesión por vez, `pull` al empezar, `push` al terminar.
@@ -158,8 +158,9 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 - `~/.claude/` de la VM (memorias, agentes, skills) para el DEV en Windows.
 - La VM aloja **otros stacks que no son de RED** (SaludConecta, Gestión Stock, agente_vendedor, un
   volumen del hackatón): resolverlos antes de apagarla.
-- **Dónde se prueba la adaptación:** la PC Windows no tiene Docker todavía; los cambios de compose y
-  CI se prueban en la VM o en el servidor nuevo antes de que tenga datos reales.
+- **Dónde se prueba la adaptación:** la PC Windows ya tiene Docker en WSL2 (desde el 2026-11-22, ver
+  §6): builds, compose y suite se prueban ahí; lo que dependa del host real (certificado, DNS,
+  backups) se prueba en el servidor nuevo antes de que tenga datos reales.
 
 ## 4. Pendientes de datos y negocio (PRD)
 
