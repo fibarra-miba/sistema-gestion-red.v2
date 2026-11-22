@@ -3,7 +3,7 @@
 Punto de partida para cualquier sesión de trabajo: dónde estamos, qué se decidió y por qué, y qué
 sigue. **Actualizar este archivo al cerrar cada sesión** que cambie el estado.
 
-Última actualización: **2026-11-22**.
+Última actualización: **2026-11-22** (CI cerrado).
 
 Leer también: [CLAUDE.md](../CLAUDE.md) (contrato y forma de trabajo) · [README](../README.md)
 (comandos, ambientes, repos) · [operacion.md](operacion.md) (reglas de negocio y carga de datos
@@ -28,6 +28,8 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
 - **DEV pasa a la PC Windows del usuario** (WSL2 + Docker, repo dentro del disco de WSL, no en `D:\`:
   sobre `/mnt/d` el hot reload no anda, el `chmod 600` de los env no aplica y `node_modules` se
   rompe). La VM se retira después del corte de PRD.
+- **El agente ya trabaja desde la PC Windows** (decidido 2026-11-22): la VM queda solo con PRD
+  (datos reales), sus backups y n8n hasta el corte.
 
 ## 2. Repos y modelo de trabajo
 
@@ -46,8 +48,9 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
 - **Se mantienen los dos repos** (decidido 2026-11-11): `red-plataforma` es el repo de PRD y v2 sigue
   siendo el de trabajo.
 - **Clones en la PC Windows** (con `core.autocrlf=false` para que `red` y los hooks queden con LF):
-  `D:\Documentos\Chamba\Personal\SistemaRED-prd` (`red-plataforma`) y `...\SistemaRED-v2` (v2, sin el
-  remoto `plataforma`: el sync se corre desde la VM). La sesión de infraestructura trabaja ahí.
+  `D:\Documentos\Chamba\Personal\SistemaRED-prd` (`red-plataforma`) y `...\SistemaRED-v2` (v2, con
+  el remoto `plataforma` y la rama `plataforma-main` desde el 2026-11-22: el sync se corre acá). La
+  sesión de infraestructura trabaja ahí.
 - **Commits hechos directo en `red-plataforma`** (pasó el 2026-11-10 con `fca2887`): desde
   `c3850da` el sync los tolera. Hace `fetch`, los detecta y frena pidiendo el `git cherry-pick -x`
   a correr en `main`; después se vuelve a correr el sync. Nunca fuerza el push. Igual conviene
@@ -97,25 +100,30 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 
 **Próximos pasos, en orden (adaptar el proyecto):**
 1. ~~Reconciliar git con la VM y decidir el modelo de repos~~ (hecho 2026-11-11).
-2. CI en `red-plataforma`: build de imágenes → GHCR privado, limpieza de versiones, token de solo
-   lectura para el servidor. **En curso (2026-11-22):** workflow `imagenes.yml` escrito (README
-   §Imágenes de PRD) e imágenes base fijadas (`python:3.12.16-slim-trixie`,
-   `node:22.23.5-alpine3.24`, `nginx:1.30.7-alpine3.24`) y `backend/requirements.txt` con todas
-   las versiones fijas (FastAPI 0.165.0, resolución del 2026-11-22). **Verificado en la PC Windows
-   (WSL2, Ubuntu 24.04 + Docker 29.10):** actionlint sin errores, las dos imágenes construyen como en
-   el CI, el front sirve con `/api` horneado y la suite completa pasa con las versiones fijas (259
-   tests, 12 min). Ojo: son versiones más nuevas que las que corre hoy PRD en la VM; el cambio entra
-   con el primer deploy al servidor. Falta: primera corrida en `red-plataforma` (verificar que los
-   paquetes queden privados y que la limpieza tenga permiso) y el PAT `read:packages` del servidor.
+2. ~~CI en `red-plataforma`: build de imágenes → GHCR privado, limpieza de versiones~~ (hecho
+   2026-11-22). Workflow `imagenes.yml` (README §Imágenes de PRD), imágenes base fijadas
+   (`python:3.12.16-slim-trixie`, `node:22.23.5-alpine3.24`, `nginx:1.30.7-alpine3.24`) y
+   `backend/requirements.txt` con todas las versiones fijas. Verificado en la PC Windows (actionlint,
+   builds como en el CI, front con `/api` horneado, suite completa: 259 tests) y en GitHub: el sync
+   llevó `e2f6fea`/`ae3fb65`/`7c0791f` → `06bef94`/`8f56e7b`/`c218da2` sin commits directos
+   pendientes, y la corrida de `c218da2` dio OK en `imagenes` (construir y limpiar, las dos
+   imágenes), `secretos` y `esquema`. `red-api` y `red-frontend` publicadas con `sha-c218da2` y
+   **privadas** (GHCR rechaza el acceso anónimo). El PAT `read:packages` del servidor pasa al paso 4.
    La suite no corre en el CI (necesita Postgres); se evalúa después.
+   **Salto de versiones que trae el primer deploy** (PRD en la VM → imagen nueva): Python
+   3.12.15→3.12.16, fastapi 0.142.2→0.165.0, starlette 1.7.0→1.10.0, pydantic 2.13.5→2.14.4,
+   pydantic_core 2.46.5→2.50.5, psycopg 3.3.6→3.3.9; uvicorn 0.54.0 y httpx 0.27.2 sin cambio; otras
+   14 transitivas suben de versión menor. Mismo conjunto de paquetes. Cubierto por la suite; se
+   vuelve a validar con el dump de prueba del paso 4.
 3. Compose de servidor: imágenes de GHCR en vez de `build:`, red `edge` externa, Traefik con
    certificado real por DNS-01 (token de Cloudflare cargado directo en el env del servidor, nunca por
    chat ni git), `docker-socket-proxy`. Probar con el staging de Let's Encrypt primero. Postgres con
    imagen **pgvector** (el init aplica `red_ai`, ver §5) y **todas las imágenes con versión fija**:
    hoy `pgvector/pgvector:pg16`, `postgres:16` y n8n `:stable` son tags flotantes (Traefik ya está
    fijo en `v3.7.13`).
-4. Despliegue en el servidor: clon con deploy key de solo lectura, env file `600`, sistema levantado
-   **con un dump de prueba**, no con los datos reales.
+4. Despliegue en el servidor: clon con deploy key de solo lectura, env file `600`, PAT clásico
+   `read:packages` cargado con `docker login ghcr.io`, sistema levantado **con un dump de prueba**,
+   no con los datos reales.
 5. Backups: restic + rclone a la cuenta de Google dedicada, retención, timer diario, **prueba de
    restauración real** y custodia de `RESTIC_PASSWORD`.
 6. n8n en el servidor: editor detrás de Cloudflare Tunnel + Access, solo `/webhook/*` público.
