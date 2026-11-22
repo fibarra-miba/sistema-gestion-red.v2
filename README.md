@@ -182,6 +182,20 @@ git fetch plataforma && git branch plataforma-main plataforma/main
 git config core.hooksPath .githooks   # escaneo de secretos (gitleaks) antes de cada commit
 ```
 
+### Imágenes de PRD (CI)
+
+`.github/workflows/imagenes.yml` construye `ghcr.io/fibarra-miba/red-api` y `red-frontend` y las
+publica en GHCR (privado). Corre **solo en `red-plataforma`** (en v2 el job se saltea):
+
+- Cada push a `main` publica el tag `sha-<commit corto>`; un tag `vX.Y.Z` publica además esa versión.
+  El servidor fija un tag inmutable, nunca uno flotante: desplegar o volver atrás es cambiar el tag.
+- Después del build se borran las versiones viejas: quedan las **10 últimas** de cada imagen.
+- Imágenes base y acciones con versión fija (las acciones, por SHA). Actualizarlas es un commit.
+- El frontend se hornea con `VITE_API_BASE_URL=/api` (el mismo valor de `.env.prd`).
+- El servidor descarga con un PAT clásico de solo `read:packages` (GHCR no acepta tokens de grano
+  fino). Se crea en GitHub y se carga directo en el servidor con `docker login ghcr.io`; nunca por
+  chat ni git (ver [docs/secretos.md](docs/secretos.md)).
+
 ---
 
 ## Gestor de paquetes (frontend)

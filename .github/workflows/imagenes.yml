@@ -1,0 +1,100 @@
+name: imagenes
+
+# Construye las imágenes de PRD y las publica en GHCR (privado). El servidor no
+# compila: descarga estas imágenes con un token de solo lectura.
+#
+# Tags: `sha-<commit corto>` en cada push a main (inmutable: el servidor fija
+# ese tag, nunca uno flotante, así un deploy apunta a un commit concreto y
+# volver atrás es cambiar el tag) y `vX.Y.Z` al pushear un tag de versión.
+#
+# Corre SOLO en red-plataforma: el archivo existe también en el repo de trabajo
+# (el sync exige árboles idénticos), pero ahí no debe publicar nada.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: imagenes-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    if: github.repository == 'fibarra-miba/red-plataforma'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - imagen: red-api
+            contexto: .
+            dockerfile: backend/Dockerfile
+            build_args: ""
+          # La base URL del API se hornea en el bundle (mismo valor que .env.prd).
+          - imagen: red-frontend
+            contexto: frontend
+            dockerfile: frontend/Dockerfile
+            build_args: VITE_API_BASE_URL=/api
+    steps:
+      # Acciones fijadas por SHA de commit (un tag se puede mover; un SHA no).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Además de los tags, agrega org.opencontainers.image.source: vincula el
+      # paquete a este repo y hereda su visibilidad (privado).
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/fibarra-miba/${{ matrix.imagen }}
+          tags: |
+            type=sha,format=short
+            type=semver,pattern=v{{version}}
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.contexto }}
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Sin attestations: agregan manifests sin tag que la limpieza de abajo
+          # borraría, dejando imágenes rotas. Un manifest por versión, simple.
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.imagen }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.imagen }}
+
+  # La cuota gratuita de paquetes privados es chica: se conservan las últimas
+  # versiones de cada imagen (sobra para volver atrás varios deploys).
+  limpiar:
+    needs: construir
+    if: github.repository == 'fibarra-miba/red-plataforma'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        imagen: [red-api, red-frontend]
+    steps:
+      - uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: ${{ matrix.imagen }}
+          package-type: container
+          min-versions-to-keep: 10

@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# Versión fija (no `3.12-slim`): el CI construye la imagen de PRD y un tag
+# flotante haría que dos builds del mismo commit den imágenes distintas.
+FROM python:3.12.16-slim-trixie
 
 WORKDIR /app
 

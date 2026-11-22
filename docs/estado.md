@@ -3,7 +3,7 @@
 Punto de partida para cualquier sesión de trabajo: dónde estamos, qué se decidió y por qué, y qué
 sigue. **Actualizar este archivo al cerrar cada sesión** que cambie el estado.
 
-Última actualización: **2026-11-11**.
+Última actualización: **2026-11-22**.
 
 Leer también: [CLAUDE.md](../CLAUDE.md) (contrato y forma de trabajo) · [README](../README.md)
 (comandos, ambientes, repos) · [operacion.md](operacion.md) (reglas de negocio y carga de datos
@@ -98,7 +98,13 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 **Próximos pasos, en orden (adaptar el proyecto):**
 1. ~~Reconciliar git con la VM y decidir el modelo de repos~~ (hecho 2026-11-11).
 2. CI en `red-plataforma`: build de imágenes → GHCR privado, limpieza de versiones, token de solo
-   lectura para el servidor.
+   lectura para el servidor. **En curso (2026-11-22):** workflow `imagenes.yml` escrito (README
+   §Imágenes de PRD) e imágenes base fijadas (`python:3.12.16-slim-trixie`,
+   `node:22.23.5-alpine3.24`, `nginx:1.30.7-alpine3.24`). Falta: fijar `backend/requirements.txt`
+   con el `pip freeze` de `red_prd_api` en la VM (hoy sin versiones: cada build podría traer otra
+   FastAPI), primera corrida en `red-plataforma` (verificar que los paquetes queden privados y que la
+   limpieza tenga permiso) y el PAT `read:packages` del servidor. La suite no corre en el CI (tarda
+   11–35 min y necesita Postgres); se evalúa después.
 3. Compose de servidor: imágenes de GHCR en vez de `build:`, red `edge` externa, Traefik con
    certificado real por DNS-01 (token de Cloudflare cargado directo en el env del servidor, nunca por
    chat ni git), `docker-socket-proxy`. Probar con el staging de Let's Encrypt primero. Postgres con
