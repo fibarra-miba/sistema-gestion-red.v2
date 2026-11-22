@@ -148,8 +148,11 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    servidor) y PAT de GHCR cargados por el titular sin pasar por el chat. **Incidente:** los datos de
    prueba salieron del seed demo (`RED_SEED=1`), que trae `admin`/`admin`; se desactivó a los
    minutos sin logins registrados y el launcher ahora se niega a levantar así en el servidor.
-   **Falta:** que el titular cree su admin (`./red prd create-admin`) y pruebe el flujo principal en
-   el navegador; el acceso al editor de n8n por túnel.
+   El titular creó su admin y probó el flujo principal en el navegador: OK. Después se **bajaron
+   `api` y `frontend`** para no dejar publicados datos de demo: el sitio da 404 hasta el corte.
+   Orden acordado para lo que sigue: backups (5) → revisión de datos en la VM (7) → corte con n8n
+   (6 y 8). La revisión se hace sobre la base de la VM, no sobre este resumen: hubo correcciones de
+   datos en la VM que no están reflejadas en §4.
 5. Backups: restic + rclone a la cuenta de Google dedicada, retención, timer diario, **prueba de
    restauración real** y custodia de `RESTIC_PASSWORD`.
 6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7

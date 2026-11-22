@@ -4,8 +4,11 @@ Qué servidor tiene PRD, cómo se llega a él y qué configuración tiene aplica
 host y para rehacerlo desde cero si hiciera falta. **Ningún secreto va acá**: solo dónde vive cada
 uno (ver [secretos.md](secretos.md)).
 
-Estado: **sistema desplegado con datos de PRUEBA** (2026-11-22), `https://red.fiba-soluciones.com.ar`
-con certificado real de Let's Encrypt y n8n. Los datos reales llegan en el corte (estado.md §3).
+Estado: **infraestructura desplegada y probada; la app está BAJADA hasta el corte** (2026-11-22).
+Corren Traefik (certificado real de Let's Encrypt, se renueva solo), n8n y la base con los datos de
+prueba; `api` y `frontend` se sacaron a propósito para no publicar datos de demo, así que el sitio
+responde 404. Se vuelven a levantar en el corte con `./red prd up-n8n`, ya con los datos reales
+(estado.md §3).
 
 ---
 
