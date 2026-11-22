@@ -27,9 +27,22 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
   São Paulo, `red.fiba-soluciones.com.ar`. Detalle en [servidor.md](servidor.md).
 - **DEV pasa a la PC Windows del usuario** (WSL2 + Docker, repo dentro del disco de WSL, no en `D:\`:
   sobre `/mnt/d` el hot reload no anda, el `chmod 600` de los env no aplica y `node_modules` se
-  rompe). La VM se retira después del corte de PRD.
+  rompe). ~~La VM se retira después del corte de PRD~~: cambió el 2026-11-22, la VM queda como
+  ambiente DEV (ver Hoja de ruta abajo).
 - **El agente ya trabaja desde la PC Windows** (decidido 2026-11-22): la VM queda solo con PRD
   (datos reales), sus backups y n8n hasta el corte.
+- **Hoja de ruta (decidida 2026-11-22):**
+  - **Fase 0 — PRD en el servidor, funcionando y probado, con n8n operativo.** Son los pasos 3 a 8
+    de §3. El alcance de lo que n8n automatiza contra el sistema se define cuando toque implementarlo.
+  - **Fase 1 — la VM pasa a ser el ambiente DEV puro** de las aplicaciones personales, manejada desde
+    la PC: snapshot base, IP reservada, puertos de DEV cerrados a la LAN, acceso por clave SSH y
+    sesiones de Claude Code en la VM dirigidas desde la app.
+  - **Fase 2 — "dev automation" en la VM:** plantilla de proyecto (launcher, env, rango de puertos,
+    verificación), flujo rama → operarios → verificación → PR → CI, snapshots antes de lo riesgoso.
+  - **Por qué este orden:** la Fase 1 le da al agente autonomía dentro de la VM, y eso solo es
+    aceptable cuando PRD con datos reales ya no vive ahí. Mientras tanto, la VM solo se toca por SSH
+    con aprobación de cada comando. El paso 9 (DEV en WSL2) queda reemplazado por la Fase 1; el
+    Docker de WSL sigue para chequeos rápidos.
 
 ## 2. Repos y modelo de trabajo
 
@@ -131,7 +144,8 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 8. Corte: escritura congelada en la VM, dump final que viaja **directo de la VM al servidor** (nunca
    por la PC Windows ni por chat), restore, verificación y monitoreo externo. La VM queda apagada un
    tiempo como respaldo.
-9. DEV en la PC Windows (WSL2) y retiro de la VM.
+9. ~~DEV en la PC Windows (WSL2) y retiro de la VM~~ → reemplazado por la Fase 1 (§1): la VM no
+   se retira, pasa a ser el ambiente DEV.
 
 **Inventario de la VM (2026-11-11, solo nombres, sin valores):**
 
