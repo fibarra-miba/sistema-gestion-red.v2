@@ -153,8 +153,13 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    Orden acordado para lo que sigue: backups (5) → revisión de datos en la VM (7) → corte con n8n
    (6 y 8). La revisión se hace sobre la base de la VM, no sobre este resumen: hubo correcciones de
    datos en la VM que no están reflejadas en §4.
-5. Backups: restic + rclone a la cuenta de Google dedicada, retención, timer diario, **prueba de
-   restauración real** y custodia de `RESTIC_PASSWORD`.
+5. ~~Backups~~ (hecho 2026-11-22, [servidor.md](servidor.md) §7). restic cifrado en el servidor →
+   rclone → cuenta de Google dedicada (`drive.file`), dumps de RED y n8n + env files, retención
+   7/4/6, chequeo semanal de datos, timer de systemd a las 03:30. **Restauración real probada**: 84
+   tablas con las mismas filas que la base viva. **Pendientes:** que el titular copie
+   `RESTIC_PASSWORD` a su gestor; credencial OAuth propia en Google Cloud (hoy rclone usa la
+   compartida de todos sus usuarios y pega en el límite de cuota: los reintentos lo salvan, pero
+   alguna noche puede fallar); alertas si un backup falla (con el monitoreo externo).
 6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7
    (probarlo antes del corte), y volver a registrar el webhook de Telegram con la URL del servidor.
 7. **Revisión de los datos de PRD con el usuario** (pedido explícito; backup etiquetado antes).

@@ -57,4 +57,4 @@ if [ "$(date +%u)" = "7" ]; then
 fi
 
 log "OK. Último snapshot:"
-restic snapshots --latest 1 --compact | tail -n +3 | head -n 1
+restic snapshots --latest 1 --compact | grep -E "^[0-9a-f]{8} " | tail -n 1

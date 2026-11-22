@@ -30,7 +30,7 @@ trap limpiar EXIT
 limpiar
 
 echo "== Snapshot a restaurar"
-restic snapshots --latest 1 --compact | tail -n +3 | head -n 1
+restic snapshots --latest 1 --compact | grep -E "^[0-9a-f]{8} " | tail -n 1
 restic restore latest --target "$DEST" --quiet
 STAGE=$(find "$DEST" -type d -name backup-stage | head -n 1)
 ls -lA "$STAGE"

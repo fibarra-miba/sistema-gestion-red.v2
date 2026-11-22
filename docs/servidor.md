@@ -151,8 +151,44 @@ sin sesiones). Desde entonces el launcher se niega a levantar en modo servidor c
 
 ## 6. Lo que falta en el host
 
-- Admin propio de la app (`./red prd create-admin`, lo corre el titular) y prueba en el navegador.
-- Backups: restic + rclone a Google Drive, timer diario y prueba de restauración.
+- Credencial OAuth propia para rclone (ver §7) y alertas si un backup falla.
 - n8n: migrar los workflows de la VM. El editor no se expone: túnel SSH
   (`ssh -L 5678:127.0.0.1:5678 red-prd`); Cloudflare Tunnel + Access queda como opción.
 - Monitoreo externo de uptime.
+
+## 7. Backups (2026-11-22)
+
+restic cifra en el servidor y sube con rclone a la cuenta de Google **dedicada** a backups
+(permiso `drive.file`: rclone solo ve lo que él crea), carpeta `red-backups`.
+
+| | |
+|---|---|
+| Qué guarda | dump de la base de RED, dump de la base de n8n, `infra/.env.prd` e `infra/.env.n8n`, commit y `RED_TAG` desplegados |
+| Script | `infra/servidor/backup.sh [tag]` (ruta fija de staging, para que restic suba solo lo que cambió) |
+| Cuándo | timer de systemd **de usuario** `red-backup.timer`, todos los días 03:30 (+ hasta 10 min al azar), `Persistent=true`. Requiere `loginctl enable-linger fiba` (hecho) |
+| Retención | 7 diarios, 4 semanales, 6 mensuales (`restic forget --prune`) |
+| Verificación | los domingos `restic check --read-data-subset=1/10`; restauración completa con `infra/servidor/probar-restore.sh` (base descartable, compara filas contra la viva) |
+| Clave | `RESTIC_PASSWORD` en `/srv/red/secretos/restic_password` (`600`, generada en el servidor) **y en el gestor de contraseñas del titular**. Sin ella los backups no se pueden abrir |
+| Versiones | restic 0.16.4 y rclone 1.60.1 de Ubuntu (reciben parches por `unattended-upgrades`) |
+
+Comandos útiles (en el servidor):
+
+```bash
+systemctl --user list-timers red-backup.timer           # próxima corrida
+journalctl --user -u red-backup.service -o cat | tail   # log de la última
+/srv/red/repo/infra/servidor/backup.sh manual           # backup a mano
+/srv/red/repo/infra/servidor/probar-restore.sh          # prueba de restauración
+```
+
+**Cómo se conectó rclone** (si hay que rehacerlo): en la PC, `rclone authorize "drive"
+"eyJzY29wZSI6ImRyaXZlLmZpbGUifQ"` (base64 **sin** padding de `{"scope":"drive.file"}`), iniciar
+sesión con la cuenta de backups, y pegar el bloque que imprime en
+`ssh -t red-prd /srv/red/repo/infra/servidor/configurar-rclone.sh` (acepta el JSON viejo o el
+base64 de rclone ≥ 1.56).
+
+**Cupo de Google:** sin credencial propia, rclone usa la aplicación OAuth compartida por todos sus
+usuarios, y el 2026-11-22 dio `403 rateLimitExceeded` en varios pedidos (los reintentos lo
+resolvieron; un backup de 180 KB tardó ~4 min). Lo definitivo es una credencial OAuth propia
+(proyecto en Google Cloud con la cuenta de backups, Drive API habilitada, cliente "Desktop",
+pantalla de consentimiento **publicada**: en modo prueba el token vence a los 7 días) y repetir la
+autorización con `rclone authorize "drive" <client_id> <client_secret>`.
