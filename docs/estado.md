@@ -100,11 +100,14 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 2. CI en `red-plataforma`: build de imágenes → GHCR privado, limpieza de versiones, token de solo
    lectura para el servidor. **En curso (2026-11-22):** workflow `imagenes.yml` escrito (README
    §Imágenes de PRD) e imágenes base fijadas (`python:3.12.16-slim-trixie`,
-   `node:22.23.5-alpine3.24`, `nginx:1.30.7-alpine3.24`). Falta: fijar `backend/requirements.txt`
-   con el `pip freeze` de `red_prd_api` en la VM (hoy sin versiones: cada build podría traer otra
-   FastAPI), primera corrida en `red-plataforma` (verificar que los paquetes queden privados y que la
-   limpieza tenga permiso) y el PAT `read:packages` del servidor. La suite no corre en el CI (tarda
-   11–35 min y necesita Postgres); se evalúa después.
+   `node:22.23.5-alpine3.24`, `nginx:1.30.7-alpine3.24`) y `backend/requirements.txt` con todas
+   las versiones fijas (FastAPI 0.165.0, resolución del 2026-11-22). **Verificado en la PC Windows
+   (WSL2, Ubuntu 24.04 + Docker 29.10):** actionlint sin errores, las dos imágenes construyen como en
+   el CI, el front sirve con `/api` horneado y la suite completa pasa con las versiones fijas (259
+   tests, 12 min). Ojo: son versiones más nuevas que las que corre hoy PRD en la VM; el cambio entra
+   con el primer deploy al servidor. Falta: primera corrida en `red-plataforma` (verificar que los
+   paquetes queden privados y que la limpieza tenga permiso) y el PAT `read:packages` del servidor.
+   La suite no corre en el CI (necesita Postgres); se evalúa después.
 3. Compose de servidor: imágenes de GHCR en vez de `build:`, red `edge` externa, Traefik con
    certificado real por DNS-01 (token de Cloudflare cargado directo en el env del servidor, nunca por
    chat ni git), `docker-socket-proxy`. Probar con el staging de Let's Encrypt primero. Postgres con
@@ -201,3 +204,8 @@ Se resuelven con el usuario, nunca por iniciativa propia (ver operacion.md para 
   Si corre en paralelo con mucha carga puede dar timeouts de conexión que no son fallos de código.
 - **Deuda conocida:** algunos schemas de pagos devuelven montos como string (`Money`) mientras el
   front los tipa `number`; 5 warnings de lint (`react-refresh/only-export-components`) preexistentes.
+  La suite da warnings de deprecación (no fallos): `datetime.utcnow()` en los tests, una clave de
+  config de Pydantic v1 y el atajo `app=` de httpx.
+- **Docker en la PC Windows:** distro `Ubuntu-24.04` de WSL con Docker Engine oficial (sin Docker
+  Desktop), todavía sin usuario propio (se entra como root; crear el usuario es del usuario). Clon de
+  prueba en `/root/ci/red-v2` con un `.env.dev` descartable de contraseñas aleatorias.
