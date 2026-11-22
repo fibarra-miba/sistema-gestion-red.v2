@@ -141,9 +141,15 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    host). Probado de punta a punta en WSL (ver README). Aprendizajes: un router con `tls=true` propio
    ignora el certresolver del entrypoint (va por label en cada router); n8n sin healthcheck a
    propósito, y mientras arranca responde 200 a los webhooks.
-4. Despliegue en el servidor: clon con deploy key de solo lectura, env file `600`, PAT clásico
-   `read:packages` cargado con `docker login ghcr.io`, sistema levantado **con un dump de prueba**,
-   no con los datos reales.
+4. Despliegue en el servidor — **hecho con datos de prueba (2026-11-22)**, detalle en
+   [servidor.md](servidor.md) §5. `https://red.fiba-soluciones.com.ar` en `sha-4642713`, con
+   certificado real de Let's Encrypt, n8n y todo verificado desde Internet. Deploy key de solo
+   lectura, env files generados en el servidor, token de Cloudflare (de usuario, filtrado a la IP del
+   servidor) y PAT de GHCR cargados por el titular sin pasar por el chat. **Incidente:** los datos de
+   prueba salieron del seed demo (`RED_SEED=1`), que trae `admin`/`admin`; se desactivó a los
+   minutos sin logins registrados y el launcher ahora se niega a levantar así en el servidor.
+   **Falta:** que el titular cree su admin (`./red prd create-admin`) y pruebe el flujo principal en
+   el navegador; el acceso al editor de n8n por túnel.
 5. Backups: restic + rclone a la cuenta de Google dedicada, retención, timer diario, **prueba de
    restauración real** y custodia de `RESTIC_PASSWORD`.
 6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7

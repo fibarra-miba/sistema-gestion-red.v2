@@ -131,6 +131,14 @@ env_files() {
 # solo si ese tag todavía no está (los tags sha-<commit> no cambian de contenido).
 compose_up() {
   if es_servidor; then
+    # El seed demo (RED_SEED=1) crea admin/admin SIN obligación de cambiarla.
+    # En un host público eso es una puerta abierta: pasó el 2026-11-22 en el
+    # primer despliegue de prueba (se desactivó a los minutos, sin accesos).
+    if grep -qE '^RED_SEED=1' "$ENV_FILE"; then
+      echo "[${ENV}] RED_SEED=1 en el servidor: el seed demo trae admin/admin. No se levanta."
+      echo "Poné RED_SEED=0 en $ENV_FILE (los datos de prueba, con un dump sin credenciales conocidas)."
+      exit 1
+    fi
     "$@" up -d --pull missing
   else
     "$@" up -d --build

@@ -64,17 +64,19 @@ cp infra/.env.prd.example infra/.env.prd && chmod 600 infra/.env.prd
 | Clave SSH `red_prd` (ed25519) | Privada solo en la PC Windows del titular (`%USERPROFILE%\.ssh\red_prd`); la pública en `authorized_keys` de `fiba` | Con passphrase, guardada en el gestor de contraseñas. Si se pierde la PC o la passphrase: generar otra clave y cargarla por la consola del panel de Hostinger |
 | Contraseña de `fiba` | Gestor de contraseñas | Solo sirve para `sudo`: SSH no acepta contraseñas |
 | Contraseña de root del VPS | Gestor de contraseñas | Root no entra por SSH; queda para la consola de emergencia del panel |
+| Deploy key `red_plataforma_deploy` (ed25519, desde 2026-11-22) | Solo en el servidor (`~fiba/.ssh/`); la pública en `red-plataforma` → Deploy keys, **solo lectura** | Sin passphrase a propósito (la usa `git pull` sin nadie delante). Si se compromete: borrarla en GitHub y generar otra en el servidor |
+| `POSTGRES_PASSWORD`, `N8N_DB_PASSWORD`, `N8N_ENCRYPTION_KEY` del servidor | `/srv/red/repo/infra/.env.prd` y `.env.n8n` (`600`) | Generados en el servidor con `openssl rand` el 2026-11-22: nunca salieron de ahí. `N8N_ENCRYPTION_KEY`: copia en el gestor de contraseñas antes del corte |
 
 Detalle del acceso en [servidor.md](servidor.md).
 
-### Secretos que suma el bloque C (todavía no existen)
+### Secretos del despliegue (bloque C)
 
 | Secreto | Para qué | Alcance mínimo |
 |---|---|---|
-| Token de API de Cloudflare | Certificado real por DNS-01 (Traefik) | `Zone:DNS:Edit` solo sobre la zona del dominio. Vive en un archivo fuera del repo (`/srv/red/secretos/cf_dns_api_token`, `600`) que Traefik recibe como secreto de Compose, no como variable: no aparece en `docker inspect` |
-| Credencial de rclone (`rclone.conf`) | restic → Google Drive (copia fuera del host) | Cuenta de Google **dedicada** (no personal) y permiso `drive.file`: solo los archivos que crea rclone, no el Drive entero |
-| `RESTIC_PASSWORD` | Cifra el repositorio de backups | Si se pierde, **los backups no se pueden restaurar** |
-| Token de GHCR | El host descarga las imágenes privadas de GHCR | PAT **clásico** con solo `read:packages` (GHCR no acepta tokens de grano fino); se carga con `docker login ghcr.io` en el host |
+| Token de API de Cloudflare (**creado 2026-11-22**, "Traefik DNS-01 - servidor PRD") | Certificado real por DNS-01 (Traefik) | Token **de usuario**, `DNS: Editar` solo sobre la zona `fiba-soluciones.com.ar`, **filtrado a la IP del servidor**, sin caducidad. Vive en `/srv/red/secretos/cf_dns_api_token` (`600`), que Traefik recibe como secreto de Compose, no como variable: no aparece en `docker inspect`. Se carga con `infra/servidor/cargar-secretos.sh` |
+| Credencial de rclone (`rclone.conf`) | restic → Google Drive (copia fuera del host) | Cuenta de Google **dedicada** (no personal) y permiso `drive.file`: solo los archivos que crea rclone, no el Drive entero. Todavía no existe |
+| `RESTIC_PASSWORD` | Cifra el repositorio de backups | Si se pierde, **los backups no se pueden restaurar**. Todavía no existe |
+| Token de GHCR (**creado 2026-11-22**, "GHCR lectura - servidor PRD") | El host descarga las imágenes privadas de GHCR | PAT **clásico** con solo `read:packages` (GHCR no acepta tokens de grano fino). Cargado con `docker login ghcr.io` (lo guarda en `~fiba/.docker/config.json`, `600`, codificado y no cifrado). **Vence**: renovarlo antes, o el servidor no podrá bajar imágenes nuevas (lo que ya corre sigue andando) |
 
 En el CI de GitHub las imágenes se publican con el `GITHUB_TOKEN` del workflow (no hace falta
 crear un secreto para eso). Las imágenes de GHCR son **privadas**; el host solo tiene el token de lectura.
