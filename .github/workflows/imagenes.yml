@@ -10,16 +10,19 @@ name: imagenes
 # Corre SOLO en red-plataforma: el archivo existe también en el repo de trabajo
 # (el sync exige árboles idénticos), pero ahí no debe publicar nada.
 #
-# Un commit que solo toca documentación no construye imágenes (no cambian): el
-# servidor sigue en el último sha-<commit> que sí las tiene. Los filtros de path
-# no se aplican a los tags, así que un vX.Y.Z siempre construye.
+# Solo construye cuando cambia algo que entra en las imágenes (backend/,
+# frontend/) o este workflow. Un commit de docs, infra o scripts del servidor no
+# tiene imagen propia: el servidor sigue en el último sha-<commit> que sí la
+# tiene. Los filtros de path no se aplican a los tags: un vX.Y.Z siempre
+# construye. Para forzar una corrida: workflow_dispatch desde la pestaña Actions.
 on:
   push:
     branches: [main]
     tags: ["v*"]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/imagenes.yml"
   workflow_dispatch:
 
 permissions:

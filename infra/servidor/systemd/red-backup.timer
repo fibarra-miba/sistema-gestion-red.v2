@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup diario de PRD de Sistema RED
+
+[Timer]
+# 03:30 hora de Argentina (el servidor está en esa zona horaria).
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=10min
+# Si el servidor estaba apagado a esa hora, corre al arrancar.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

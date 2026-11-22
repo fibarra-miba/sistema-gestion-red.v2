@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup de PRD de Sistema RED (restic cifrado a Google Drive)
+Documentation=file:///srv/red/repo/docs/servidor.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/srv/red/repo/infra/servidor/backup.sh diario
+Nice=10
+IOSchedulingClass=idle

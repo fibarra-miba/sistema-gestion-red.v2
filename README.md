@@ -189,8 +189,9 @@ publica en GHCR (privado). Corre **solo en `red-plataforma`** (en v2 el job se s
 
 - Cada push a `main` publica el tag `sha-<commit corto>`; un tag `vX.Y.Z` publica además esa versión.
   El servidor fija un tag inmutable, nunca uno flotante: desplegar o volver atrás es cambiar el tag.
-- Un push que solo toca `docs/**` o archivos `.md` **no construye** (`paths-ignore`): esos commits no
-  tienen imagen propia y el servidor sigue en el último `sha-` que sí la tiene.
+- Solo construye si el push toca `backend/`, `frontend/` o el propio workflow (filtro `paths`). Los
+  commits de docs, infra o scripts del servidor no tienen imagen propia: `RED_TAG` siempre apunta al
+  último `sha-` que sí la tiene (ver la pestaña Actions o los paquetes de GHCR).
 - Después del build se borran las versiones viejas: quedan las **10 últimas** de cada imagen.
 - Imágenes base, acciones (por SHA) y dependencias de Python (`backend/requirements.txt`, directas
   y transitivas) con versión fija. Actualizar es un commit: cambiar la versión, reconstruir y correr
