@@ -13,16 +13,38 @@
 set -euo pipefail
 umask 077
 
-echo "Pegá el token que imprimió 'rclone authorize' en la PC"
-echo "(la línea completa que empieza con {\"access_token\":...). No se ve al pegar."
-read -rsp "Token: " TOKEN; echo
-case "$TOKEN" in
-  "{"*"access_token"*"}") ;;
-  *) unset TOKEN; echo "No parece el token de rclone. No se guardó nada."; exit 1 ;;
-esac
+echo "Pegá lo que imprimió 'rclone authorize' en la PC, entre '--->' y '<---End paste'."
+echo "No se ve al pegar."
+read -rsp "Token: " ENTRADA; echo
 
-rclone config create gdrive drive scope drive.file token "$TOKEN" --non-interactive >/dev/null
-unset TOKEN
+# Dos formatos posibles según la versión de rclone de la PC:
+# - JSON del token ({"access_token":...}), versiones viejas;
+# - base64 (sin padding) de un mapa de configuración cuyo campo "token" es ese
+#   JSON (rclone >= 1.56 cuando se llama con la config en base64, como acá).
+token_json=$(ENTRADA="$ENTRADA" python3 - <<'PY'
+import base64, json, os, sys
+e = os.environ["ENTRADA"].strip()
+def es_token(s):
+    try:
+        return "access_token" in json.loads(s)
+    except Exception:
+        return False
+if es_token(e):
+    print(e); sys.exit(0)
+try:
+    m = json.loads(base64.urlsafe_b64decode(e + "=" * (-len(e) % 4)))
+    t = m.get("token", "") if isinstance(m, dict) else ""
+    if es_token(t):
+        print(t); sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+PY
+) || { unset ENTRADA; echo "No se reconoce como token de rclone. No se guardó nada."; exit 1; }
+unset ENTRADA
+
+rclone config create gdrive drive scope drive.file token "$token_json" --non-interactive >/dev/null
+unset token_json
 chmod 600 ~/.config/rclone/rclone.conf
 
 rclone mkdir gdrive:red-backups
