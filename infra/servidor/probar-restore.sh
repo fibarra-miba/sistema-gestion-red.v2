@@ -33,7 +33,7 @@ echo "== Snapshot a restaurar"
 restic snapshots --latest 1 --compact | tail -n +3 | head -n 1
 restic restore latest --target "$DEST" --quiet
 STAGE=$(find "$DEST" -type d -name backup-stage | head -n 1)
-ls -l "$STAGE"
+ls -lA "$STAGE"
 
 echo "== Restaurando red_prd.dump en ${DB_PRUEBA}"
 psql_q -d postgres -c "CREATE DATABASE ${DB_PRUEBA} OWNER ${POSTGRES_USER};" >/dev/null
@@ -42,7 +42,7 @@ docker exec -i "$PG" pg_restore -U "$POSTGRES_USER" -d "$DB_PRUEBA" --no-owner <
 # Filas por tabla (exactas, no estimadas) en public y red_ai.
 contar() {
   psql_q -d "$1" -c "
-    SELECT format('SELECT %L || ''|'' || count(*) FROM %I.%I', n.nspname || '.' || c.relname, n.nspname, c.relname)
+    SELECT format('SELECT %L || ''|'' || count(*) FROM %I.%I;', n.nspname || '.' || c.relname, n.nspname, c.relname)
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind = 'r' AND n.nspname IN ('public', 'red_ai')
     ORDER BY 1" | psql_q -d "$1"
@@ -60,4 +60,4 @@ fi
 
 echo "== n8n.dump legible"
 docker exec -i "$PG" pg_restore --list < "$STAGE/n8n.dump" | grep -c "TABLE DATA" | sed 's/^/tablas con datos: /'
-echo "== env files presentes: $(ls "$STAGE" | grep -c '^\.env')"
+echo "== env files presentes: $(ls -A "$STAGE" | grep -c '^\.env')"
