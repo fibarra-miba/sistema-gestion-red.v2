@@ -30,6 +30,14 @@ services:
   api:
     build: !reset null
     image: ghcr.io/fibarra-miba/red-api:${RED_TAG:?Falta RED_TAG en infra/.env.prd (tag sha-<commit> publicado por el CI)}
+    environment:
+      # IP real del cliente en auditoría y sesiones: uvicorn toma X-Forwarded-For
+      # solo de los emisores en los que confía (por defecto 127.0.0.1, y Traefik
+      # llega por la red edge). Se confía en todos porque la API no publica puertos
+      # (solo la alcanzan contenedores del proyecto) y Traefik descarta el
+      # X-Forwarded-For que manda el cliente y pone el suyo, así que no se puede
+      # falsear desde Internet (verificado el 2026-11-22).
+      FORWARDED_ALLOW_IPS: "*"
     labels:
       - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api.tls.certresolver=le"
       - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-red}-api-login.tls.certresolver=le"
