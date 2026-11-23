@@ -38,7 +38,8 @@ services:
     environment:
       # Traefik es el único salto delante: n8n toma la IP real de X-Forwarded-For.
       N8N_PROXY_HOPS: 1
-    networks:
+    # !override: el base agrega default + edge para DEV; acá la lista es exactamente esta.
+    networks: !override
       - edge
       - n8n_data
     mem_limit: 1g

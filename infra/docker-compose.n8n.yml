@@ -25,6 +25,12 @@ services:
     restart: always
     ports:
       - "${N8N_PORT}:5678"
+    # edge: llega al api por la red interna (http://api:8000), sin pasar por un
+    # proxy; el asistente lo exige (docs/asistente.md §2). El servidor redefine
+    # la lista en docker-compose.n8n.servidor.yml.
+    networks:
+      - default
+      - edge
     environment:
       N8N_HOST: ${N8N_HOST}
       N8N_PORT: 5678
