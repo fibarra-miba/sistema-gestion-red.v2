@@ -520,3 +520,12 @@ CREATE TABLE IF NOT EXISTS auditoria_eventos (
   user_agent_auditoria       VARCHAR(300),
   created_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Vinculación de una cuenta de Telegram con un usuario del sistema (asistente,
+-- docs/asistente.md). Un usuario tiene a lo sumo una cuenta y viceversa.
+CREATE TABLE IF NOT EXISTS usuarios_telegram (
+  usuario_id                 BIGINT PRIMARY KEY,
+  telegram_user_id           BIGINT NOT NULL,
+  activo_vinculacion         BOOLEAN NOT NULL DEFAULT TRUE,
+  fecha_vinculacion          TIMESTAMPTZ NOT NULL DEFAULT now()
+);

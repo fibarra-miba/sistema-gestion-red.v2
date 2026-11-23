@@ -691,3 +691,15 @@ ALTER TABLE auditoria_eventos
   ADD CONSTRAINT fk_auditoria_usuario
   FOREIGN KEY (usuario_id)
   REFERENCES usuarios(usuario_id);
+
+-- ============================
+-- USUARIOS_TELEGRAM
+-- ============================
+ALTER TABLE usuarios_telegram
+  ADD CONSTRAINT fk_usuarios_telegram_usuario
+  FOREIGN KEY (usuario_id)
+  REFERENCES usuarios(usuario_id);
+
+ALTER TABLE usuarios_telegram
+  ADD CONSTRAINT uq_usuarios_telegram_telegram_id
+  UNIQUE (telegram_user_id);

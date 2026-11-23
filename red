@@ -563,6 +563,15 @@ case "$1" in
     core_compose exec api python -m app.cli.create_admin
     ;;
 
+  vincular-telegram)
+    # Asistente por Telegram (docs/asistente.md): vincula/desvincula/lista cuentas.
+    #   ./red [env] vincular-telegram vincular <usuario> <telegram_id>
+    #   ./red [env] vincular-telegram desvincular <usuario>
+    #   ./red [env] vincular-telegram listar
+    ensure_env
+    core_compose exec -T api python -m app.cli.vincular_telegram "${@:2}"
+    ;;
+
   sync-plataforma)
     # Repo de despliegue (red-plataforma): nació sin historial desde un commit base
     # de main y recibe los commits nuevos por cherry-pick (-x deja la referencia
@@ -708,6 +717,7 @@ case "$1" in
     echo ""
     echo "  create-admin        Crea un usuario ADMIN (pide la contraseña; cambio obligatorio)"
     echo "  sync-plataforma     Lleva los commits nuevos de main al repo de despliegue (red-plataforma)"
+  echo "  vincular-telegram   Asistente: vincular | desvincular <usuario> [telegram_id] | listar"
     echo ""
     echo "  open | open-api | open-n8n"
     echo ""

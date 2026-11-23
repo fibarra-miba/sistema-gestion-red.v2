@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes.asistente import router as asistente_router
 from app.routes.auditoria import router as auditoria_router
 from app.routes.auth import router as auth_router
 from app.routes.catalogos import router as catalogos_router
@@ -64,3 +65,4 @@ app.include_router(proveedores_router)
 app.include_router(compras_router)
 app.include_router(stock_router)
 app.include_router(auditoria_router)
+app.include_router(asistente_router)
