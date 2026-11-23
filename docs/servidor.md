@@ -4,7 +4,7 @@ Qué servidor tiene PRD, cómo se llega a él y qué configuración tiene aplica
 host y para rehacerlo desde cero si hiciera falta. **Ningún secreto va acá**: solo dónde vive cada
 uno (ver [secretos.md](secretos.md)).
 
-Estado: **en producción desde el 2026-11-22** con los datos reales de la VM (`RED_TAG=sha-4642713`).
+Estado: **en producción desde el 2026-11-22** con los datos reales de la VM. Versión: `RED_TAG=sha-bd572ae` (2026-11-23; el corte se hizo con `sha-4642713`).
 Corren Traefik (certificado real de Let's Encrypt, se renueva solo), api, frontend, la base, n8n
 con el bot de Telegram y el socket-proxy. Cómo se hizo el corte: [corte.md](corte.md).
 
