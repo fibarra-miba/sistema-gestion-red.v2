@@ -126,14 +126,16 @@ siguiente).
 
 1. **Desactivar el workflow "Telegram" en el n8n del servidor** (comando aprobado por el titular).
    Si no, al reiniciar vuelve a registrar el webhook hacia PRD.
-2. En la VM: `infra/n8n/tunel-dev.sh`. El editor se abre desde la PC con
-   `ssh -N -L 5678:localhost:5678 red-vm` y `http://127.0.0.1:5678`. La primera vez, el titular crea
-   la cuenta de dueño.
-3. **Credenciales en n8n**, que carga el titular:
-   - *Telegram RED DEV*: el token del bot actual, desde BotFather.
-   - *Asistente RED - secreto*: Header Auth `X-Asistente-Secreto` con el valor de
-     `ASISTENTE_SECRETO` del `infra/.env.dev` de la VM.
-   - *Gemini*: la API key.
+2. **Primero la cuenta de dueño, por un túnel privado:** desde la PC,
+   `ssh -N -L 5678:localhost:5678 red-vm` y abrir `http://127.0.0.1:5678`. **Nunca abrir el túnel
+   público antes:** mientras n8n no tiene dueño, cualquiera que llegue a la URL puede crearlo.
+   Recién después, en la VM: `infra/n8n/tunel-dev.sh`.
+3. **Credenciales en n8n:**
+   - *Asistente RED - secreto* (Header Auth `X-Asistente-Secreto`): **ya cargada** desde la VM con
+     `n8n import:credentials`, tomando `ASISTENTE_SECRETO` de `infra/.env.dev` sin que pase por
+     ningún lado.
+   - *Telegram RED DEV*: el token del bot actual, desde BotFather. La carga el titular.
+   - *Gemini*: la API key. La carga el titular.
 4. Armar el workflow según §1 a §4, activarlo y escribirle `/id` al bot.
 5. `./red vincular-telegram vincular <usuario> <id>` y probar las 5 consultas con texto y con audio,
    midiendo los tokens.
