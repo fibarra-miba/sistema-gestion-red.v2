@@ -91,8 +91,10 @@ siguiente).
 
 - Tabla `usuarios_telegram` (migración `20261123_asistente_telegram.sql`, en las dos copias del
   schema).
-- `app/routes/asistente.py` + `app/repositories/asistente_repo.py`. La fachada es de solo lectura:
-  una consulta SQL por herramienta.
+- `app/routes/asistente.py` + `app/services/asistente_service.py` +
+  `app/repositories/asistente_repo.py`. La fachada es de solo lectura: una consulta SQL por
+  herramienta. Fechas en hora argentina y en formato corto (`2026-11-24 10:30`); los días del
+  negocio se calculan en UTC−3, no en UTC.
 - CLI `app/cli/vincular_telegram.py` (vincular, desvincular y listar) detrás de `./red`.
 - Variables del api: `ASISTENTE_SECRETO` (obligatoria para habilitarlo) y
   `ASISTENTE_SESION_MINUTOS` (default 30).
@@ -108,13 +110,31 @@ siguiente).
   servidor**: si no, al reiniciar vuelve a registrar el webhook hacia PRD y le saca el bot a DEV.
   Telegram admite un solo webhook por bot. Para PRD, el titular crea otro bot con BotFather.
 
-## 7. Estado
+## 7. Estado (2026-11-23)
 
-- [x] Diseño (este documento).
-- [x] Backend Fase A con tests.
-- [x] Workflow esqueleto, sin el nodo de Gemini.
-- [ ] **Gemini:** el titular aporta la API key (proyecto con facturación activa: en el nivel
-  gratuito Google puede usar los datos) y se conecta el agente.
+- [x] Diseño (este documento) y skill `n8n-workflows` (`~/.claude/skills/`, en la PC y en la VM).
+- [x] Backend Fase A con 18 tests. Migración aplicada en el DEV de la VM.
+- [x] n8n de DEV fijado en 2.48.7 (la misma versión del servidor), con el túnel
+  `infra/n8n/tunel-dev.sh` para el webhook.
+- [ ] **Workflow "Asistente RED" y Gemini.** Se arma en el editor de n8n de DEV, con el bot real,
+  y se exporta a `infra/n8n/workflows/asistente-red.json`. No se escribe a ciegas: hay que probarlo.
 - [ ] Prueba de punta a punta en DEV con el bot actual.
 - [ ] Fase B (propuestas y confirmación).
-- [ ] PRD: bot nuevo, `ASISTENTE_SECRETO` y workflow importado.
+- [ ] PRD: bot nuevo, `ASISTENTE_SECRETO`, migración y workflow importado.
+
+## 8. Para terminar la Fase A (con el titular)
+
+1. **Desactivar el workflow "Telegram" en el n8n del servidor** (comando aprobado por el titular).
+   Si no, al reiniciar vuelve a registrar el webhook hacia PRD.
+2. En la VM: `infra/n8n/tunel-dev.sh`. El editor se abre desde la PC con
+   `ssh -N -L 5678:localhost:5678 red-vm` y `http://127.0.0.1:5678`. La primera vez, el titular crea
+   la cuenta de dueño.
+3. **Credenciales en n8n**, que carga el titular:
+   - *Telegram RED DEV*: el token del bot actual, desde BotFather.
+   - *Asistente RED - secreto*: Header Auth `X-Asistente-Secreto` con el valor de
+     `ASISTENTE_SECRETO` del `infra/.env.dev` de la VM.
+   - *Gemini*: la API key.
+4. Armar el workflow según §1 a §4, activarlo y escribirle `/id` al bot.
+5. `./red vincular-telegram vincular <usuario> <id>` y probar las 5 consultas con texto y con audio,
+   midiendo los tokens.
+6. Exportar el workflow a `infra/n8n/workflows/` y commitearlo.

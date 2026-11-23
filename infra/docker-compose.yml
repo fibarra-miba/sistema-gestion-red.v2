@@ -76,6 +76,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      # Asistente de Telegram (docs/asistente.md). Vacío = /asistente/sesion apagado.
+      ASISTENTE_SECRETO: ${ASISTENTE_SECRETO:-}
+      ASISTENTE_SESION_MINUTOS: ${ASISTENTE_SESION_MINUTOS:-30}
     networks:
       - edge
       - data

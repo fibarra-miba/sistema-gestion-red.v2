@@ -157,3 +157,7 @@ infra/n8n/data/
 
 # Playwright MCP scratch (capturas/snapshots de verificación en navegador)
 .playwright-mcp/
+
+# Túnel de DEV para el webhook de n8n (infra/n8n/tunel-dev.sh)
+infra/n8n/.tunel.pid
+infra/n8n/.tunel.log

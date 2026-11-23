@@ -18,7 +18,9 @@ services:
       retries: 5
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:stable
+    # Misma versión que el servidor (docker-compose.n8n.servidor.yml): un workflow
+    # exportado en DEV tiene que importarse igual en PRD.
+    image: docker.n8n.io/n8nio/n8n:2.48.7
     container_name: n8n_local
     restart: always
     ports:

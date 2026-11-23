@@ -44,6 +44,10 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
     **PC limpia el mismo día:** queda como **centro de control** (`D:\Documentos\Chamba\Personal`,
     sin código; fichas de memoria por proyecto; operación del servidor), con los clones de `D:\`
     retirados y el desarrollo en la VM ([vm-dev.md](vm-dev.md) §1bis).
+  - **Asistente por Telegram (pedido del titular, 2026-11-23):** RED con voz y texto por el bot.
+    Gemini orquestado por n8n, el backend ejecuta. Diseño, ahorro de tokens y estado en
+    [asistente.md](asistente.md): el backend de la Fase A (consultas) está hecho; falta armar el
+    workflow con Gemini en el n8n de DEV.
   - **Fase 2 — "dev automation" en la VM:** plantilla de proyecto (launcher, env, rango de puertos,
     verificación), flujo rama → operarios → verificación → PR → CI, snapshots antes de lo riesgoso.
   - **Por qué este orden:** la Fase 1 le da al agente autonomía dentro de la VM, y eso solo es
