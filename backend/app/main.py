@@ -38,7 +38,10 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
+# HEAD además de GET: los monitores de uptime (UptimeRobot en el plan gratuito)
+# chequean con HEAD y no permiten cambiarlo; con solo GET respondía 405 y el
+# monitor marcaba el sistema caído estando arriba.
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "ok"}
 

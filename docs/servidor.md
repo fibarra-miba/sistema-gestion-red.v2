@@ -214,8 +214,10 @@ autorización con `rclone authorize "drive" <client_id> <client_secret>`.
 ## 9. Monitoreo e IP del cliente (2026-11-22)
 
 - **Uptime:** UptimeRobot, cuenta del titular (con 2FA), chequeo HTTP cada 5 min con alerta por
-  mail. El que importa es `https://red.fiba-soluciones.com.ar/api/health` (atraviesa Traefik, la
-  API y la conexión a la base); el de la raíz solo prueba el front. Ojo: cualquier ruta inventada
+  mail. El que importa es `https://red.fiba-soluciones.com.ar/api/health` (atraviesa Traefik y la
+  API; **no** consulta la base); el de la raíz solo prueba el front. El plan gratuito chequea con
+  `HEAD` sin opción de cambiarlo: por eso `/health` acepta `HEAD` desde el 2026-11-22 (antes daba
+  405 y el monitor marcaba caída). Ojo: cualquier ruta inventada
   (`/login`, `/wp-admin`, ...) da 200 porque el front es una SPA y devuelve `index.html`: esos
   monitores no prueban nada.
 - **IP real del cliente:** la API tiene `FORWARDED_ALLOW_IPS=*` (overlay del servidor) y toma la IP
