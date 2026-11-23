@@ -3,7 +3,7 @@
 Punto de partida para cualquier sesión de trabajo: dónde estamos, qué se decidió y por qué, y qué
 sigue. **Actualizar este archivo al cerrar cada sesión** que cambie el estado.
 
-Última actualización: **2026-11-22** (CI cerrado).
+Última actualización: **2026-11-22** (corte de PRD al servidor: Fase 0 cerrada).
 
 Leer también: [CLAUDE.md](../CLAUDE.md) (contrato y forma de trabajo) · [README](../README.md)
 (comandos, ambientes, repos) · [operacion.md](operacion.md) (reglas de negocio y carga de datos
@@ -16,9 +16,11 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
 
 - **V1 completa y en uso:** backend + frontend de todos los módulos (ver CLAUDE.md §7). PRD tiene
   **datos reales** del ISP y facturación desde 10/2026.
-- **Hoy todo corre en una VM Linux de desarrollo:** DEV (hot reload, datos demo) y PRD (imágenes
-  congeladas, Traefik en `https://red.localhost`). Backup semanal automático de PRD (systemd timer),
-  **guardado solo en el disco de la VM**: hoy no hay copia fuera del equipo.
+- **PRD corre en el servidor desde el 2026-11-22** (`https://red.fiba-soluciones.com.ar`), con los
+  datos reales de la VM, n8n con el bot de Telegram y backup diario cifrado a Google Drive. Cómo se
+  hizo, resultado e incidente: [corte.md](corte.md). En la VM quedan DEV y una **copia de PRD
+  apagada** (contenedores detenidos con `restart=no`, volumen intacto, timer de backup
+  deshabilitado) como respaldo por unos días.
 - **Rumbo:** subir PRD a un servidor en la nube. El plan completo está en un documento aparte (plan de
   infraestructura del 30-08-2026, artifact "Infraestructura RED" en claude.ai). Quedó desactualizado
   en tres puntos: backups a Google Drive (no B2), proveedor Hostinger (no Lightsail) y 8 GB (no 16).
@@ -29,11 +31,11 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
   sobre `/mnt/d` el hot reload no anda, el `chmod 600` de los env no aplica y `node_modules` se
   rompe). ~~La VM se retira después del corte de PRD~~: cambió el 2026-11-22, la VM queda como
   ambiente DEV (ver Hoja de ruta abajo).
-- **El agente ya trabaja desde la PC Windows** (decidido 2026-11-22): la VM queda solo con PRD
-  (datos reales), sus backups y n8n hasta el corte.
+- **El agente ya trabaja desde la PC Windows** (decidido 2026-11-22). Desde el corte la VM no
+  tiene PRD activo; la Fase 1 la convierte en el ambiente DEV.
 - **Hoja de ruta (decidida 2026-11-22):**
   - **Fase 0 — PRD en el servidor, funcionando y probado, con n8n operativo.** Son los pasos 3 a 8
-    de §3. El alcance de lo que n8n automatiza contra el sistema se define cuando toque implementarlo.
+    de §3. **Cerrada el 2026-11-22.** El alcance de lo que n8n automatiza contra el sistema se define cuando toque implementarlo.
   - **Fase 1 — la VM pasa a ser el ambiente DEV puro** de las aplicaciones personales, manejada desde
     la PC: snapshot base, IP reservada, puertos de DEV cerrados a la LAN, acceso por clave SSH y
     sesiones de Claude Code en la VM dirigidas desde la app.
@@ -160,8 +162,10 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    `RESTIC_PASSWORD` a su gestor; credencial OAuth propia en Google Cloud (hoy rclone usa la
    compartida de todos sus usuarios y pega en el límite de cuota: los reintentos lo salvan, pero
    alguna noche puede fallar); alertas si un backup falla (con el monitoreo externo).
-6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7
-   (probarlo antes del corte), y volver a registrar el webhook de Telegram con la URL del servidor.
+6. ~~n8n en el servidor~~ (hecho 2026-11-22, en el corte): dueño creado por túnel, 2 workflows y
+   la credencial importados en la 2.48.7, "Telegram" activo con el webhook en
+   `https://red.fiba-soluciones.com.ar/webhook/…` y probado. n8n avisa que Postgres 16 queda fuera
+   del rango soportado: planificar la subida de su base a 17.
 7. ~~Revisión de los datos de PRD con el usuario~~ (hecho 2026-11-22). Revisada la base de la VM en
    solo lectura: **sin cambios desde el 2026-10-05** (26 clientes, 4 con apellido `S/D`, 26
    contratos, 25 pagos; última actividad: cobros y recibos de garantías). La "actualización de
@@ -170,9 +174,12 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    correcciones se hacen después del corte, en el servidor (backup + SQL en transacción + evento
    `CORRECCION_DATOS`). Acceso desde la PC a la VM por clave `red_vm` (`ssh red-vm`, servidor.md
    §2), cada comando aprobado.
-8. Corte: escritura congelada en la VM, dump final que viaja **directo de la VM al servidor** (nunca
-   por la PC Windows ni por chat), restore, verificación y monitoreo externo. La VM queda apagada un
-   tiempo como respaldo.
+8. ~~Corte~~ (hecho 2026-11-22, [corte.md](corte.md)). VM congelada 22:23, dump directo VM →
+   servidor con el agente reenviado (sha256 iguales), restore en una transacción y **84 tablas con
+   las mismas filas**; servicio de vuelta 22:44. **Incidente:** la PRD real tenía `admin` con la
+   contraseña de fábrica y quedó expuesta 5 min (único ingreso: el titular); se bloqueó con
+   `CORRECCION_DATOS`, el titular usa su ADMIN `fibarra` y `admin` está desactivado. PRD de la VM
+   apagado sin borrar nada.
 9. ~~DEV en la PC Windows (WSL2) y retiro de la VM~~ → reemplazado por la Fase 1 (§1): la VM no
    se retira, pasa a ser el ambiente DEV.
 
@@ -225,7 +232,7 @@ Se resuelven con el usuario, nunca por iniciativa propia (ver operacion.md para 
 - 4 clientes con apellido `S/D` a completar.
 - Una garantía de un cliente dado de baja: el plazo para reclamar el depósito venció el 05/11/2026;
   confirmar con el usuario si pasa a `RETENIDA` (o `DEVUELTA` si se reclamó).
-- Contraseña de `admin` en PRD: la cambia el usuario desde la UI; confirmar si ya se hizo.
+- ~~Contraseña de `admin` en PRD~~: resuelto en el corte (2026-11-22): `admin` bloqueado y desactivado, el titular usa `fibarra`.
 - Decidir si COBRANZAS puede ver la ficha del cliente en solo lectura.
 - Producto: una garantía `RETENIDA` todavía no genera el ingreso en facturación; el plazo de reclamo
   de garantías se controla a mano.

@@ -85,9 +85,10 @@ Las operaciones de carga normales van **siempre por la API** (validan reglas y q
 
 ## Pendientes conocidos
 
-- **Contraseña de `admin` en PRD** sigue siendo la de fábrica: la cambia el titular desde la UI
-  (nadie más debe conocerla). Credenciales por defecto del código resueltas el 2026-10-17
-  (ver [secretos.md](secretos.md)).
+- ~~Contraseña de `admin` en PRD~~ (resuelto en el corte, 2026-11-22): seguía siendo la de
+  fábrica y quedó expuesta 5 min al publicar el servidor (único ingreso: el titular). Se bloqueó su
+  hash con `CORRECCION_DATOS`; el titular usa su ADMIN personal `fibarra` y `admin` está
+  desactivado. Ver [corte.md](corte.md).
 - **Retención → ingreso**: una garantía `RETENIDA` todavía no genera el ingreso en facturación.
 - **Plazo de reclamo de garantía**: se controla a mano; podría automatizarse (aviso o paso a `RETENIDA`).
 - **Ficha del cliente para COBRANZAS**: hoy no la ve (la ruta exige gestionar clientes); se evaluó

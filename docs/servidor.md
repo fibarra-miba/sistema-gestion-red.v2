@@ -4,11 +4,9 @@ Qué servidor tiene PRD, cómo se llega a él y qué configuración tiene aplica
 host y para rehacerlo desde cero si hiciera falta. **Ningún secreto va acá**: solo dónde vive cada
 uno (ver [secretos.md](secretos.md)).
 
-Estado: **infraestructura desplegada y probada; la app está BAJADA hasta el corte** (2026-11-22).
-Corren Traefik (certificado real de Let's Encrypt, se renueva solo), n8n y la base con los datos de
-prueba; `api` y `frontend` se sacaron a propósito para no publicar datos de demo, así que el sitio
-responde 404. Se vuelven a levantar en el corte con `./red prd up-n8n`, ya con los datos reales
-(estado.md §3).
+Estado: **en producción desde el 2026-11-22** con los datos reales de la VM (`RED_TAG=sha-4642713`).
+Corren Traefik (certificado real de Let's Encrypt, se renueva solo), api, frontend, la base, n8n
+con el bot de Telegram y el socket-proxy. Cómo se hizo el corte: [corte.md](corte.md).
 
 ---
 
@@ -122,7 +120,8 @@ Rotación de logs por defecto en `/etc/docker/daemon.json` (`json-file`, `max-si
 
 El panel de Hostinger guarda **una** snapshot por vez y **vence** a los pocos días. Es una red de
 seguridad para cambios grandes, no un backup. Antes de cada etapa grande se saca una nueva. Última:
-2026-11-22 19:07, antes del primer despliegue (vence el 2026-11-23).
+2026-11-22 ~22:10, antes del corte (tiene la base de **prueba**: no sirve para volver a los datos
+reales; para eso están los backups de restic).
 
 ## 5. Despliegue del sistema (2026-11-22)
 
@@ -157,9 +156,11 @@ sin sesiones). Desde entonces el launcher se niega a levantar en modo servidor c
 ## 6. Lo que falta en el host
 
 - Credencial OAuth propia para rclone (ver §7) y alertas si un backup falla.
-- n8n: migrar los workflows de la VM. El editor no se expone: túnel SSH
-  (`ssh -L 5678:127.0.0.1:5678 red-prd`); Cloudflare Tunnel + Access queda como opción.
-- Monitoreo externo de uptime.
+- Monitoreo externo de uptime (ver §8).
+- La API registra la IP de Traefik y no la del cliente (auditoría y sesiones): falta confiar en
+  `X-Forwarded-For` de la red `edge`.
+- n8n 2.48.7 avisa que Postgres 16 está fuera de su rango soportado: subir `postgres_n8n` a 17
+  (dump + restore, con backup antes).
 
 ## 7. Backups (2026-11-22)
 
@@ -197,3 +198,17 @@ resolvieron; un backup de 180 KB tardó ~4 min). Lo definitivo es una credencial
 (proyecto en Google Cloud con la cuenta de backups, Drive API habilitada, cliente "Desktop",
 pantalla de consentimiento **publicada**: en modo prueba el token vence a los 7 días) y repetir la
 autorización con `rclone authorize "drive" <client_id> <client_secret>`.
+
+## 8. n8n (desde el corte, 2026-11-22)
+
+- **Editor:** solo en `127.0.0.1:5678` del servidor. Túnel desde Git Bash en la PC (en CMD, el
+  `ssh` de Windows no usa el agente de Git):
+  `ssh -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -N -L 127.0.0.1:5678:127.0.0.1:5678 red-prd`
+  y abrir **`http://127.0.0.1:5678`** (no `localhost`: Chrome prueba `::1` primero y el túnel es
+  IPv4). Cuenta de dueño del titular (contraseña en su gestor).
+- **Workflows:** "Telegram" activo (Telegram Trigger → If → mensaje), webhook registrado en
+  `https://red.fiba-soluciones.com.ar/webhook/…`; "Gmail" inactivo, sin credencial. Una credencial
+  `telegramApi`.
+- **Verificar el webhook** sin ver el token: el bloque G4 de [corte.md](corte.md) (lee la
+  credencial dentro del contenedor y consulta `getWebhookInfo`).
+- Reiniciar n8n en un momento tranquilo: mientras arranca (~30 s) responde 200 a los webhooks.

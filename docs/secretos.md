@@ -66,7 +66,9 @@ cp infra/.env.prd.example infra/.env.prd && chmod 600 infra/.env.prd
 | Contraseña de `fiba` | Gestor de contraseñas | Solo sirve para `sudo`: SSH no acepta contraseñas |
 | Contraseña de root del VPS | Gestor de contraseñas | Root no entra por SSH; queda para la consola de emergencia del panel |
 | Deploy key `red_plataforma_deploy` (ed25519, desde 2026-11-22) | Solo en el servidor (`~fiba/.ssh/`); la pública en `red-plataforma` → Deploy keys, **solo lectura** | Sin passphrase a propósito (la usa `git pull` sin nadie delante). Si se compromete: borrarla en GitHub y generar otra en el servidor |
-| `POSTGRES_PASSWORD`, `N8N_DB_PASSWORD`, `N8N_ENCRYPTION_KEY` del servidor | `/srv/red/repo/infra/.env.prd` y `.env.n8n` (`600`) | Generados en el servidor con `openssl rand` el 2026-11-22: nunca salieron de ahí. `N8N_ENCRYPTION_KEY`: copia en el gestor de contraseñas antes del corte |
+| `POSTGRES_PASSWORD`, `N8N_DB_PASSWORD`, `N8N_ENCRYPTION_KEY` del servidor | `/srv/red/repo/infra/.env.prd` y `.env.n8n` (`600`) | Generados en el servidor con `openssl rand` el 2026-11-22. `N8N_ENCRYPTION_KEY` (y `RESTIC_PASSWORD`) copiadas por el titular a su gestor de contraseñas el 2026-11-22, antes del corte |
+| Cuenta de dueño de n8n del servidor (desde 2026-11-22) | Gestor de contraseñas del titular | Solo se usa por el túnel SSH (servidor.md §8) |
+| Credencial `telegramApi` (token del bot) | Base de n8n, cifrada con `N8N_ENCRYPTION_KEY` | Migrada de la VM en el corte por export descifrado, borrado con `shred` en los dos hosts apenas se importó |
 
 Detalle del acceso en [servidor.md](servidor.md).
 
