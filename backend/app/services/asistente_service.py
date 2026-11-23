@@ -143,6 +143,9 @@ class AsistenteService:
         hoy = inicio_del_dia(hoy_negocio())
         return self.repo.resumen(hoy, hoy + timedelta(days=DIAS_AGENDA_DEFAULT))
 
+    def planes(self) -> dict[str, Any]:
+        return {"planes": self.repo.planes_vigentes()}
+
 
 def hoy_negocio() -> date:
     return datetime.now(TZ_NEGOCIO).date()
@@ -150,6 +153,3 @@ def hoy_negocio() -> date:
 
 def inicio_del_dia(dia: date) -> datetime:
     return datetime.combine(dia, time.min, tzinfo=TZ_NEGOCIO)
-
-    def planes(self) -> dict[str, Any]:
-        return {"planes": self.repo.planes_vigentes()}
