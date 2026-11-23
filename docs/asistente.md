@@ -15,8 +15,8 @@ Telegram (texto o audio)
   → n8n · workflow "Asistente RED"
       1. Comandos y botones sin modelo (/start, /id, /ayuda, Confirmar/Cancelar)
       2. ¿Vinculado?  POST /asistente/sesion  → sesión de su usuario de RED (30 min)
-      3. Si es audio: se baja el archivo y va al modelo tal cual (Gemini entiende audio)
-      4. Agente de IA (Gemini) + herramientas HTTP → /asistente/* del backend
+      3. Si es audio: se baja de Telegram y lo transcribe un modelo liviano (Flash-Lite)
+      4. Agente de IA (Gemini Flash) + herramientas HTTP → /asistente/* del backend
       5. Gemini redacta con lo que devolvió el backend
   → Telegram: texto (más adelante, también audio)
 ```
@@ -62,10 +62,25 @@ y respuestas de las herramientas. Cada punto apunta a eso:
    chat).
 6. **Lo que no necesita modelo, no lo usa.** Los comandos (`/start`, `/id`, `/ayuda`), los botones
    de confirmación y el rechazo a cuentas no vinculadas los resuelve n8n directo.
-7. **Audio en el mismo llamado.** No hay un paso de transcripción aparte.
-8. **Medir.** Se registran los tokens de cada ejecución (`usageMetadata` de Gemini) para ver el
-   costo real por consulta antes de sumar herramientas o subir de modelo. Arranca con un modelo de
-   la línea Flash; se sube solo si las pruebas lo piden.
+7. **Audio: transcripción corta y barata.** La idea era mandar el audio en el mismo llamado, pero el
+   agente de n8n (2.48) solo le pasa imágenes al modelo. Por eso el audio lo transcribe antes un
+   modelo Flash-Lite (unos 32 tokens por segundo de audio) y al agente le llega texto. Tope: audios
+   de hasta 2 minutos.
+8. **Medir.** Se miran los tokens de cada ejecución (en n8n, la salida del nodo del modelo) antes
+   de sumar herramientas o subir de modelo. Medido en DEV el 2026-11-23 con `gemini-3.8-flash`:
+
+   | Consulta | Llamados al modelo | Tokens (entrada + salida) |
+   |---|---|---|
+   | Comando (`/id`, `/ayuda`) | 0 | 0 |
+   | "¿Qué planes hay?" (1 herramienta) | 2 | 1.426 |
+   | Repregunta que se responde con la memoria | 1 | 872 |
+   | Buscar un cliente y abrir su ficha (2 herramientas) | 3 | 3.599 |
+   | Audio que se responde con la memoria | 1 (+ transcripción) | 1.307 |
+
+   El piso de cada llamado es de unos 600 tokens (prompt y herramientas): ahí funciona la caché
+   implícita. **Ajuste anotado:** ante "¿cuántos Juan hay?" el agente abrió además la ficha, que no
+   hacía falta (unos 1.500 tokens de más). Afinar la regla del prompt para que la ficha se pida
+   solo cuando la pregunta la necesita.
 
 ## 4. Herramientas por fase
 
@@ -106,9 +121,22 @@ siguiente).
 - Desde n8n el api se llama por la red interna: `http://api:8000/...`.
 - **DEV:** n8n de la VM (`./red up-n8n`, puerto 5678). El Telegram Trigger necesita un webhook
   público y la VM no recibe conexiones, así que se usa un túnel cloudflared temporal.
-- **El bot actual pasa a DEV.** Antes hay que **desactivar el workflow "Telegram" en el n8n del
-  servidor**: si no, al reiniciar vuelve a registrar el webhook hacia PRD y le saca el bot a DEV.
-  Telegram admite un solo webhook por bot. Para PRD, el titular crea otro bot con BotFather.
+- **El bot actual pasa a DEV.** Se le **revocó el token** en BotFather (2026-11-23): el n8n del
+  servidor quedó con un token muerto y ya no puede volver a registrar el webhook hacia PRD. Falta,
+  como limpieza, desactivar el workflow "Telegram" del n8n del servidor. Para PRD, el titular crea
+  otro bot con BotFather.
+- **Workflow:** `infra/n8n/workflows/asistente-red.json`, exportado sin estado y sin activar. Las
+  credenciales van solo por id y nombre: *Telegram RED DEV*, *Gemini* (Google Gemini(PaLM) Api) y
+  *Asistente RED - secreto* (Header Auth). Modelos: `models/gemini-3.8-flash` (agente) y
+  `models/gemini-3.5-flash-lite` (transcripción).
+- **Para importarlo en otro n8n (PRD):** crear las tres credenciales con esos nombres, importar con
+  `n8n import:workflow --input=...`, volver a elegir las credenciales en los nodos (los ids
+  cambian) y **cambiar `COOKIE` en el nodo "Contexto"** por el `SESSION_COOKIE_NAME` de PRD. Después
+  activarlo desde el editor.
+- **DEV en la VM:** mientras VirtualBox corra sobre el hipervisor de Windows, la VM se congela a
+  ratos (de 1 a 6 minutos). Un mensaje que cae en uno de esos cortes falla y hay que repetirlo. En
+  PRD no aplica. Se arregla con `bcdedit /set hypervisorlaunchtype off` en la PC (pendiente, lo
+  decide el titular).
 
 ## 7. Estado (2026-11-23)
 
@@ -116,13 +144,15 @@ siguiente).
 - [x] Backend Fase A con 18 tests. Migración aplicada en el DEV de la VM.
 - [x] n8n de DEV fijado en 2.48.7 (la misma versión del servidor), con el túnel
   `infra/n8n/tunel-dev.sh` para el webhook.
-- [ ] **Workflow "Asistente RED" y Gemini.** Se arma en el editor de n8n de DEV, con el bot real,
-  y se exporta a `infra/n8n/workflows/asistente-red.json`. No se escribe a ciegas: hay que probarlo.
-- [ ] Prueba de punta a punta en DEV con el bot actual.
+- [x] **Workflow "Asistente RED" con Gemini**, exportado a `infra/n8n/workflows/asistente-red.json`.
+- [x] Prueba de punta a punta en DEV con el bot actual: comandos, las consultas, la memoria y un
+  audio. Usuario `admin` vinculado. Medición de tokens en §3.8.
+- [ ] Afinar la regla de la ficha en el prompt (§3.8) y desactivar el workflow "Telegram" del n8n
+  del servidor.
 - [ ] Fase B (propuestas y confirmación).
 - [ ] PRD: bot nuevo, `ASISTENTE_SECRETO`, migración y workflow importado.
 
-## 8. Para terminar la Fase A (con el titular)
+## 8. Cómo se armó la Fase A en DEV (hecho el 2026-11-23; sirve de guía para PRD)
 
 1. **Desactivar el workflow "Telegram" en el n8n del servidor** (comando aprobado por el titular).
    Si no, al reiniciar vuelve a registrar el webhook hacia PRD.
