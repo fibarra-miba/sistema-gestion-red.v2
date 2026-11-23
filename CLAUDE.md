@@ -400,6 +400,6 @@ Reglas del usuario para cualquier sesión (vienen de la experiencia del proyecto
 - **Verificar en navegador real** (Playwright) los cambios de UI antes de darlos por terminados, incluido `@media print`.
 - **Delegar a subagentes solo cuando paga** (tarea ya especificada, paralelizable o ruidosa); el diseño, la integración y la revisión final no se delegan. Revisar todo lo delegado antes de integrar.
 - **Git es la única fuente de verdad.** Una sesión por vez sobre el repo: `pull` al empezar, `push` al terminar (con permiso).
-- **Dónde trabaja el agente:** en una máquina de desarrollo (Windows/WSL2, la VM, o Claude Code web sobre el repo), **nunca dentro del servidor de PRD**. El servidor solo corre el sistema y recibe imágenes del CI; si hay que tocarlo, es por SSH con aprobación caso a caso.
+- **Dónde trabaja el agente:** en una máquina de desarrollo (la VM de DEV — ver [docs/vm-dev.md](docs/vm-dev.md) —, o Claude Code web sobre el repo), **nunca dentro del servidor de PRD**. El servidor solo corre el sistema y recibe imágenes del CI; si hay que tocarlo, es por SSH con aprobación caso a caso.
 - **Secretos:** nunca por chat, git, docs ni tickets. Se crean en su consola y se cargan directo donde se usan (ver [docs/secretos.md](docs/secretos.md)).
 - **PRD tiene datos reales:** nunca `reset` ni `down -v`; backup etiquetado antes de tocar nada; correcciones de datos sin endpoint → SQL en transacción + evento `CORRECCION_DATOS` (ver [docs/operacion.md](docs/operacion.md)).

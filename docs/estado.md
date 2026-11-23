@@ -3,7 +3,7 @@
 Punto de partida para cualquier sesión de trabajo: dónde estamos, qué se decidió y por qué, y qué
 sigue. **Actualizar este archivo al cerrar cada sesión** que cambie el estado.
 
-Última actualización: **2026-11-22** (corte de PRD al servidor: Fase 0 cerrada).
+Última actualización: **2026-11-23** (Fase 1: la VM pasa a ser el ambiente DEV, [vm-dev.md](vm-dev.md)).
 
 Leer también: [CLAUDE.md](../CLAUDE.md) (contrato y forma de trabajo) · [README](../README.md)
 (comandos, ambientes, repos) · [operacion.md](operacion.md) (reglas de negocio y carga de datos
@@ -27,24 +27,27 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
   Ver §3.
 - **Servidor de PRD contratado y endurecido (2026-11-10)**, todavía sin el sistema: Hostinger KVM 2 en
   São Paulo, `red.fiba-soluciones.com.ar`. Detalle en [servidor.md](servidor.md).
-- **DEV pasa a la PC Windows del usuario** (WSL2 + Docker, repo dentro del disco de WSL, no en `D:\`:
-  sobre `/mnt/d` el hot reload no anda, el `chmod 600` de los env no aplica y `node_modules` se
-  rompe). ~~La VM se retira después del corte de PRD~~: cambió el 2026-11-22, la VM queda como
-  ambiente DEV (ver Hoja de ruta abajo).
-- **El agente ya trabaja desde la PC Windows** (decidido 2026-11-22). Desde el corte la VM no
-  tiene PRD activo; la Fase 1 la convierte en el ambiente DEV.
+- **DEV vive en la VM** desde la Fase 1 (2026-11-23): red solo-anfitrión `192.168.56.11`, fuera de
+  la LAN, manejada desde la app de Claude en la PC. Ficha, acceso y snapshots: [vm-dev.md](vm-dev.md).
+  El DEV en WSL de la PC se retiró ese día. **Objetivo del titular: que nada de estas aplicaciones
+  quede en la PC** (lo que valga la pena, a git o a la VM); la limpieza de la PC queda pendiente.
 - **Hoja de ruta (decidida 2026-11-22):**
   - **Fase 0 — PRD en el servidor, funcionando y probado, con n8n operativo.** Son los pasos 3 a 8
     de §3. **Cerrada el 2026-11-22.** El alcance de lo que n8n automatiza contra el sistema se define cuando toque implementarlo.
   - **Fase 1 — la VM pasa a ser el ambiente DEV puro** de las aplicaciones personales, manejada desde
     la PC: snapshot base, IP reservada, puertos de DEV cerrados a la LAN, acceso por clave SSH y
-    sesiones de Claude Code en la VM dirigidas desde la app.
+    sesiones de Claude Code en la VM dirigidas desde la app. **Hecha el 2026-11-23**
+    ([vm-dev.md](vm-dev.md) §5): IP fija y cierre a la LAN resueltos juntos con NAT + solo-anfitrión
+    (sin reserva en el router), `sudo` sin contraseña para `admin` (decisión del titular: es DEV),
+    SSH solo con clave, limpieza con resguardos en `~/archivo/` de la VM y `~/.claude` unificado.
+    **Falta:** limpiar la PC (clones de `D:\`, claves y memorias de estas aplicaciones; nunca lo
+    corporativo/SAP de `~/.claude`).
   - **Fase 2 — "dev automation" en la VM:** plantilla de proyecto (launcher, env, rango de puertos,
     verificación), flujo rama → operarios → verificación → PR → CI, snapshots antes de lo riesgoso.
   - **Por qué este orden:** la Fase 1 le da al agente autonomía dentro de la VM, y eso solo es
     aceptable cuando PRD con datos reales ya no vive ahí. Mientras tanto, la VM solo se toca por SSH
     con aprobación de cada comando. El paso 9 (DEV en WSL2) queda reemplazado por la Fase 1; el
-    Docker de WSL sigue para chequeos rápidos.
+    Docker de WSL también se retiró (2026-11-23).
 
 ## 2. Repos y modelo de trabajo
 
@@ -212,19 +215,14 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 - **Disco de la VM (2026-11-22):** estaba al 94% (3,8 GB libres). Con un backup etiquetado de PRD
   antes (`pre-limpieza-disco`) se borraron la caché de builds de Docker (11,5 GB), las imágenes que
   ningún contenedor usaba, 18 volúmenes sin nombre y las cachés de npm/Chrome/pnpm/uv: quedó al 67%
-  (19 GB libres). PRD no se tocó. Siguen sin decidir, para la Fase 1: `infra_pgdata`, el volumen del
-  hackatón y el stack detenido `agente_vendedor`.
-- **Volumen `infra_pgdata` (615 MB, del 2026-04-24, sin contenedor):** parece la base de RED anterior
-  a la separación DEV/PRD. Revisar el contenido con el usuario antes de decidir; no borrar a ciegas.
-- **Ramas solo locales en la VM** `backup/main-pre-limpieza` y `backup/plataforma-pre-limpieza`:
-  pueden tener el historial previo a la limpieza de credenciales por defecto. Decidir si se archivan
-  (fuera de GitHub) o se borran.
-- `~/.claude/` de la VM (memorias, agentes, skills) para el DEV en Windows.
-- La VM aloja **otros stacks que no son de RED** (SaludConecta, Gestión Stock, agente_vendedor, un
-  volumen del hackatón): resolverlos antes de apagarla.
-- **Dónde se prueba la adaptación:** la PC Windows ya tiene Docker en WSL2 (desde el 2026-11-22, ver
-  §6): builds, compose y suite se prueban ahí; lo que dependa del host real (certificado, DNS,
-  backups) se prueba en el servidor nuevo antes de que tenga datos reales.
+  (19 GB libres). PRD no se tocó.
+- **Resuelto en la Fase 1 (2026-11-23, [vm-dev.md](vm-dev.md) §5):** `infra_pgdata` era la base de
+  RED de abril a junio con solo datos demo y de tests → borrado. Volumen del hackatón → se queda.
+  `agente_vendedor` (VenderIA) → se queda detenido, se retoma más adelante. Ramas `backup/*` →
+  bundle en `~/archivo/` de la VM (fuera de GitHub) y borradas. `~/.claude/` de la VM → se queda
+  allá, unificado con la PC. Los otros stacks siguen viviendo en la VM, que ya no se retira.
+- **Dónde se prueba:** en la VM (DEV); lo que dependa del host real (certificado, DNS, backups) se
+  prueba en el servidor antes de tocar datos reales.
 
 ## 4. Pendientes de datos y negocio (PRD)
 
@@ -271,6 +269,5 @@ Se resuelven con el usuario, nunca por iniciativa propia (ver operacion.md para 
   front los tipa `number`; 5 warnings de lint (`react-refresh/only-export-components`) preexistentes.
   La suite da warnings de deprecación (no fallos): `datetime.utcnow()` en los tests, una clave de
   config de Pydantic v1 y el atajo `app=` de httpx.
-- **Docker en la PC Windows:** distro `Ubuntu-24.04` de WSL con Docker Engine oficial (sin Docker
-  Desktop), todavía sin usuario propio (se entra como root; crear el usuario es del usuario). Clon de
-  prueba en `/root/ci/red-v2` con un `.env.dev` descartable de contraseñas aleatorias.
+- **Docker en la PC Windows:** ya no hay (2026-11-23). La distro `Ubuntu-24.04` de WSL, que solo
+  tenía material de prueba de RED, se desregistró; Docker y DEV viven en la VM.
