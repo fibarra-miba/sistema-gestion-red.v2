@@ -162,7 +162,14 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    alguna noche puede fallar); alertas si un backup falla (con el monitoreo externo).
 6. n8n en el servidor: export de los 2 workflows y la credencial de la VM, import en la 2.48.7
    (probarlo antes del corte), y volver a registrar el webhook de Telegram con la URL del servidor.
-7. **Revisión de los datos de PRD con el usuario** (pedido explícito; backup etiquetado antes).
+7. ~~Revisión de los datos de PRD con el usuario~~ (hecho 2026-11-22). Revisada la base de la VM en
+   solo lectura: **sin cambios desde el 2026-10-05** (26 clientes, 4 con apellido `S/D`, 26
+   contratos, 25 pagos; última actividad: cobros y recibos de garantías). La "actualización de
+   datos" que el titular recordaba no está ni en PRD ni en DEV de la VM. **Decisión del titular:
+   PRD viaja exactamente así**, para tener la visión real de qué corregir o agregar; las
+   correcciones se hacen después del corte, en el servidor (backup + SQL en transacción + evento
+   `CORRECCION_DATOS`). Acceso desde la PC a la VM por clave `red_vm` (`ssh red-vm`, servidor.md
+   §2), cada comando aprobado.
 8. Corte: escritura congelada en la VM, dump final que viaja **directo de la VM al servidor** (nunca
    por la PC Windows ni por chat), restore, verificación y monitoreo externo. La VM queda apagada un
    tiempo como respaldo.
@@ -194,6 +201,11 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
 - Lo que viaja: el dump final de PRD (directo de la VM al servidor), el export de n8n (workflows y
   credenciales) y su `N8N_ENCRYPTION_KEY` (sin ella las credenciales guardadas no se abren). El resto
   de los secretos se **generan de nuevo** para el servidor, no se copian.
+- **Disco de la VM (2026-11-22):** estaba al 94% (3,8 GB libres). Con un backup etiquetado de PRD
+  antes (`pre-limpieza-disco`) se borraron la caché de builds de Docker (11,5 GB), las imágenes que
+  ningún contenedor usaba, 18 volúmenes sin nombre y las cachés de npm/Chrome/pnpm/uv: quedó al 67%
+  (19 GB libres). PRD no se tocó. Siguen sin decidir, para la Fase 1: `infra_pgdata`, el volumen del
+  hackatón y el stack detenido `agente_vendedor`.
 - **Volumen `infra_pgdata` (615 MB, del 2026-04-24, sin contenedor):** parece la base de RED anterior
   a la separación DEV/PRD. Revisar el contenido con el usuario antes de decidir; no borrar a ciegas.
 - **Ramas solo locales en la VM** `backup/main-pre-limpieza` y `backup/plataforma-pre-limpieza`:

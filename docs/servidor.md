@@ -64,6 +64,11 @@ en pausa. Sin IA, RED con n8n necesita ~4,5–5,5 GB.
   Lo que no funcionó, para no repetirlo: el agente de Windows está deshabilitado (habilitarlo pide
   administrador) y el `ControlMaster` del SSH de Git para Windows abre la conexión pero no la puede
   reutilizar (`mux_client_request_session ... Connection reset`).
+- **La VM** (PRD real hasta el corte) también se alcanza desde la PC con clave, desde el
+  2026-11-22: `red_vm` (ed25519, con passphrase, solo en la PC) instalada en `authorized_keys` de
+  `admin`; acceso corto `red-vm` (192.168.10.11, IP por DHCP: reservarla en el router). Se carga
+  en el mismo `ssh-agent` (`ssh-add -t 4h /c/Users/facun/.ssh/red_vm`). Cada comando del agente
+  en la VM se aprueba uno por uno.
 - Lo que necesita `sudo` (contraseña de `fiba`) lo corre el titular:
   `ssh -t red-prd "sudo ..."`.
 

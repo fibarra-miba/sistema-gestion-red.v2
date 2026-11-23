@@ -62,6 +62,7 @@ cp infra/.env.prd.example infra/.env.prd && chmod 600 infra/.env.prd
 | Secreto | Dónde vive | Notas |
 |---|---|---|
 | Clave SSH `red_prd` (ed25519) | Privada solo en la PC Windows del titular (`%USERPROFILE%\.ssh\red_prd`); la pública en `authorized_keys` de `fiba` | Con passphrase, guardada en el gestor de contraseñas. Si se pierde la PC o la passphrase: generar otra clave y cargarla por la consola del panel de Hostinger |
+| Clave SSH `red_vm` (ed25519, desde 2026-11-22) | Privada solo en la PC Windows (`%USERPROFILE%\.sshed_vm`); la pública en `authorized_keys` de `admin` en la VM | Con passphrase, en el gestor de contraseñas. Da acceso a la VM, que hasta el corte tiene PRD con datos reales |
 | Contraseña de `fiba` | Gestor de contraseñas | Solo sirve para `sudo`: SSH no acepta contraseñas |
 | Contraseña de root del VPS | Gestor de contraseñas | Root no entra por SSH; queda para la consola de emergencia del panel |
 | Deploy key `red_plataforma_deploy` (ed25519, desde 2026-11-22) | Solo en el servidor (`~fiba/.ssh/`); la pública en `red-plataforma` → Deploy keys, **solo lectura** | Sin passphrase a propósito (la usa `git pull` sin nadie delante). Si se compromete: borrarla en GitHub y generar otra en el servidor |
