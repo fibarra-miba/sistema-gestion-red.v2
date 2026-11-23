@@ -21,6 +21,19 @@ quedaban abiertos a toda la LAN (Docker pasa por encima de UFW) y la IP dependí
 router. Con NAT + solo-anfitrión la VM tiene IP fija sin tocar el router y nada de la LAN la alcanza,
 sin cambiar el compose de ningún proyecto.
 
+## 1bis. Quién hace qué (desde 2026-11-23)
+
+| Lugar | Rol | Qué hay |
+|---|---|---|
+| **PC Windows**, carpeta `D:\Documentos\Chamba\Personal` | **Centro de control**: consultas de estado, entrada a la VM, operación del servidor | Sin código ni stacks. Memorias de la app con una ficha general por proyecto (`~/.claude/projects/D--Documentos-Chamba-Personal/memory/`) y las claves SSH |
+| **VM** | **Taller**: desarrollo de todos los proyectos, commits, `./red sync-plataforma` | Clones, stacks DEV, memorias detalladas de cada proyecto |
+| **Servidor** | PRD de RED | Datos reales. Se opera desde la PC con `ssh red-prd`, comando por comando. La clave `red_prd` **nunca va a la VM**, porque ahí el agente tiene autonomía total |
+
+El detalle fino de un proyecto se lee en vivo desde la VM
+(`ssh red-vm cat ~/projects/<proyecto>/docs/...`). No hay clones en la PC: los de `D:\` se
+retiraron el 2026-11-23. Cuando una sesión en la VM cambie algo de fondo, se actualiza la ficha del
+proyecto en el centro de control.
+
 ## 2. Acceso desde la PC
 
 `%USERPROFILE%\.ssh\config`:

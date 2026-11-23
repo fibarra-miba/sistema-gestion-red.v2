@@ -29,8 +29,9 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
   São Paulo, `red.fiba-soluciones.com.ar`. Detalle en [servidor.md](servidor.md).
 - **DEV vive en la VM** desde la Fase 1 (2026-11-23): red solo-anfitrión `192.168.56.11`, fuera de
   la LAN, manejada desde la app de Claude en la PC. Ficha, acceso y snapshots: [vm-dev.md](vm-dev.md).
-  El DEV en WSL de la PC se retiró ese día. **Objetivo del titular: que nada de estas aplicaciones
-  quede en la PC** (lo que valga la pena, a git o a la VM); la limpieza de la PC queda pendiente.
+  El DEV en WSL de la PC se retiró ese día. La PC queda como **centro de control**, sin código: se
+  consulta, se entra a la VM y se opera el servidor desde `D:\Documentos\Chamba\Personal`. El
+  desarrollo, los commits y el sync a `red-plataforma` se hacen en la VM.
 - **Hoja de ruta (decidida 2026-11-22):**
   - **Fase 0 — PRD en el servidor, funcionando y probado, con n8n operativo.** Son los pasos 3 a 8
     de §3. **Cerrada el 2026-11-22.** El alcance de lo que n8n automatiza contra el sistema se define cuando toque implementarlo.
@@ -40,8 +41,9 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
     ([vm-dev.md](vm-dev.md) §5): IP fija y cierre a la LAN resueltos juntos con NAT + solo-anfitrión
     (sin reserva en el router), `sudo` sin contraseña para `admin` (decisión del titular: es DEV),
     SSH solo con clave, limpieza con resguardos en `~/archivo/` de la VM y `~/.claude` unificado.
-    **Falta:** limpiar la PC (clones de `D:\`, claves y memorias de estas aplicaciones; nunca lo
-    corporativo/SAP de `~/.claude`).
+    **PC limpia el mismo día:** queda como **centro de control** (`D:\Documentos\Chamba\Personal`,
+    sin código; fichas de memoria por proyecto; operación del servidor), con los clones de `D:\`
+    retirados y el desarrollo en la VM ([vm-dev.md](vm-dev.md) §1bis).
   - **Fase 2 — "dev automation" en la VM:** plantilla de proyecto (launcher, env, rango de puertos,
     verificación), flujo rama → operarios → verificación → PR → CI, snapshots antes de lo riesgoso.
   - **Por qué este orden:** la Fase 1 le da al agente autonomía dentro de la VM, y eso solo es
@@ -65,10 +67,10 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
 - Git es la única fuente de verdad: una sesión por vez, `pull` al empezar, `push` al terminar.
 - **Se mantienen los dos repos** (decidido 2026-11-11): `red-plataforma` es el repo de PRD y v2 sigue
   siendo el de trabajo.
-- **Clones en la PC Windows** (con `core.autocrlf=false` para que `red` y los hooks queden con LF):
-  `D:\Documentos\Chamba\Personal\SistemaRED-prd` (`red-plataforma`) y `...\SistemaRED-v2` (v2, con
-  el remoto `plataforma` y la rama `plataforma-main` desde el 2026-11-22: el sync se corre acá). La
-  sesión de infraestructura trabaja ahí.
+- **Clones:** solo en la VM (`~/projects/sistema-red-cloude`, con el remoto `plataforma` y la rama
+  `plataforma-main`: el sync se corre ahí). Los clones de la PC (`D:\...\SistemaRED-prd` y
+  `...\SistemaRED-v2`) se retiraron el 2026-11-23. La PC es el centro de control, sin código
+  ([vm-dev.md](vm-dev.md) §1bis).
 - **Commits hechos directo en `red-plataforma`** (pasó el 2026-11-10 con `fca2887`): desde
   `c3850da` el sync los tolera. Hace `fetch`, los detecta y frena pidiendo el `git cherry-pick -x`
   a correr en `main`; después se vuelve a correr el sync. Nunca fuerza el push. Igual conviene
