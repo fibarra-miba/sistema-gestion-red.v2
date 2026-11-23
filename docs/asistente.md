@@ -78,9 +78,9 @@ y respuestas de las herramientas. Cada punto apunta a eso:
    | Audio que se responde con la memoria | 1 (+ transcripción) | 1.307 |
 
    El piso de cada llamado es de unos 600 tokens (prompt y herramientas): ahí funciona la caché
-   implícita. **Ajuste anotado:** ante "¿cuántos Juan hay?" el agente abrió además la ficha, que no
-   hacía falta (unos 1.500 tokens de más). Afinar la regla del prompt para que la ficha se pida
-   solo cuando la pregunta la necesita.
+   implícita. **Ajuste hecho (2026-11-23):** ante "¿cuántos Juan hay?" el agente abría además la
+   ficha, que no hacía falta (unos 1.500 tokens de más). La regla del prompt ahora pide la ficha
+   solo si la pregunta necesita contratos, saldo, garantías o la próxima instalación.
 
 ## 4. Herramientas por fase
 
@@ -133,6 +133,11 @@ siguiente).
   `n8n import:workflow --input=...`, volver a elegir las credenciales en los nodos (los ids
   cambian) y **cambiar `COOKIE` en el nodo "Contexto"** por el `SESSION_COOKIE_NAME` de PRD. Después
   activarlo desde el editor.
+- **Actualizar el workflow** (DEV o PRD) después de cambiarlo en el repo: `n8n import:workflow` sobre
+  el mismo id **lo desactiva**, así que después va `n8n publish:workflow --id=asistenteRedTelegram`
+  (lo aplica en caliente, sin reiniciar). En PRD, antes de importar, poner las credenciales y la
+  cookie de PRD (ids en el n8n del servidor). Para confirmar el webhook sin ver el token se lee
+  `getWebhookInfo` desde dentro del contenedor.
 - **DEV en la VM:** mientras VirtualBox corra sobre el hipervisor de Windows, la VM se congela a
   ratos (de 1 a 6 minutos). Un mensaje que cae en uno de esos cortes falla y hay que repetirlo. En
   PRD no aplica. Se arregla con `bcdedit /set hypervisorlaunchtype off` en la PC (pendiente, lo
@@ -147,8 +152,8 @@ siguiente).
 - [x] **Workflow "Asistente RED" con Gemini**, exportado a `infra/n8n/workflows/asistente-red.json`.
 - [x] Prueba de punta a punta en DEV con el bot actual: comandos, las consultas, la memoria y un
   audio. Usuario `admin` vinculado. Medición de tokens en §3.8.
-- [ ] Afinar la regla de la ficha en el prompt (§3.8) y desactivar el workflow "Telegram" del n8n
-  del servidor.
+- [x] Regla de la ficha afinada (§3.8), aplicada en DEV y PRD. Workflow "Telegram" viejo del
+  servidor desactivado.
 - [x] **PRD (2026-11-23):** backup `asistente-pre` (snapshot restic `81d69374`), migración
   aplicada, `ASISTENTE_SECRETO` generado en el servidor, deploy `sha-944991c`, workflow importado
   (cookie `red_session_prd`) y activo con **@SistemaREDBot**; `fibarra` vinculado. Verificado:
