@@ -4,7 +4,7 @@ Qué servidor tiene PRD, cómo se llega a él y qué configuración tiene aplica
 host y para rehacerlo desde cero si hiciera falta. **Ningún secreto va acá**: solo dónde vive cada
 uno (ver [secretos.md](secretos.md)).
 
-Estado: **en producción desde el 2026-11-22** con los datos reales de la VM. Versión: `RED_TAG=sha-bd572ae` (2026-11-23; el corte se hizo con `sha-4642713`).
+Estado: **en producción desde el 2026-11-22** con los datos reales de la VM. Versión: `RED_TAG=sha-944991c` (2026-11-23, asistente de Telegram; antes `sha-bd572ae`; el corte se hizo con `sha-4642713`).
 Corren Traefik (certificado real de Let's Encrypt, se renueva solo), api, frontend, la base, n8n
 con el bot de Telegram y el socket-proxy. Cómo se hizo el corte: [corte.md](corte.md).
 
@@ -197,14 +197,18 @@ autorización con `rclone authorize "drive" <client_id> <client_secret>`.
 
 ## 8. n8n (desde el corte, 2026-11-22)
 
-- **Editor:** solo en `127.0.0.1:5678` del servidor. Túnel desde Git Bash en la PC (en CMD, el
-  `ssh` de Windows no usa el agente de Git):
-  `ssh -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -N -L 127.0.0.1:5678:127.0.0.1:5678 red-prd`
-  y abrir **`http://127.0.0.1:5678`** (no `localhost`: Chrome prueba `::1` primero y el túnel es
-  IPv4). Cuenta de dueño del titular (contraseña en su gestor).
-- **Workflows:** "Telegram" activo (Telegram Trigger → If → mensaje), webhook registrado en
-  `https://red.fiba-soluciones.com.ar/webhook/…`; "Gmail" inactivo, sin credencial. Una credencial
-  `telegramApi`.
+- **Editor:** solo en `127.0.0.1:5678` del servidor. En la PC se abre en **`http://localhost:15678`**
+  (DEV queda en `http://127.0.0.1:5678`: otro puerto y otro nombre de host, así el navegador no
+  mezcla las sesiones de los dos n8n). n8n solo acepta `localhost` o `127.0.0.1` sin HTTPS (cookie
+  segura): `127.0.0.2` no sirve. Túnel desde **CMD** (usa el `ssh` y el agente de Git):
+  `set "SSH_AUTH_SOCK=/c/Users/facun/.ssh/agent.sock" && "C:\Program Files\Git\usr\bin\ssh.exe" -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -N -L localhost:15678:127.0.0.1:5678 red-prd`.
+  Cuenta de dueño del titular (contraseña en su gestor).
+- **Workflows (2026-11-23):** **"Asistente RED"** activo (ver [asistente.md](asistente.md)), bot
+  **@SistemaREDBot**, webhook en `https://red.fiba-soluciones.com.ar/webhook/…`. "Telegram" (el
+  eco del corte) **desactivado**: comparte la credencial del bot de PRD, así que no hay que
+  reactivarlo (le sacaría el webhook al asistente). "Gmail" inactivo, sin credencial.
+- **Credenciales:** *Telegram RED PRD* (token de @SistemaREDBot), *Gemini* y *Asistente RED -
+  secreto* (`ASISTENTE_SECRETO` de `infra/.env.prd`, importada desde el servidor sin mostrarla).
 - **Verificar el webhook** sin ver el token: el bloque G4 de [corte.md](corte.md) (lee la
   credencial dentro del contenedor y consulta `getWebhookInfo`).
 - Reiniciar n8n en un momento tranquilo: mientras arranca (~30 s) responde 200 a los webhooks.

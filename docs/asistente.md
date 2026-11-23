@@ -149,8 +149,11 @@ siguiente).
   audio. Usuario `admin` vinculado. Medición de tokens en §3.8.
 - [ ] Afinar la regla de la ficha en el prompt (§3.8) y desactivar el workflow "Telegram" del n8n
   del servidor.
+- [x] **PRD (2026-11-23):** backup `asistente-pre` (snapshot restic `81d69374`), migración
+  aplicada, `ASISTENTE_SECRETO` generado en el servidor, deploy `sha-944991c`, workflow importado
+  (cookie `red_session_prd`) y activo con **@SistemaREDBot**; `fibarra` vinculado. Verificado:
+  `/api/asistente/sesion` desde Internet da 403. DEV queda con **@RaulcitoBot**.
 - [ ] Fase B (propuestas y confirmación).
-- [ ] PRD: bot nuevo, `ASISTENTE_SECRETO`, migración y workflow importado.
 
 ## 8. Cómo se armó la Fase A en DEV (hecho el 2026-11-23; sirve de guía para PRD)
 
