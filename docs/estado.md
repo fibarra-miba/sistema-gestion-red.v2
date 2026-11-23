@@ -18,9 +18,9 @@ reales) · [secretos.md](secretos.md) (inventario, rotación, gitleaks) · [serv
   **datos reales** del ISP y facturación desde 10/2026.
 - **PRD corre en el servidor desde el 2026-11-22** (`https://red.fiba-soluciones.com.ar`), con los
   datos reales de la VM, n8n con el bot de Telegram y backup diario cifrado a Google Drive. Cómo se
-  hizo, resultado e incidente: [corte.md](corte.md). En la VM quedan DEV y una **copia de PRD
-  apagada** (contenedores detenidos con `restart=no`, volumen intacto, timer de backup
-  deshabilitado) como respaldo por unos días.
+  hizo, resultado e incidente: [corte.md](corte.md). **La VM ya no tiene PRD** (borrado el
+  2026-11-22 por decisión del titular: contenedores, base, n8n, dumps, env files y timer); queda
+  DEV, lista para la Fase 1. Monitoreo externo de uptime con UptimeRobot (cuenta del titular).
 - **Rumbo:** subir PRD a un servidor en la nube. El plan completo está en un documento aparte (plan de
   infraestructura del 30-08-2026, artifact "Infraestructura RED" en claude.ai). Quedó desactualizado
   en tres puntos: backups a Google Drive (no B2), proveedor Hostinger (no Lightsail) y 8 GB (no 16).
@@ -178,8 +178,9 @@ idénticos), sync tolerante a commits directos e inventario de la VM (abajo).
    servidor con el agente reenviado (sha256 iguales), restore en una transacción y **84 tablas con
    las mismas filas**; servicio de vuelta 22:44. **Incidente:** la PRD real tenía `admin` con la
    contraseña de fábrica y quedó expuesta 5 min (único ingreso: el titular); se bloqueó con
-   `CORRECCION_DATOS`, el titular usa su ADMIN `fibarra` y `admin` está desactivado. PRD de la VM
-   apagado sin borrar nada.
+   `CORRECCION_DATOS`, el titular usa su ADMIN `fibarra` y `admin` está desactivado. Después del
+   corte: la API registra la IP real del cliente (`FORWARDED_ALLOW_IPS`, `d9d1adc`), monitoreo en
+   UptimeRobot y **PRD borrado de la VM** (la única copia es el servidor + restic).
 9. ~~DEV en la PC Windows (WSL2) y retiro de la VM~~ → reemplazado por la Fase 1 (§1): la VM no
    se retira, pasa a ser el ambiente DEV.
 

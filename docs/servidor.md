@@ -156,9 +156,7 @@ sin sesiones). Desde entonces el launcher se niega a levantar en modo servidor c
 ## 6. Lo que falta en el host
 
 - Credencial OAuth propia para rclone (ver §7) y alertas si un backup falla.
-- Monitoreo externo de uptime (ver §8).
-- La API registra la IP de Traefik y no la del cliente (auditoría y sesiones): falta confiar en
-  `X-Forwarded-For` de la red `edge`.
+- Alertas de backup fallido (el monitoreo externo solo ve si el sitio responde).
 - n8n 2.48.7 avisa que Postgres 16 está fuera de su rango soportado: subir `postgres_n8n` a 17
   (dump + restore, con backup antes).
 
@@ -212,3 +210,16 @@ autorización con `rclone authorize "drive" <client_id> <client_secret>`.
 - **Verificar el webhook** sin ver el token: el bloque G4 de [corte.md](corte.md) (lee la
   credencial dentro del contenedor y consulta `getWebhookInfo`).
 - Reiniciar n8n en un momento tranquilo: mientras arranca (~30 s) responde 200 a los webhooks.
+
+## 9. Monitoreo e IP del cliente (2026-11-22)
+
+- **Uptime:** UptimeRobot, cuenta del titular (con 2FA), chequeo HTTP cada 5 min con alerta por
+  mail. El que importa es `https://red.fiba-soluciones.com.ar/api/health` (atraviesa Traefik, la
+  API y la conexión a la base); el de la raíz solo prueba el front. Ojo: cualquier ruta inventada
+  (`/login`, `/wp-admin`, ...) da 200 porque el front es una SPA y devuelve `index.html`: esos
+  monitores no prueban nada.
+- **IP real del cliente:** la API tiene `FORWARDED_ALLOW_IPS=*` (overlay del servidor) y toma la IP
+  del `X-Forwarded-For` que pone Traefik. Verificado: un `X-Forwarded-For: 1.2.3.4` mandado desde
+  Internet queda registrado con la IP real (Traefik descarta el del cliente). Si algún día se suma
+  otro proxy delante (p. ej. el de Cloudflare), hay que revisar esto: Traefik vería la IP de
+  Cloudflare.

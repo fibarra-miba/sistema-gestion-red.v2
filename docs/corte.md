@@ -412,6 +412,7 @@ Cuánto tiempo queda así y cuándo se libera (Fase 1) lo decide el titular.
 | H | 22:44 | El titular recorrió los datos con su usuario; Telegram respondió (ejecución en verde) |
 | I | 22:43–22:47 | Backup `corte` a Google Drive con restic (snapshot `f0cc0aa4`); dump de transferencia borrado con `shred` del servidor. Monitoreo externo: a cargo del titular |
 | J | 22:46 | PRD y n8n de la VM detenidos con `restart=no`, volúmenes intactos, `red-backup-prd.timer` deshabilitado. DEV de la VM sigue |
+| — | ~23:30 | Por decisión del titular, **PRD borrado de la VM**: contenedores, volúmenes `red_prd_pgdata`, `infra_n8n_data` e `infra_postgres_n8n_data`, imágenes, redes, los 26 dumps (`shred`), `.env.prd`/`.env.n8n` y el timer. Quedan DEV, `infra_pgdata` y los otros stacks |
 
 Corte de servicio real: 22:23 → 22:44.
 
